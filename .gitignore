@@ -39,11 +39,13 @@ instance/
 # Production Data (NEVER COMMIT)
 data/members.csv
 data/prayer_assignments.csv
+data/backups/
 
 # Only allow example/mock data
 !data/members.example.csv
 !data/prayer_assignments.example.csv
 !data/message_templates.yaml
+!data/sample_*.tsv
 
 # OS
 .DS_Store
