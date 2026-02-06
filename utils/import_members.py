@@ -96,9 +96,12 @@ def parse_prayer_date(date_str: str) -> str:
 
     date_str = date_str.strip()
 
-    # Strip trailing markers (c, o, ?)
-    if date_str and date_str[-1] in ('c', 'o', '?', 'C', 'O'):
-        date_str = date_str[:-1].strip()
+    # Strip trailing markers (c, o, ?) - keep stripping until none left
+    # Handles cases like "5/25/25C?" or "12-05-2023 c o"
+    while date_str and date_str[-1] in ('c', 'o', '?', 'C', 'O', ' ', '\t'):
+        date_str = date_str[:-1]
+
+    date_str = date_str.strip()
 
     # List of formats to try, in order of likelihood
     formats = [
