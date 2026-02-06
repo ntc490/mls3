@@ -41,17 +41,21 @@ def index():
 
 @app.route('/members')
 def members_list():
-    """List all active members (for testing)"""
-    members = members_db.get_active_members()
-    men = [m for m in members if m.gender == 'M']
-    women = [m for m in members if m.gender == 'F']
+    """List all members"""
+    all_members = members_db.members
+    active_members = [m for m in all_members if m.active]
+    inactive_members = [m for m in all_members if not m.active]
+
+    active_men = [m for m in active_members if m.gender == 'M']
+    active_women = [m for m in active_members if m.gender == 'F']
 
     return render_template(
         'members_list.html',
-        members=members,
-        all_count=len(members),
-        men_count=len(men),
-        women_count=len(women)
+        members=all_members,  # Pass all members now
+        active_count=len(active_members),
+        inactive_count=len(inactive_members),
+        men_count=len(active_men),
+        women_count=len(active_women)
     )
 
 

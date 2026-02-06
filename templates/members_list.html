@@ -9,9 +9,10 @@
     <div class="filters">
         <input type="text" id="search-box" placeholder="Search members..." class="search-input">
         <div class="filter-buttons">
-            <button class="btn btn-filter active" data-filter="all">All ({{ all_count }})</button>
+            <button class="btn btn-filter active" data-filter="active">Active ({{ active_count }})</button>
             <button class="btn btn-filter" data-filter="M">Men ({{ men_count }})</button>
             <button class="btn btn-filter" data-filter="F">Women ({{ women_count }})</button>
+            <button class="btn btn-filter" data-filter="inactive">Inactive ({{ inactive_count }})</button>
         </div>
         <div class="sort-buttons">
             <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
@@ -21,14 +22,15 @@
 
     <div class="members-grid" id="members-grid">
         {% for member in members %}
-        <div class="member-card clickable"
+        <div class="member-card clickable {% if not member.active %}inactive-member{% endif %}"
              data-gender="{{ member.gender }}"
              data-name="{{ member.full_name|lower }}"
              data-first-name="{{ member.first_name|lower }}"
              data-last-name="{{ member.last_name|lower }}"
              data-prayer-date="{{ member.last_prayer_date if member.last_prayer_date else '1900-01-01' }}"
+             data-active="{{ 'true' if member.active else 'false' }}"
              onclick="openMemberModal({{ member.member_id }})">
-            <h3>{{ member.full_name }}</h3>
+            <h3>{{ member.full_name }}{% if not member.active %} <span class="inactive-badge">Inactive</span>{% endif %}</h3>
             <p><strong>Gender:</strong> {{ member.gender }}</p>
             <p><strong>Phone:</strong> {{ member.phone }}</p>
             {% if member.last_prayer_date %}
@@ -58,7 +60,7 @@
     const sortAlphaBtn = document.getElementById('sort-alpha');
     const sortPrayerBtn = document.getElementById('sort-prayer');
 
-    let currentFilter = 'all';
+    let currentFilter = 'active'; // Default to showing active members
     let alphaSort = null; // null, 'asc', 'desc'
     let prayerSort = null; // null, 'asc', 'desc'
 
@@ -159,7 +161,20 @@
 
         // Filter cards
         let visibleCards = memberCards.filter(card => {
-            const matchesFilter = currentFilter === 'all' || card.dataset.gender === currentFilter;
+            const isActive = card.dataset.active === 'true';
+            const gender = card.dataset.gender;
+
+            // Determine if card matches the current filter
+            let matchesFilter = false;
+            if (currentFilter === 'active') {
+                matchesFilter = isActive;
+            } else if (currentFilter === 'inactive') {
+                matchesFilter = !isActive;
+            } else if (currentFilter === 'M' || currentFilter === 'F') {
+                // Gender filters only show active members of that gender
+                matchesFilter = isActive && gender === currentFilter;
+            }
+
             const matchesSearch = fuzzyMatch(searchTerm, card);
 
             if (matchesFilter && matchesSearch) {

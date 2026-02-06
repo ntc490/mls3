@@ -871,6 +871,29 @@ input:checked + .slider:before {
     border-color: var(--primary-color);
 }
 
+/* Inactive Members */
+.member-card.inactive-member {
+    opacity: 0.6;
+    background: #f0f0f0;
+    border-color: #ccc;
+}
+
+.member-card.inactive-member:hover {
+    opacity: 0.8;
+}
+
+.inactive-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    background: #6c757d;
+    color: white;
+    border-radius: 4px;
+    margin-left: 0.5rem;
+    text-transform: uppercase;
+}
+
 /* Toast Notifications */
 .toast {
     position: fixed;
