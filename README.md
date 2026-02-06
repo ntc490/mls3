@@ -179,19 +179,26 @@ Edit `config.py` or use environment variables:
 
 ## Current Status
 
-**Phase 1a: Core Infrastructure - COMPLETE ✅**
+### ✅ Phase 1 Complete - Prayer Scheduling System Ready for Production!
 
-- Flask app running with basic routing
-- CSV data models for members and assignments
-- Mobile-responsive UI foundation
-- Mock data for development
-- Data separation strategy implemented
+**Completed Features:**
+- ✅ Phase 1a: Core Infrastructure
+- ✅ Phase 1b: Member Database & Import
+- ✅ Phase 1c: Prayer Scheduler UI
+- ✅ Phase 1d: Candidate Selection Algorithm
+- ✅ Phase 1e: SMS Integration
+- ✅ Phase 1f: State Management & Workflow
+- ✅ Phase 1g: Active Queue & Multi-Week Support
+- ✅ Phase 1h: Mobile Optimization & Polish
+- ✅ Phase 1i: Documentation & Deployment
 
-**Next Steps:**
-- Phase 1b: Member database and import functionality
-- Phase 1c: Prayer scheduler UI with editable bubbles
-- Phase 1d: Candidate selection algorithm
-- Phase 1e: SMS integration
+**Ready to Use:**
+- Full prayer scheduling workflow
+- Fair rotation candidate selection
+- SMS invitations and reminders
+- Multi-week planning with active queue
+- Mobile-optimized interface
+- Termux deployment support
 
 ## Development
 
@@ -229,6 +236,37 @@ See `mls-master-plan.md` for detailed development roadmap and architecture.
 
 Private project for personal church use.
 
+## Documentation
+
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete Termux deployment guide
+- **[TESTING.md](TESTING.md)** - Testing checklist for verification
+- **[mls-master-plan.md](mls-master-plan.md)** - System architecture and design
+- **[README.md](README.md)** - This file (quick start guide)
+
+## Getting Started
+
+### For Development (Desktop)
+```bash
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+export MLS3_DEBUG_SMS=true
+python app.py
+```
+
+### For Production (Termux)
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete setup guide.
+
+Quick start:
+```bash
+cd ~/storage/shared/mls3
+export MLS3_DATA_DIR=~/mls3-data
+./start.sh
+```
+
 ## Support
 
-For issues or questions, refer to the master plan document or create an issue in the repository.
+- **Deployment Issues**: See [DEPLOYMENT.md](DEPLOYMENT.md)
+- **Testing**: See [TESTING.md](TESTING.md)
+- **Architecture**: See [mls-master-plan.md](mls-master-plan.md)
+- **Questions**: Create an issue in the repository
