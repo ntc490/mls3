@@ -17,7 +17,7 @@
 
     <div class="members-grid" id="members-grid">
         {% for member in members %}
-        <div class="member-card" data-gender="{{ member.gender }}" data-name="{{ member.full_name|lower }}">
+        <div class="member-card clickable" data-gender="{{ member.gender }}" data-name="{{ member.full_name|lower }}" onclick="openMemberModal({{ member.member_id }})">
             <h3>{{ member.full_name }}</h3>
             <p><strong>Gender:</strong> {{ member.gender }}</p>
             <p><strong>Phone:</strong> {{ member.phone }}</p>

@@ -22,10 +22,73 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Member Info Modal -->
+    <div id="memberInfoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalMemberName">Member Info</h2>
+                <button class="close-btn" onclick="closeMemberModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="member-info-section">
+                    <div class="info-row">
+                        <span class="info-label">Gender:</span>
+                        <span id="modalGender"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Birthday:</span>
+                        <span id="modalBirthday"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Phone:</span>
+                        <span id="modalPhone"></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Recommend Exp:</span>
+                        <span id="modalRecommend"></span>
+                    </div>
+                    <div class="info-row" id="modalNotesRow" style="display: none;">
+                        <span class="info-label">Notes:</span>
+                        <span id="modalNotes"></span>
+                    </div>
+                </div>
+
+                <div class="member-toggles-section">
+                    <div class="toggle-row">
+                        <span class="toggle-label">Active Member</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggleActive">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="toggle-row">
+                        <span class="toggle-label">Don't Ask for Prayers</span>
+                        <label class="switch">
+                            <input type="checkbox" id="toggleDontAsk">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="member-actions-section">
+                    <button id="sendTextBtn" class="btn btn-secondary">Send Text Message</button>
+                </div>
+
+                <div class="prayer-history-section">
+                    <h3>Prayer History</h3>
+                    <div id="prayerHistoryList" class="prayer-history-list">
+                        <p class="text-muted">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <p>MLS3 - Member Leadership Scheduling System</p>
     </footer>
 
+    <script src="{{ url_for('static', filename='js/member_modal.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

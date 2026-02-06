@@ -285,16 +285,14 @@
 
     // Clear member selection
     async function clearMember(assignmentId) {
-        if (confirm('Clear the selected person?')) {
-            const response = await fetch(`/api/assignments/${assignmentId}/update`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({member_id: 0})
-            });
+        const response = await fetch(`/api/assignments/${assignmentId}/update`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({member_id: 0})
+        });
 
-            if (response.ok) {
-                location.reload();
-            }
+        if (response.ok) {
+            location.reload();
         }
     }
 

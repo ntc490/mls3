@@ -276,6 +276,83 @@ def api_send_reminder(assignment_id):
         }), 500
 
 
+@app.route('/api/members/<int:member_id>')
+def api_get_member(member_id):
+    """Get member details with prayer history"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Get prayer history for this member
+    member_assignments = [
+        a for a in assignments_db.assignments
+        if a.member_id == member_id and a.state == 'Completed'
+    ]
+
+    # Sort by date descending (most recent first)
+    member_assignments.sort(key=lambda a: a.date, reverse=True)
+
+    # Format prayer history
+    prayer_history = [
+        {
+            'date': a.date,
+            'prayer_type': a.prayer_type,
+            'formatted_date': datetime.strptime(a.date, config.DATE_FORMAT).strftime(config.DISPLAY_DATE_FORMAT)
+        }
+        for a in member_assignments
+    ]
+
+    return jsonify({
+        'id': member.member_id,
+        'name': member.full_name,
+        'first_name': member.first_name,
+        'last_name': member.last_name,
+        'gender': member.gender,
+        'birthday': member.birthday,
+        'phone': member.phone,
+        'recommend_expiration': member.recommend_expiration,
+        'active': member.active,
+        'dont_ask_prayer': member.dont_ask_prayer,
+        'last_prayer_date': member.last_prayer_date,
+        'notes': member.notes,
+        'prayer_history': prayer_history
+    })
+
+
+@app.route('/api/members/<int:member_id>/toggle-active', methods=['POST'])
+def api_toggle_member_active(member_id):
+    """Toggle member active status"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Toggle the active status
+    member.active = not member.active
+    members_db.save()
+
+    return jsonify({
+        'success': True,
+        'active': member.active
+    })
+
+
+@app.route('/api/members/<int:member_id>/toggle-dont-ask', methods=['POST'])
+def api_toggle_dont_ask(member_id):
+    """Toggle member dont_ask_prayer flag"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Toggle the dont_ask_prayer flag
+    member.dont_ask_prayer = not member.dont_ask_prayer
+    members_db.save()
+
+    return jsonify({
+        'success': True,
+        'dont_ask_prayer': member.dont_ask_prayer
+    })
+
+
 @app.template_filter('format_date')
 def format_date_filter(date_obj):
     """Template filter to format dates"""

@@ -8,8 +8,8 @@
         <label>Person</label>
         <div class="bubble-value">
             {% if member %}
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <div>
+                <div class="member-display">
+                    <div class="member-name-section">
                         {{ member.full_name }}
                         {% if member.last_prayer_date %}
                         <span class="date-note">(last: {{ member.last_prayer_date }})</span>
@@ -17,7 +17,10 @@
                         <span class="date-note">(never)</span>
                         {% endif %}
                     </div>
-                    <button class="btn-clear" onclick="event.stopPropagation(); clearMember({{ assignment.assignment_id }})" title="Clear selection">×</button>
+                    <div class="member-actions">
+                        <button class="btn-icon btn-info" onclick="event.stopPropagation(); openMemberModal({{ member.member_id }})" title="Member info">ⓘ</button>
+                        <button class="btn-icon btn-clear" onclick="event.stopPropagation(); clearMember({{ assignment.assignment_id }})" title="Clear selection">×</button>
+                    </div>
                 </div>
             {% else %}
                 <span class="placeholder">Click to select</span>
