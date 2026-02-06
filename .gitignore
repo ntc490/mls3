@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Flask
+instance/
+.webassets-cache
+
+# Production Data (NEVER COMMIT)
+data/members.csv
+data/prayer_assignments.csv
+
+# Only allow example/mock data
+!data/members.example.csv
+!data/prayer_assignments.example.csv
+!data/message_templates.yaml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

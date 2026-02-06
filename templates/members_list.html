@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Members - MLS3{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Active Members</h1>
+
+    <div class="members-grid">
+        {% for member in members %}
+        <div class="member-card">
+            <h3>{{ member.full_name }}</h3>
+            <p><strong>Gender:</strong> {{ member.gender }}</p>
+            <p><strong>Phone:</strong> {{ member.phone }}</p>
+            {% if member.last_prayer_date %}
+            <p><strong>Last Prayer:</strong> {{ member.last_prayer_date }}</p>
+            {% else %}
+            <p><strong>Last Prayer:</strong> Never</p>
+            {% endif %}
+            {% if member.dont_ask_prayer %}
+            <p class="warning">Don't ask for prayers</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

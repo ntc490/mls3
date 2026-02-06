@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}MLS3 - Home{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Welcome to MLS3</h1>
+    <p>Member Leadership Scheduling System</p>
+
+    <div class="info-cards">
+        <div class="card">
+            <h2>Active Members</h2>
+            <p class="stat">{{ member_count }}</p>
+        </div>
+
+        <div class="card">
+            <h2>Next Sunday</h2>
+            <p class="stat">{{ next_sunday | format_date }}</p>
+        </div>
+    </div>
+
+    <div class="actions">
+        <a href="{{ url_for('prayer_scheduler') }}" class="btn btn-primary">Schedule Prayers</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+member_id,first_name,last_name,gender,phone,birthday,recommend_expiration,last_prayer_date,dont_ask_prayer,active,notes
+1,John,Smith,M,555-0101,1980-03-15,2026-06-15,2025-02-10,False,True,
+2,Mary,Johnson,F,555-0102,1982-07-22,2026-08-20,,False,True,Never prayed before
+3,Robert,Williams,M,555-0103,1975-11-08,2026-04-10,2025-01-15,False,True,
+4,Patricia,Brown,F,555-0104,1978-05-30,2026-09-05,2025-03-20,False,True,
+5,Michael,Jones,M,555-0105,1985-09-12,2026-07-18,2024-11-05,False,True,
+6,Jennifer,Garcia,F,555-0106,1990-01-25,2026-05-22,2024-12-08,False,True,
+7,William,Martinez,M,555-0107,1972-06-18,2026-10-30,2025-04-12,False,True,
+8,Linda,Rodriguez,F,555-0108,1988-12-03,2026-03-15,2024-10-20,False,True,
+9,David,Davis,M,555-0109,1983-04-27,2026-11-08,,False,True,New member
+10,Barbara,Miller,F,555-0110,1979-08-14,2026-06-25,2025-01-28,False,True,
+11,Richard,Wilson,M,555-0111,1986-02-09,2026-08-12,2024-09-15,False,True,
+12,Susan,Moore,F,555-0112,1981-10-20,2026-04-18,2025-02-25,False,True,
+13,Joseph,Taylor,M,555-0113,1977-07-05,2026-09-22,,False,True,Willing to help anytime
+14,Jessica,Anderson,F,555-0114,1992-03-28,2026-07-30,2024-08-10,False,True,
+15,Thomas,Thomas,M,555-0115,1984-11-16,2026-05-08,2025-03-05,False,True,
+16,Sarah,Jackson,F,555-0116,1989-06-02,2026-10-15,2024-11-22,False,True,
+17,Christopher,White,M,555-0117,1976-12-21,2026-03-28,2024-12-18,False,True,
+18,Karen,Harris,F,555-0118,1987-09-08,2026-11-20,,False,True,Prefers closing prayers
+19,Daniel,Martin,M,555-0119,1991-04-13,2026-06-05,2025-01-08,False,True,
+20,Nancy,Thompson,F,555-0120,1980-01-30,2026-08-18,2025-04-02,False,True,
+21,Matthew,Lee,M,555-0121,1973-08-25,2026-04-22,2024-10-05,False,True,
+22,Betty,Clark,F,555-0122,1985-05-11,2026-09-10,2024-09-28,False,True,
+23,Mark,Lewis,M,555-0123,1982-02-17,2026-07-03,,True,True,Requested not to be asked
+24,Dorothy,Walker,F,555-0124,1990-11-29,2026-05-16,2025-02-15,False,True,
+25,Paul,Hall,M,555-0125,1978-07-06,2026-10-28,2024-11-12,False,True,
+26,Helen,Allen,F,555-0126,1986-03-22,2026-03-20,2025-03-30,False,True,
+27,Steven,Young,M,555-0127,1981-10-08,2026-11-15,2024-08-25,False,True,
+28,Margaret,Hernandez,F,555-0128,1993-06-14,2026-06-08,2024-10-18,False,True,
+29,Andrew,King,M,555-0129,1974-12-01,2026-08-25,2025-01-22,False,True,
+30,Ruth,Wright,F,555-0130,1988-09-19,2026-04-30,2025-04-10,False,True,

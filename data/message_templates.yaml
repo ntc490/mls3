@@ -1,0 +1,4 @@
+prayer:
+  invite: "Hi {first_name}, would you be willing to say a prayer in sacrament meeting on {date}? Please let me know if opening or closing works better for you."
+  reminder: "Hi {first_name}, just a reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting today. Thank you!"
+  thank_you: "Thanks {first_name} for agreeing to say the {prayer_type} prayer on {date}!"

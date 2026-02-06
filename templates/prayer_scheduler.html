@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Prayer Scheduler - MLS3{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Prayer Scheduler</h1>
+    <h2>{{ next_sunday | format_date }}</h2>
+
+    <div class="assignments-container">
+        <div class="assignment-card">
+            <h3>Opening Prayer</h3>
+
+            {% if opening_assignment %}
+                {% set member = members_db.get_by_id(opening_assignment.member_id) %}
+                <div class="assignment-details">
+                    <div class="bubble">
+                        <label>Person</label>
+                        <div class="bubble-value">
+                            {{ member.full_name }}
+                            {% if member.last_prayer_date %}
+                            <span class="date-note">(last: {{ member.last_prayer_date }})</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bubble">
+                        <label>Date</label>
+                        <div class="bubble-value">{{ next_sunday | format_date }}</div>
+                    </div>
+
+                    <div class="bubble">
+                        <label>Type</label>
+                        <div class="bubble-value">{{ opening_assignment.prayer_type }}</div>
+                    </div>
+
+                    <p><strong>State:</strong> {{ opening_assignment.state }}</p>
+
+                    <div class="actions">
+                        {% if opening_assignment.state == 'Draft' %}
+                        <button class="btn btn-primary">Invite</button>
+                        {% elif opening_assignment.state == 'Invited' %}
+                        <button class="btn btn-success">Accept</button>
+                        <button class="btn btn-danger">Decline</button>
+                        {% elif opening_assignment.state == 'Accepted' %}
+                        <button class="btn btn-primary">Remind</button>
+                        <button class="btn btn-success">Complete</button>
+                        <button class="btn btn-danger">Cancel</button>
+                        {% elif opening_assignment.state == 'Reminded' %}
+                        <button class="btn btn-success">Complete</button>
+                        <button class="btn btn-danger">Cancel</button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="assignment-details">
+                    <p class="empty-state">No assignment created yet</p>
+                    <button class="btn btn-primary">Create Assignment</button>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="assignment-card">
+            <h3>Closing Prayer</h3>
+
+            {% if closing_assignment %}
+                {% set member = members_db.get_by_id(closing_assignment.member_id) %}
+                <div class="assignment-details">
+                    <div class="bubble">
+                        <label>Person</label>
+                        <div class="bubble-value">
+                            {{ member.full_name }}
+                            {% if member.last_prayer_date %}
+                            <span class="date-note">(last: {{ member.last_prayer_date }})</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bubble">
+                        <label>Date</label>
+                        <div class="bubble-value">{{ next_sunday | format_date }}</div>
+                    </div>
+
+                    <div class="bubble">
+                        <label>Type</label>
+                        <div class="bubble-value">{{ closing_assignment.prayer_type }}</div>
+                    </div>
+
+                    <p><strong>State:</strong> {{ closing_assignment.state }}</p>
+
+                    <div class="actions">
+                        {% if closing_assignment.state == 'Draft' %}
+                        <button class="btn btn-primary">Invite</button>
+                        {% elif closing_assignment.state == 'Invited' %}
+                        <button class="btn btn-success">Accept</button>
+                        <button class="btn btn-danger">Decline</button>
+                        {% elif closing_assignment.state == 'Accepted' %}
+                        <button class="btn btn-primary">Remind</button>
+                        <button class="btn btn-success">Complete</button>
+                        <button class="btn btn-danger">Cancel</button>
+                        {% elif closing_assignment.state == 'Reminded' %}
+                        <button class="btn btn-success">Complete</button>
+                        <button class="btn btn-danger">Cancel</button>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="assignment-details">
+                    <p class="empty-state">No assignment created yet</p>
+                    <button class="btn btn-primary">Create Assignment</button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
