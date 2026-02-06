@@ -27,3 +27,7 @@ MESSAGE_TEMPLATES_YAML = DATA_DIR / 'message_templates.yaml'
 NEXT_CANDIDATE_COUNT = 3  # Number of next-up candidates to show per gender
 DATE_FORMAT = '%Y-%m-%d'  # ISO format for CSV storage
 DISPLAY_DATE_FORMAT = '%B %d, %Y'  # "February 9, 2026" for display
+
+# SMS Debug Mode
+# Set MLS3_DEBUG_SMS=true to skip actual SMS sending (for desktop testing)
+DEBUG_SMS = os.getenv('MLS3_DEBUG_SMS', 'false').lower() in ('true', '1', 'yes')

@@ -199,10 +199,20 @@ Edit `config.py` or use environment variables:
 
 ```bash
 source venv/bin/activate
+
+# Enable SMS debug mode (skips actual SMS sending, prints to console)
+export MLS3_DEBUG_SMS=true
+
 python app.py
 ```
 
 Access at `http://localhost:5000`
+
+**SMS Debug Mode**: When `MLS3_DEBUG_SMS=true`, clicking Invite or Remind buttons will:
+- Skip opening the SMS app
+- Print the message to console instead
+- Still update the assignment state as if sent
+- Great for testing on desktop without Termux
 
 ### Available Routes
 

@@ -198,6 +198,70 @@ def api_update_assignment_state(assignment_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/assignments/<int:assignment_id>/invite', methods=['POST'])
+def api_send_invitation(assignment_id):
+    """Send invitation SMS and update state to Invited"""
+    from utils.sms_handler import send_prayer_invitation
+
+    assignment = assignments_db.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+
+    if not assignment.member_id or assignment.member_id == 0:
+        return jsonify({'error': 'No member assigned'}), 400
+
+    member = members_db.get_by_id(assignment.member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Send SMS
+    success = send_prayer_invitation(member, assignment, templates)
+
+    if success:
+        # Update state to Invited
+        assignments_db.update_state(assignment_id, 'Invited')
+        return jsonify({'success': True, 'message': 'SMS sent'})
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Failed to launch SMS app',
+            'phone': member.phone,
+            'member': member.full_name
+        }), 500
+
+
+@app.route('/api/assignments/<int:assignment_id>/remind', methods=['POST'])
+def api_send_reminder(assignment_id):
+    """Send reminder SMS and update state to Reminded"""
+    from utils.sms_handler import send_prayer_reminder
+
+    assignment = assignments_db.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+
+    if not assignment.member_id or assignment.member_id == 0:
+        return jsonify({'error': 'No member assigned'}), 400
+
+    member = members_db.get_by_id(assignment.member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Send SMS
+    success = send_prayer_reminder(member, assignment, templates)
+
+    if success:
+        # Update state to Reminded
+        assignments_db.update_state(assignment_id, 'Reminded')
+        return jsonify({'success': True, 'message': 'SMS sent'})
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Failed to launch SMS app',
+            'phone': member.phone,
+            'member': member.full_name
+        }), 500
+
+
 @app.template_filter('format_date')
 def format_date_filter(date_obj):
     """Template filter to format dates"""

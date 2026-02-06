@@ -283,6 +283,64 @@
         }
     }
 
+    // Send invitation SMS
+    async function sendInvite(assignmentId) {
+        try {
+            const response = await fetch(`/api/assignments/${assignmentId}/invite`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // SMS app should have opened
+                // State was updated to Invited
+                alert('SMS app opened. After sending the message, come back and wait for their response.');
+                location.reload();
+            } else {
+                // Show error with phone number for manual fallback
+                if (result.phone && result.member) {
+                    alert(`Failed to open SMS app.\n\nPlease manually text ${result.member} at ${result.phone}`);
+                } else {
+                    alert('Failed to send invitation: ' + (result.error || 'Unknown error'));
+                }
+            }
+        } catch (error) {
+            console.error('Error sending invitation:', error);
+            alert('Error sending invitation: ' + error.message);
+        }
+    }
+
+    // Send reminder SMS
+    async function sendReminder(assignmentId) {
+        try {
+            const response = await fetch(`/api/assignments/${assignmentId}/remind`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                // SMS app should have opened
+                // State was updated to Reminded
+                alert('SMS app opened. After sending the reminder, come back here.');
+                location.reload();
+            } else {
+                // Show error with phone number for manual fallback
+                if (result.phone && result.member) {
+                    alert(`Failed to open SMS app.\n\nPlease manually text ${result.member} at ${result.phone}`);
+                } else {
+                    alert('Failed to send reminder: ' + (result.error || 'Unknown error'));
+                }
+            }
+        } catch (error) {
+            console.error('Error sending reminder:', error);
+            alert('Error sending reminder: ' + error.message);
+        }
+    }
+
     // Close modal
     function closeModal() {
         document.getElementById('member-modal').style.display = 'none';
