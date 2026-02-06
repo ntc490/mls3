@@ -454,7 +454,8 @@ main {
 
 /* Bubble enhancements */
 .bubble-person:hover::after,
-.bubble-type:hover::after {
+.bubble-type:hover::after,
+.bubble-date:hover::after {
     content: "Click to change";
     position: absolute;
     bottom: 0.5rem;
@@ -501,6 +502,71 @@ main {
 .assignment-empty {
     text-align: center;
     padding: 3rem 1rem;
+}
+
+/* Active Queue */
+.active-queue {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 2px solid var(--border-color);
+}
+
+.active-queue h2 {
+    margin-bottom: 0.5rem;
+}
+
+.queue-description {
+    color: var(--text-light);
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.queue-item {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.queue-item:hover {
+    border-color: var(--primary-color);
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.queue-item-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.queue-date {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.queue-type {
+    padding: 0.25rem 0.5rem;
+    background: var(--light-bg);
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.queue-item-body {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 /* Footer */

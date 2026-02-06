@@ -74,11 +74,25 @@ def prayer_scheduler():
             elif assignment.prayer_type == 'Closing':
                 closing = assignment
 
+    # Get all active assignments for other dates (the queue)
+    all_active = assignments_db.get_active_assignments()
+    next_sunday_str = next_sunday.strftime(config.DATE_FORMAT)
+
+    # Filter to only future assignments not for next Sunday
+    active_queue = [
+        a for a in all_active
+        if a.date != next_sunday_str and a.state != 'Completed'
+    ]
+
+    # Sort by date
+    active_queue.sort(key=lambda a: a.date)
+
     return render_template(
         'prayer_scheduler.html',
         next_sunday=next_sunday,
         opening_assignment=opening,
         closing_assignment=closing,
+        active_queue=active_queue,
         members_db=members_db
     )
 

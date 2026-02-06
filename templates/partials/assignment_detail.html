@@ -26,7 +26,7 @@
     </div>
 
     <!-- Date Bubble -->
-    <div class="bubble">
+    <div class="bubble bubble-date" onclick="changeDate({{ assignment.assignment_id }}, '{{ assignment.date }}')">
         <label>Date</label>
         <div class="bubble-value">{{ assignment.date | format_date }}</div>
     </div>
