@@ -71,7 +71,7 @@ class MemberDatabase:
         self.members = []
 
         if not self.csv_path.exists():
-            print(f"Warning: Members CSV not found at {self.csv_path}")
+            # File doesn't exist yet - this is OK, we'll create it on save
             return
 
         with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:

@@ -168,7 +168,7 @@ def load_church_csv(filepath: Path, field_mapping: dict, delimiter: str = ',') -
 
 
 def merge_members(existing_db: MemberDatabase, new_members: list, match_field: str = 'name',
-                  activate_present: bool = False, deactivate_absent: bool = False) -> dict:
+                  activate_present: bool = False, deactivate_absent: bool = False, dry_run: bool = False) -> dict:
     """
     Merge new member data with existing database.
 
@@ -276,7 +276,8 @@ def merge_members(existing_db: MemberDatabase, new_members: list, match_field: s
                 print(f"  Deactivated: {member.full_name}")
 
     # Save updated database
-    existing_db.save()
+    if not dry_run:
+        existing_db.save()
 
     return stats
 
@@ -323,7 +324,7 @@ def find_member_by_name(db: MemberDatabase, name_str: str) -> Member:
     return None
 
 
-def update_dont_ask_flags(db: MemberDatabase, names_csv: Path, set_value: bool, delimiter: str = '\t') -> dict:
+def update_dont_ask_flags(db: MemberDatabase, names_csv: Path, set_value: bool, delimiter: str = '\t', dry_run: bool = False) -> dict:
     """
     Update dont_ask_prayer flag from a CSV file with Name column.
 
@@ -386,11 +387,12 @@ def update_dont_ask_flags(db: MemberDatabase, names_csv: Path, set_value: bool, 
         for name in stats['not_found_names']:
             print(f"    - {name}")
 
-    db.save()
+    if not dry_run:
+        db.save()
     return stats
 
 
-def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '\t') -> dict:
+def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '\t', dry_run: bool = False) -> dict:
     """
     Update last_prayer_date from a tab-separated CSV file.
 
@@ -461,12 +463,18 @@ def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '
         for name in stats['not_found_names']:
             print(f"    - {name}")
 
-    db.save()
+    if not dry_run:
+        db.save()
     return stats
 
 
 def create_backup(db: MemberDatabase):
     """Create a backup of the current member database"""
+    # Skip backup if file doesn't exist yet
+    if not config.MEMBERS_CSV.exists():
+        print(f"Skipping backup (no existing file to backup)")
+        return None
+
     backup_dir = config.DATA_DIR / 'backups'
     backup_dir.mkdir(exist_ok=True)
 
@@ -545,7 +553,14 @@ def main():
     # Load existing database
     print(f"Loading existing member database from: {config.MEMBERS_CSV}")
     db = MemberDatabase()
-    print(f"Current members: {len(db.members)}")
+
+    if len(db.members) == 0:
+        if not config.MEMBERS_CSV.exists():
+            print(f"Creating new member database (file doesn't exist yet)")
+        else:
+            print(f"Current members: 0 (empty database)")
+    else:
+        print(f"Current members: {len(db.members)}")
 
     # Handle --dont-ask mode
     if args.dont_ask:
@@ -564,9 +579,8 @@ def main():
 
         if args.dry_run:
             print("=== DRY RUN - No changes will be saved ===\n")
-            print("Warning: --dry-run not fully implemented for --dont-ask")
 
-        stats = update_dont_ask_flags(db, args.dont_ask, set_value=True, delimiter=args.delimiter)
+        stats = update_dont_ask_flags(db, args.dont_ask, set_value=True, delimiter=args.delimiter, dry_run=args.dry_run)
 
         print("\n=== Don't Ask Update Results ===")
         print(f"Updated:   {stats['updated']} members")
@@ -574,7 +588,15 @@ def main():
         if stats['errors'] > 0:
             print(f"Errors:    {stats['errors']} entries")
 
-        if not args.dry_run:
+        # Show not found names again at the end for visibility
+        if stats.get('not_found_names'):
+            print("\nNames not found in database:")
+            for name in stats['not_found_names']:
+                print(f"  - {name}")
+
+        if args.dry_run:
+            print("\nDry run complete - no changes saved")
+        else:
             print(f"\nChanges saved to: {config.MEMBERS_CSV}")
 
         return
@@ -596,9 +618,8 @@ def main():
 
         if args.dry_run:
             print("=== DRY RUN - No changes will be saved ===\n")
-            print("Warning: --dry-run not fully implemented for --do-ask")
 
-        stats = update_dont_ask_flags(db, args.do_ask, set_value=False, delimiter=args.delimiter)
+        stats = update_dont_ask_flags(db, args.do_ask, set_value=False, delimiter=args.delimiter, dry_run=args.dry_run)
 
         print("\n=== Do Ask Update Results ===")
         print(f"Updated:   {stats['updated']} members")
@@ -606,7 +627,15 @@ def main():
         if stats['errors'] > 0:
             print(f"Errors:    {stats['errors']} entries")
 
-        if not args.dry_run:
+        # Show not found names again at the end for visibility
+        if stats.get('not_found_names'):
+            print("\nNames not found in database:")
+            for name in stats['not_found_names']:
+                print(f"  - {name}")
+
+        if args.dry_run:
+            print("\nDry run complete - no changes saved")
+        else:
             print(f"\nChanges saved to: {config.MEMBERS_CSV}")
 
         return
@@ -629,11 +658,8 @@ def main():
 
         if args.dry_run:
             print("=== DRY RUN - No changes will be saved ===\n")
-            # For dry run, we'd need to modify update_prayer_dates
-            # For now, just warn the user
-            print("Warning: --dry-run not fully implemented for --update-prayed")
 
-        stats = update_prayer_dates(db, args.update_prayed, delimiter=args.delimiter)
+        stats = update_prayer_dates(db, args.update_prayed, delimiter=args.delimiter, dry_run=args.dry_run)
 
         print("\n=== Prayer Date Update Results ===")
         print(f"Updated:   {stats['updated']} members")
@@ -641,7 +667,15 @@ def main():
         if stats['errors'] > 0:
             print(f"Errors:    {stats['errors']} entries")
 
-        if not args.dry_run:
+        # Show not found names again at the end for visibility
+        if stats.get('not_found_names'):
+            print("\nNames not found in database:")
+            for name in stats['not_found_names']:
+                print(f"  - {name}")
+
+        if args.dry_run:
+            print("\nDry run complete - no changes saved")
+        else:
             print(f"\nChanges saved to: {config.MEMBERS_CSV}")
 
         return
@@ -694,7 +728,8 @@ def main():
 
     stats = merge_members(db, new_members, match_field=args.match_by,
                          activate_present=args.activate_present,
-                         deactivate_absent=args.deactivate_absent)
+                         deactivate_absent=args.deactivate_absent,
+                         dry_run=args.dry_run)
 
     # Print results
     print("\n=== Import Results ===")
