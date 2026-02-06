@@ -219,7 +219,7 @@ class PrayerAssignmentDatabase:
 
     def create_assignment(
         self,
-        member_id: int,
+        member_id: Optional[int],
         date: date,
         prayer_type: str = "Undecided"
     ) -> PrayerAssignment:
@@ -227,7 +227,7 @@ class PrayerAssignmentDatabase:
         now = datetime.now().strftime(config.DATE_FORMAT)
         assignment = PrayerAssignment(
             assignment_id=self.get_next_id(),
-            member_id=member_id,
+            member_id=member_id or 0,  # 0 = no member selected yet
             date=date.strftime(config.DATE_FORMAT),
             prayer_type=prayer_type,
             state="Draft",

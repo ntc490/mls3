@@ -90,7 +90,8 @@ def api_members_search():
     gender = request.args.get('gender', None)
 
     if query:
-        members = members_db.search(query)
+        from utils.candidate_selector import find_member_by_fuzzy_search
+        members = find_member_by_fuzzy_search(members_db, query, gender=gender)
     else:
         members = members_db.get_active_members(gender=gender)
 
@@ -107,6 +108,94 @@ def api_members_search():
     ]
 
     return jsonify(results)
+
+
+@app.route('/api/candidates/<gender>')
+def api_candidates(gender):
+    """API endpoint to get next-up candidates"""
+    from utils.candidate_selector import get_candidates_with_context
+
+    count = int(request.args.get('count', config.NEXT_CANDIDATE_COUNT))
+    candidates = get_candidates_with_context(members_db, assignments_db, gender, count)
+
+    results = [
+        {
+            'id': c['member'].member_id,
+            'name': c['member'].full_name,
+            'last_prayer_date': c['last_prayer_date_display'],
+            'priority': c['priority']
+        }
+        for c in candidates
+    ]
+
+    return jsonify(results)
+
+
+@app.route('/api/assignments/create', methods=['POST'])
+def api_create_assignment():
+    """Create a new prayer assignment"""
+    data = request.json
+
+    member_id = data.get('member_id')
+    date_str = data.get('date')
+    prayer_type = data.get('prayer_type', 'Undecided')
+
+    if not member_id or not date_str:
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    # Parse date
+    target_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
+
+    # Create assignment
+    assignment = assignments_db.create_assignment(member_id, target_date, prayer_type)
+
+    return jsonify({
+        'success': True,
+        'assignment_id': assignment.assignment_id
+    })
+
+
+@app.route('/api/assignments/<int:assignment_id>/update', methods=['POST'])
+def api_update_assignment(assignment_id):
+    """Update an existing assignment"""
+    data = request.json
+
+    member_id = data.get('member_id')
+    prayer_type = data.get('prayer_type')
+    date_str = data.get('date')
+
+    target_date = None
+    if date_str:
+        target_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
+
+    assignments_db.update_assignment(
+        assignment_id,
+        member_id=member_id,
+        prayer_type=prayer_type,
+        date=target_date
+    )
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/assignments/<int:assignment_id>/state', methods=['POST'])
+def api_update_assignment_state(assignment_id):
+    """Update assignment state"""
+    data = request.json
+    new_state = data.get('state')
+
+    if not new_state:
+        return jsonify({'error': 'Missing state'}), 400
+
+    assignments_db.update_state(assignment_id, new_state)
+
+    # If completed, update member's last prayer date
+    if new_state == 'Completed':
+        assignment = assignments_db.get_by_id(assignment_id)
+        if assignment:
+            members_db.update_last_prayer_date(assignment.member_id, assignment.date_obj)
+
+    return jsonify({'success': True})
 
 
 @app.template_filter('format_date')

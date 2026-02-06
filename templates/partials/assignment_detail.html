@@ -1,0 +1,53 @@
+{% set member = members_db.get_by_id(assignment.member_id) if assignment.member_id and assignment.member_id > 0 else None %}
+{% set gender = 'M' if prayer_type == 'Opening' else 'F' %}
+
+<div class="assignment-details">
+    <!-- Person Bubble -->
+    <div class="bubble bubble-person" onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender }}')">
+        <label>Person</label>
+        <div class="bubble-value">
+            {% if member %}
+                {{ member.full_name }}
+                {% if member.last_prayer_date %}
+                <span class="date-note">(last: {{ member.last_prayer_date }})</span>
+                {% else %}
+                <span class="date-note">(never)</span>
+                {% endif %}
+            {% else %}
+                <span class="placeholder">Click to select</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Date Bubble -->
+    <div class="bubble">
+        <label>Date</label>
+        <div class="bubble-value">{{ assignment.date | format_date }}</div>
+    </div>
+
+    <!-- Prayer Type Bubble -->
+    <div class="bubble bubble-type" onclick="togglePrayerType({{ assignment.assignment_id }}, '{{ assignment.prayer_type }}')">
+        <label>Type</label>
+        <div class="bubble-value">{{ assignment.prayer_type }}</div>
+    </div>
+
+    <!-- State Display -->
+    <p class="state-display"><strong>State:</strong> <span class="state-badge state-{{ assignment.state|lower }}">{{ assignment.state }}</span></p>
+
+    <!-- Actions -->
+    <div class="actions">
+        {% if assignment.state == 'Draft' and assignment.member_id %}
+            <button class="btn btn-primary" onclick="updateState({{ assignment.assignment_id }}, 'Invited')">Invite</button>
+        {% elif assignment.state == 'Invited' %}
+            <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Accepted')">Accept</button>
+            <button class="btn btn-danger" onclick="updateState({{ assignment.assignment_id }}, 'Draft')">Decline</button>
+        {% elif assignment.state == 'Accepted' %}
+            <button class="btn btn-primary" onclick="updateState({{ assignment.assignment_id }}, 'Reminded')">Remind</button>
+            <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Completed')">Complete</button>
+            <button class="btn btn-danger" onclick="updateState({{ assignment.assignment_id }}, 'Draft')">Cancel</button>
+        {% elif assignment.state == 'Reminded' %}
+            <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Completed')">Complete</button>
+            <button class="btn btn-danger" onclick="updateState({{ assignment.assignment_id }}, 'Draft')">Cancel</button>
+        {% endif %}
+    </div>
+</div>

@@ -8,109 +8,218 @@
     <h2>{{ next_sunday | format_date }}</h2>
 
     <div class="assignments-container">
-        <div class="assignment-card">
+        <!-- Opening Prayer Card -->
+        <div class="assignment-card" id="opening-card" data-prayer-type="Opening">
             <h3>Opening Prayer</h3>
 
             {% if opening_assignment %}
-                {% set member = members_db.get_by_id(opening_assignment.member_id) %}
-                <div class="assignment-details">
-                    <div class="bubble">
-                        <label>Person</label>
-                        <div class="bubble-value">
-                            {{ member.full_name }}
-                            {% if member.last_prayer_date %}
-                            <span class="date-note">(last: {{ member.last_prayer_date }})</span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="bubble">
-                        <label>Date</label>
-                        <div class="bubble-value">{{ next_sunday | format_date }}</div>
-                    </div>
-
-                    <div class="bubble">
-                        <label>Type</label>
-                        <div class="bubble-value">{{ opening_assignment.prayer_type }}</div>
-                    </div>
-
-                    <p><strong>State:</strong> {{ opening_assignment.state }}</p>
-
-                    <div class="actions">
-                        {% if opening_assignment.state == 'Draft' %}
-                        <button class="btn btn-primary">Invite</button>
-                        {% elif opening_assignment.state == 'Invited' %}
-                        <button class="btn btn-success">Accept</button>
-                        <button class="btn btn-danger">Decline</button>
-                        {% elif opening_assignment.state == 'Accepted' %}
-                        <button class="btn btn-primary">Remind</button>
-                        <button class="btn btn-success">Complete</button>
-                        <button class="btn btn-danger">Cancel</button>
-                        {% elif opening_assignment.state == 'Reminded' %}
-                        <button class="btn btn-success">Complete</button>
-                        <button class="btn btn-danger">Cancel</button>
-                        {% endif %}
-                    </div>
-                </div>
+                {% include 'partials/assignment_detail.html' with assignment=opening_assignment prayer_type='Opening' %}
             {% else %}
-                <div class="assignment-details">
+                <div class="assignment-empty">
                     <p class="empty-state">No assignment created yet</p>
-                    <button class="btn btn-primary">Create Assignment</button>
+                    <button class="btn btn-primary" onclick="createAssignment('Opening')">Create Assignment</button>
                 </div>
             {% endif %}
         </div>
 
-        <div class="assignment-card">
+        <!-- Closing Prayer Card -->
+        <div class="assignment-card" id="closing-card" data-prayer-type="Closing">
             <h3>Closing Prayer</h3>
 
             {% if closing_assignment %}
-                {% set member = members_db.get_by_id(closing_assignment.member_id) %}
-                <div class="assignment-details">
-                    <div class="bubble">
-                        <label>Person</label>
-                        <div class="bubble-value">
-                            {{ member.full_name }}
-                            {% if member.last_prayer_date %}
-                            <span class="date-note">(last: {{ member.last_prayer_date }})</span>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="bubble">
-                        <label>Date</label>
-                        <div class="bubble-value">{{ next_sunday | format_date }}</div>
-                    </div>
-
-                    <div class="bubble">
-                        <label>Type</label>
-                        <div class="bubble-value">{{ closing_assignment.prayer_type }}</div>
-                    </div>
-
-                    <p><strong>State:</strong> {{ closing_assignment.state }}</p>
-
-                    <div class="actions">
-                        {% if closing_assignment.state == 'Draft' %}
-                        <button class="btn btn-primary">Invite</button>
-                        {% elif closing_assignment.state == 'Invited' %}
-                        <button class="btn btn-success">Accept</button>
-                        <button class="btn btn-danger">Decline</button>
-                        {% elif closing_assignment.state == 'Accepted' %}
-                        <button class="btn btn-primary">Remind</button>
-                        <button class="btn btn-success">Complete</button>
-                        <button class="btn btn-danger">Cancel</button>
-                        {% elif closing_assignment.state == 'Reminded' %}
-                        <button class="btn btn-success">Complete</button>
-                        <button class="btn btn-danger">Cancel</button>
-                        {% endif %}
-                    </div>
-                </div>
+                {% include 'partials/assignment_detail.html' with assignment=closing_assignment prayer_type='Closing' %}
             {% else %}
-                <div class="assignment-details">
+                <div class="assignment-empty">
                     <p class="empty-state">No assignment created yet</p>
-                    <button class="btn btn-primary">Create Assignment</button>
+                    <button class="btn btn-primary" onclick="createAssignment('Closing')">Create Assignment</button>
                 </div>
             {% endif %}
         </div>
     </div>
 </div>
+
+<!-- Member Selection Modal -->
+<div id="member-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Select Member</h3>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+
+        <div class="modal-body">
+            <input type="text" id="member-search" class="search-input" placeholder="Search members...">
+
+            <div id="next-up-section">
+                <h4>Next Up</h4>
+                <div id="next-up-list"></div>
+            </div>
+
+            <div id="search-results" style="display: none;">
+                <h4>Search Results</h4>
+                <div id="search-results-list"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const nextSunday = '{{ next_sunday.strftime("%Y-%m-%d") }}';
+    let currentAssignment = null;
+    let currentField = null;
+
+    // Create new assignment
+    async function createAssignment(prayerType) {
+        const response = await fetch('/api/assignments/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                member_id: null,
+                date: nextSunday,
+                prayer_type: prayerType
+            })
+        });
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+
+    // Open member selection modal
+    async function selectMember(assignmentId, currentMemberId, gender) {
+        currentAssignment = assignmentId;
+        currentField = 'member';
+
+        const modal = document.getElementById('member-modal');
+        modal.style.display = 'flex';
+
+        // Load next-up candidates
+        await loadNextUpCandidates(gender);
+
+        // Focus search box
+        document.getElementById('member-search').focus();
+    }
+
+    // Load next-up candidates
+    async function loadNextUpCandidates(gender) {
+        const response = await fetch(`/api/candidates/${gender}`);
+        const candidates = await response.json();
+
+        const list = document.getElementById('next-up-list');
+        list.innerHTML = '';
+
+        candidates.forEach(candidate => {
+            const div = document.createElement('div');
+            div.className = 'candidate-item';
+            div.innerHTML = `
+                <strong>${candidate.name}</strong>
+                <span class="date-note">(last: ${candidate.last_prayer_date})</span>
+            `;
+            div.onclick = () => selectCandidate(candidate.id, candidate.name);
+            list.appendChild(div);
+        });
+    }
+
+    // Search members
+    let searchTimeout = null;
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchBox = document.getElementById('member-search');
+        if (searchBox) {
+            searchBox.addEventListener('input', (e) => {
+                clearTimeout(searchTimeout);
+                const query = e.target.value;
+
+                if (query.length > 0) {
+                    searchTimeout = setTimeout(() => searchMembers(query), 300);
+                    document.getElementById('next-up-section').style.display = 'none';
+                    document.getElementById('search-results').style.display = 'block';
+                } else {
+                    document.getElementById('next-up-section').style.display = 'block';
+                    document.getElementById('search-results').style.display = 'none';
+                }
+            });
+        }
+    });
+
+    async function searchMembers(query) {
+        const response = await fetch(`/api/members/search?q=${encodeURIComponent(query)}`);
+        const results = await response.json();
+
+        const list = document.getElementById('search-results-list');
+        list.innerHTML = '';
+
+        results.forEach(member => {
+            const div = document.createElement('div');
+            div.className = 'candidate-item';
+            div.innerHTML = `
+                <strong>${member.name}</strong> (${member.gender})
+                ${member.last_prayer_date ? `<span class="date-note">(last: ${member.last_prayer_date})</span>` : '<span class="date-note">(never)</span>'}
+            `;
+            div.onclick = () => selectCandidate(member.id, member.name);
+            list.appendChild(div);
+        });
+    }
+
+    // Select a candidate
+    async function selectCandidate(memberId, memberName) {
+        if (currentAssignment) {
+            const response = await fetch(`/api/assignments/${currentAssignment}/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({member_id: memberId})
+            });
+
+            if (response.ok) {
+                closeModal();
+                location.reload();
+            }
+        }
+    }
+
+    // Toggle prayer type
+    async function togglePrayerType(assignmentId, currentType) {
+        const newType = currentType === 'Opening' ? 'Closing' : 'Opening';
+
+        const response = await fetch(`/api/assignments/${assignmentId}/update`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prayer_type: newType})
+        });
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+
+    // Update assignment state
+    async function updateState(assignmentId, newState) {
+        const response = await fetch(`/api/assignments/${assignmentId}/state`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({state: newState})
+        });
+
+        if (response.ok) {
+            location.reload();
+        }
+    }
+
+    // Close modal
+    function closeModal() {
+        document.getElementById('member-modal').style.display = 'none';
+        document.getElementById('member-search').value = '';
+        document.getElementById('next-up-section').style.display = 'block';
+        document.getElementById('search-results').style.display = 'none';
+    }
+
+    // Close modal on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('member-modal');
+        if (event.target === modal) {
+            closeModal();
+        }
+    }
+</script>
 {% endblock %}
