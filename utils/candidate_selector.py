@@ -95,9 +95,14 @@ def find_member_by_fuzzy_search(
     """
     Fuzzy search for members by name.
 
+    Supports multi-word queries where each word can match the start of
+    any part of the name. For example:
+    - "bi wo" matches "Bill Wong" or "Wonder Biatch"
+    - "j sm" matches "John Smith" or "Jane Smoot"
+
     Args:
         members_db: Member database
-        query: Search query
+        query: Search query (space-separated words)
         gender: Optional gender filter ('M' or 'F')
         limit: Maximum results to return
 
@@ -111,6 +116,9 @@ def find_member_by_fuzzy_search(
         members = members_db.get_active_members(gender=gender)
         return members[:limit]
 
+    # Split query into words
+    query_words = query_lower.split()
+
     # Search in full name
     results = []
     for member in members_db.members:
@@ -121,16 +129,42 @@ def find_member_by_fuzzy_search(
             continue
 
         full_name = member.full_name.lower()
+        first_name = member.first_name.lower()
+        last_name = member.last_name.lower()
+        name_parts = [first_name, last_name]
 
-        # Check for exact match first
-        if query_lower in full_name:
-            results.append((member, 0))  # Priority 0 = highest
-        # Check first name starts with query
-        elif member.first_name.lower().startswith(query_lower):
-            results.append((member, 1))
-        # Check last name starts with query
-        elif member.last_name.lower().startswith(query_lower):
-            results.append((member, 2))
+        # Single word query - use original logic
+        if len(query_words) == 1:
+            word = query_words[0]
+            # Check for substring match in full name
+            if word in full_name:
+                results.append((member, 0))  # Priority 0 = highest
+            # Check first name starts with query
+            elif first_name.startswith(word):
+                results.append((member, 1))
+            # Check last name starts with query
+            elif last_name.startswith(word):
+                results.append((member, 2))
+        else:
+            # Multi-word query - each word must match start of some name part
+            # For "bi wo" to match "Bill Wong":
+            # - "bi" matches start of "bill"
+            # - "wo" matches start of "wong"
+            matched_words = 0
+            for query_word in query_words:
+                for name_part in name_parts:
+                    if name_part.startswith(query_word):
+                        matched_words += 1
+                        break  # Found match for this query word, move to next
+
+            # If all query words matched, add to results
+            if matched_words == len(query_words):
+                # Priority based on how early the matches are
+                # Prefer matches in order (first word matches first name)
+                priority = 3
+                if first_name.startswith(query_words[0]):
+                    priority = 2  # Better if first query word matches first name
+                results.append((member, priority))
 
     # Sort by priority, then by name
     results.sort(key=lambda x: (x[1], x[0].last_name, x[0].first_name))
