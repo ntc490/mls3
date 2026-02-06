@@ -43,7 +43,16 @@ def index():
 def members_list():
     """List all active members (for testing)"""
     members = members_db.get_active_members()
-    return render_template('members_list.html', members=members)
+    men = [m for m in members if m.gender == 'M']
+    women = [m for m in members if m.gender == 'F']
+
+    return render_template(
+        'members_list.html',
+        members=members,
+        all_count=len(members),
+        men_count=len(men),
+        women_count=len(women)
+    )
 
 
 @app.route('/prayer-scheduler')

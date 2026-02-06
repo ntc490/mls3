@@ -227,6 +227,48 @@ main {
     font-style: italic;
 }
 
+/* Filters and Search */
+.filters {
+    margin: 2rem 0;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-filter {
+    background: white;
+    border: 2px solid var(--border-color);
+    color: var(--text-dark);
+}
+
+.btn-filter.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.btn-filter:hover {
+    border-color: var(--primary-color);
+}
+
 /* Members List */
 .members-grid {
     display: grid;
@@ -256,6 +298,18 @@ main {
 .warning {
     color: var(--danger-color);
     font-weight: bold;
+}
+
+.text-muted {
+    color: var(--text-light);
+}
+
+.notes {
+    font-style: italic;
+    color: var(--text-light);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
 }
 
 /* Footer */

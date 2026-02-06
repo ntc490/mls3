@@ -6,22 +6,72 @@
 <div class="container">
     <h1>Active Members</h1>
 
-    <div class="members-grid">
+    <div class="filters">
+        <input type="text" id="search-box" placeholder="Search members..." class="search-input">
+        <div class="filter-buttons">
+            <button class="btn btn-filter active" data-filter="all">All ({{ all_count }})</button>
+            <button class="btn btn-filter" data-filter="M">Men ({{ men_count }})</button>
+            <button class="btn btn-filter" data-filter="F">Women ({{ women_count }})</button>
+        </div>
+    </div>
+
+    <div class="members-grid" id="members-grid">
         {% for member in members %}
-        <div class="member-card">
+        <div class="member-card" data-gender="{{ member.gender }}" data-name="{{ member.full_name|lower }}">
             <h3>{{ member.full_name }}</h3>
             <p><strong>Gender:</strong> {{ member.gender }}</p>
             <p><strong>Phone:</strong> {{ member.phone }}</p>
             {% if member.last_prayer_date %}
             <p><strong>Last Prayer:</strong> {{ member.last_prayer_date }}</p>
             {% else %}
-            <p><strong>Last Prayer:</strong> Never</p>
+            <p><strong>Last Prayer:</strong> <span class="text-muted">Never</span></p>
             {% endif %}
             {% if member.dont_ask_prayer %}
-            <p class="warning">Don't ask for prayers</p>
+            <p class="warning">⚠ Don't ask for prayers</p>
+            {% endif %}
+            {% if member.notes %}
+            <p class="notes">{{ member.notes }}</p>
             {% endif %}
         </div>
         {% endfor %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Filter functionality
+    const filterButtons = document.querySelectorAll('.btn-filter');
+    const memberCards = document.querySelectorAll('.member-card');
+    const searchBox = document.getElementById('search-box');
+    let currentFilter = 'all';
+
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            filterButtons.forEach(b => b.classList.remove('active'));
+            button.classList.add('active');
+            currentFilter = button.dataset.filter;
+            applyFilters();
+        });
+    });
+
+    searchBox.addEventListener('input', (e) => {
+        applyFilters();
+    });
+
+    function applyFilters() {
+        const searchTerm = searchBox.value.toLowerCase();
+
+        memberCards.forEach(card => {
+            const matchesFilter = currentFilter === 'all' || card.dataset.gender === currentFilter;
+            const matchesSearch = searchTerm === '' || card.dataset.name.includes(searchTerm);
+
+            if (matchesFilter && matchesSearch) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+</script>
 {% endblock %}
