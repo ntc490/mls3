@@ -107,8 +107,18 @@
     let currentAssignment = null;
     let currentField = null;
 
+    // Show loading indicator
+    function showLoading() {
+        document.body.style.cursor = 'wait';
+    }
+
+    function hideLoading() {
+        document.body.style.cursor = 'default';
+    }
+
     // Create new assignment
     async function createAssignment(prayerType) {
+        showLoading();
         try {
             const response = await fetch('/api/assignments/create', {
                 method: 'POST',
@@ -130,6 +140,8 @@
         } catch (error) {
             console.error('Error creating assignment:', error);
             alert('Error creating assignment: ' + error.message);
+        } finally {
+            hideLoading();
         }
     }
 
@@ -320,8 +332,16 @@
         }
     }
 
+    // Confirm decline action
+    function confirmDecline(assignmentId) {
+        if (confirm('Are you sure the member declined? This will clear the selected person.')) {
+            updateState(assignmentId, 'Draft');
+        }
+    }
+
     // Update assignment state
     async function updateState(assignmentId, newState) {
+        showLoading();
         const response = await fetch(`/api/assignments/${assignmentId}/state`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -330,6 +350,9 @@
 
         if (response.ok) {
             location.reload();
+        } else {
+            hideLoading();
+            alert('Failed to update state');
         }
     }
 

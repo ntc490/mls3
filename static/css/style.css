@@ -504,6 +504,23 @@ main {
     padding: 3rem 1rem;
 }
 
+/* Fade-in animation for dynamic content */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.assignment-card,
+.queue-item {
+    animation: fadeIn 0.3s ease-out;
+}
+
 /* Active Queue */
 .active-queue {
     margin-top: 3rem;
