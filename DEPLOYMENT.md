@@ -236,12 +236,40 @@ export MLS3_DATA_DIR=~/mls3-data
 
 # Download CSV from church website first, then:
 python utils/import_members.py ~/storage/shared/Downloads/church_export.csv
+
+# Preview first with dry-run
+python utils/import_members.py ~/storage/shared/Downloads/church_export.csv --dry-run
+
+# Sync active status (mark absent members as inactive)
+python utils/import_members.py church_export.csv --activate-present --deactivate-absent
 ```
 
 The import will:
 - Add new members
-- Update phone numbers, birthdays, recommend dates
+- Update phone numbers, birthdays, gender
 - Preserve prayer history and notes
+- Default: leaves active/inactive status unchanged
+
+### Import Prayer History
+
+If you have historical prayer data:
+```bash
+python utils/import_members.py --update-prayed prayer_dates.csv
+```
+
+File format: Name (tab) Prayed (supports various date formats)
+
+### Manage Don't Ask List
+
+```bash
+# Mark members who shouldn't be asked
+python utils/import_members.py --dont-ask dont_ask_list.csv
+
+# Re-enable members
+python utils/import_members.py --do-ask can_ask_again.csv
+```
+
+File format: Single Name column (tab-separated)
 
 ### Manual Editing
 
@@ -290,17 +318,22 @@ Or use a spreadsheet app on your phone to edit the CSV.
 **Problem**: `import_members.py` errors or doesn't find fields.
 
 **Solution**:
-1. Open the church CSV in a text editor
-2. Check the column names (first line)
-3. Edit `field_mapping` in `utils/import_members.py` to match
-4. Example:
-```python
-field_mapping = {
-    'first_name': 'Given Name',  # Match your CSV
-    'last_name': 'Family Name',   # Match your CSV
-    # ... etc
-}
-```
+1. Check the file format:
+   - Must be tab-separated (not comma-separated)
+   - Must have header row
+   - Expected columns: Name, Gender, Birth Date, Phone Number
+   - Name format: "Last, First" (comma between last and first)
+2. Use `--dry-run` to preview without making changes
+3. Check for error messages about missing columns
+4. See `data/sample_church_export.tsv` for correct format
+
+**Problem**: Names not found in database
+
+**Solution**:
+- The script will list all unmatched names at the end
+- Check for spelling differences, nicknames, or name changes
+- Names can be "Last, First" OR "First Last" format
+- Search is case-insensitive
 
 ### App Crashes on Startup
 

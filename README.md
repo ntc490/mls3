@@ -124,13 +124,43 @@ python app.py
 
 ### Importing Church Data
 
-To import member data from your church's website:
+The import utility supports multiple modes for managing member data:
 
-1. Download CSV from church website
-2. Use the import utility (coming in Phase 1b):
-   ```bash
-   python utils/import_members.py church_export.csv
-   ```
+#### **Import Member Data**
+Download tab-separated data from your church website with these columns:
+- Name (format: "Last, First")
+- Gender (M or F)
+- Birth Date (format: "5 Dec 1953")
+- Phone Number (format: "801-555-1234")
+
+```bash
+# Import members (updates existing, adds new)
+python utils/import_members.py church_export.csv
+
+# Preview changes without saving
+python utils/import_members.py church_export.csv --dry-run
+
+# Mark members in import as active, others as inactive (sync mode)
+python utils/import_members.py church_export.csv --activate-present --deactivate-absent
+```
+
+#### **Import Prayer Dates**
+Tab-separated file with columns: Name, Prayed
+```bash
+python utils/import_members.py --update-prayed prayer_history.csv
+```
+
+#### **Import Don't Ask Flags**
+Tab-separated file with single Name column:
+```bash
+# Mark members as "don't ask for prayers"
+python utils/import_members.py --dont-ask dont_ask_list.csv
+
+# Re-enable members for prayer assignments
+python utils/import_members.py --do-ask can_ask_list.csv
+```
+
+**See `data/sample_*.csv` for example file formats.**
 
 ### Backing Up Data
 

@@ -282,13 +282,14 @@ def merge_members(existing_db: MemberDatabase, new_members: list, match_field: s
     return stats
 
 
-def find_member_by_name(db: MemberDatabase, name_str: str) -> Member:
+def find_member_by_name(db: MemberDatabase, name_str: str, fuzzy: bool = False) -> Member:
     """
     Find a member by name, trying both "Last, First" and "First Last" formats.
 
     Args:
         db: Member database
         name_str: Name string in either format
+        fuzzy: If True, use fuzzy matching (matches if all query words appear in name)
 
     Returns:
         Member object if found, None otherwise
@@ -300,6 +301,7 @@ def find_member_by_name(db: MemberDatabase, name_str: str) -> Member:
         key = f"{m.first_name.lower()} {m.last_name.lower()}"
         member_lookup[key] = m
 
+    # Try exact matching first
     # Try "Last, First" format first
     if ',' in name_str:
         first, last = parse_name(name_str)
@@ -320,6 +322,47 @@ def find_member_by_name(db: MemberDatabase, name_str: str) -> Member:
     lookup_key = name_str.lower().strip()
     if lookup_key in member_lookup:
         return member_lookup[lookup_key]
+
+    # If fuzzy matching enabled, try word-based matching
+    if fuzzy:
+        # Parse query to extract all words (handles "Last, First" and "First Last")
+        if ',' in name_str:
+            # "Last, First" -> extract both parts
+            parts = [p.strip() for p in name_str.split(',')]
+            query_words = []
+            for part in parts:
+                query_words.extend(part.lower().split())
+        else:
+            query_words = name_str.lower().split()
+
+        if not query_words:
+            return None
+
+        # Score each member based on how many query words match
+        best_match = None
+        best_score = 0
+
+        for member in db.members:
+            full_name_lower = f"{member.first_name.lower()} {member.last_name.lower()}"
+            name_words = full_name_lower.split()
+
+            # Count how many query words match name words (starting with)
+            matches = 0
+            for query_word in query_words:
+                for name_word in name_words:
+                    if name_word.startswith(query_word):
+                        matches += 1
+                        break
+
+            # If all query words matched, this is a candidate
+            if matches == len(query_words):
+                # Prefer exact matches (higher score for longer matches)
+                score = matches * 100 + sum(len(w) for w in query_words)
+                if score > best_score:
+                    best_score = score
+                    best_match = member
+
+        return best_match
 
     return None
 
@@ -364,8 +407,8 @@ def update_dont_ask_flags(db: MemberDatabase, names_csv: Path, set_value: bool, 
                 continue
 
             try:
-                # Find member using smart name matching
-                member = find_member_by_name(db, name_str)
+                # Find member using smart name matching with fuzzy enabled
+                member = find_member_by_name(db, name_str, fuzzy=True)
 
                 if member:
                     if member.dont_ask_prayer != set_value:
@@ -438,8 +481,8 @@ def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '
                 continue
 
             try:
-                # Find member using smart name matching
-                member = find_member_by_name(db, name_str)
+                # Find member using smart name matching with fuzzy enabled
+                member = find_member_by_name(db, name_str, fuzzy=True)
 
                 if member:
                     # Parse date with flexible format support
@@ -547,6 +590,16 @@ def main():
         metavar='NAMES_CSV',
         help='Set dont_ask_prayer=False for members in CSV file (Name column)'
     )
+    parser.add_argument(
+        '--show-dont-ask',
+        action='store_true',
+        help='List all members with dont_ask_prayer=True'
+    )
+    parser.add_argument(
+        '--show-inactive',
+        action='store_true',
+        help='List all members with active=False'
+    )
 
     args = parser.parse_args()
 
@@ -561,6 +614,40 @@ def main():
             print(f"Current members: 0 (empty database)")
     else:
         print(f"Current members: {len(db.members)}")
+
+    # Handle --show-dont-ask mode
+    if args.show_dont_ask:
+        dont_ask_members = [m for m in db.members if m.dont_ask_prayer]
+        print(f"\n=== Members with Don't Ask Flag ===")
+        print(f"Total: {len(dont_ask_members)}\n")
+
+        if dont_ask_members:
+            # Sort by last name
+            dont_ask_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+            for m in dont_ask_members:
+                status = "inactive" if not m.active else "active"
+                print(f"  {m.full_name} ({m.gender}) - {status}")
+        else:
+            print("  (none)")
+
+        return
+
+    # Handle --show-inactive mode
+    if args.show_inactive:
+        inactive_members = [m for m in db.members if not m.active]
+        print(f"\n=== Inactive Members ===")
+        print(f"Total: {len(inactive_members)}\n")
+
+        if inactive_members:
+            # Sort by last name
+            inactive_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+            for m in inactive_members:
+                dont_ask_status = " [DON'T ASK]" if m.dont_ask_prayer else ""
+                print(f"  {m.full_name} ({m.gender}){dont_ask_status}")
+        else:
+            print("  (none)")
+
+        return
 
     # Handle --dont-ask mode
     if args.dont_ask:
