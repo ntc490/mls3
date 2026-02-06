@@ -119,22 +119,69 @@
 
     // Load next-up candidates
     async function loadNextUpCandidates(gender) {
-        const response = await fetch(`/api/candidates/${gender}`);
-        const candidates = await response.json();
-
+        console.log('Loading candidates for gender:', gender);
         const list = document.getElementById('next-up-list');
         list.innerHTML = '';
 
-        candidates.forEach(candidate => {
-            const div = document.createElement('div');
-            div.className = 'candidate-item';
-            div.innerHTML = `
-                <strong>${candidate.name}</strong>
-                <span class="date-note">(last: ${candidate.last_prayer_date})</span>
-            `;
-            div.onclick = () => selectCandidate(candidate.id, candidate.name);
-            list.appendChild(div);
-        });
+        // If no gender specified, show both male and female candidates
+        if (!gender || gender === 'None' || gender === 'null' || gender === null || gender === undefined) {
+            // Load men
+            const menResponse = await fetch(`/api/candidates/M`);
+            const menCandidates = await menResponse.json();
+
+            const menHeader = document.createElement('h5');
+            menHeader.textContent = 'Men';
+            menHeader.style.marginTop = '0.5rem';
+            menHeader.style.marginBottom = '0.5rem';
+            list.appendChild(menHeader);
+
+            menCandidates.forEach(candidate => {
+                const div = document.createElement('div');
+                div.className = 'candidate-item';
+                div.innerHTML = `
+                    <strong>${candidate.name}</strong>
+                    <span class="date-note">(last: ${candidate.last_prayer_date})</span>
+                `;
+                div.onclick = () => selectCandidate(candidate.id, candidate.name);
+                list.appendChild(div);
+            });
+
+            // Load women
+            const womenResponse = await fetch(`/api/candidates/F`);
+            const womenCandidates = await womenResponse.json();
+
+            const womenHeader = document.createElement('h5');
+            womenHeader.textContent = 'Women';
+            womenHeader.style.marginTop = '1rem';
+            womenHeader.style.marginBottom = '0.5rem';
+            list.appendChild(womenHeader);
+
+            womenCandidates.forEach(candidate => {
+                const div = document.createElement('div');
+                div.className = 'candidate-item';
+                div.innerHTML = `
+                    <strong>${candidate.name}</strong>
+                    <span class="date-note">(last: ${candidate.last_prayer_date})</span>
+                `;
+                div.onclick = () => selectCandidate(candidate.id, candidate.name);
+                list.appendChild(div);
+            });
+        } else {
+            // Load candidates of specified gender
+            const response = await fetch(`/api/candidates/${gender}`);
+            const candidates = await response.json();
+
+            candidates.forEach(candidate => {
+                const div = document.createElement('div');
+                div.className = 'candidate-item';
+                div.innerHTML = `
+                    <strong>${candidate.name}</strong>
+                    <span class="date-note">(last: ${candidate.last_prayer_date})</span>
+                `;
+                div.onclick = () => selectCandidate(candidate.id, candidate.name);
+                list.appendChild(div);
+            });
+        }
     }
 
     // Search members
@@ -188,6 +235,21 @@
 
             if (response.ok) {
                 closeModal();
+                location.reload();
+            }
+        }
+    }
+
+    // Clear member selection
+    async function clearMember(assignmentId) {
+        if (confirm('Clear the selected person?')) {
+            const response = await fetch(`/api/assignments/${assignmentId}/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({member_id: 0})
+            });
+
+            if (response.ok) {
                 location.reload();
             }
         }

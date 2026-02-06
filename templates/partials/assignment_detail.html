@@ -1,18 +1,24 @@
 {% set member = members_db.get_by_id(assignment.member_id) if assignment.member_id and assignment.member_id > 0 else None %}
-{% set gender = 'M' if prayer_type == 'Opening' else 'F' %}
+{# Determine gender: use member's gender if assigned, otherwise show both genders as candidates #}
+{% set gender = member.gender if member else None %}
 
 <div class="assignment-details">
     <!-- Person Bubble -->
-    <div class="bubble bubble-person" onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender }}')">
+    <div class="bubble bubble-person" onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')">
         <label>Person</label>
         <div class="bubble-value">
             {% if member %}
-                {{ member.full_name }}
-                {% if member.last_prayer_date %}
-                <span class="date-note">(last: {{ member.last_prayer_date }})</span>
-                {% else %}
-                <span class="date-note">(never)</span>
-                {% endif %}
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                        {{ member.full_name }}
+                        {% if member.last_prayer_date %}
+                        <span class="date-note">(last: {{ member.last_prayer_date }})</span>
+                        {% else %}
+                        <span class="date-note">(never)</span>
+                        {% endif %}
+                    </div>
+                    <button class="btn-clear" onclick="event.stopPropagation(); clearMember({{ assignment.assignment_id }})" title="Clear selection">×</button>
+                </div>
             {% else %}
                 <span class="placeholder">Click to select</span>
             {% endif %}
