@@ -13,11 +13,21 @@
             <button class="btn btn-filter" data-filter="M">Men ({{ men_count }})</button>
             <button class="btn btn-filter" data-filter="F">Women ({{ women_count }})</button>
         </div>
+        <div class="sort-buttons">
+            <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
+            <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Prayer Date ↓</button>
+        </div>
     </div>
 
     <div class="members-grid" id="members-grid">
         {% for member in members %}
-        <div class="member-card clickable" data-gender="{{ member.gender }}" data-name="{{ member.full_name|lower }}" onclick="openMemberModal({{ member.member_id }})">
+        <div class="member-card clickable"
+             data-gender="{{ member.gender }}"
+             data-name="{{ member.full_name|lower }}"
+             data-first-name="{{ member.first_name|lower }}"
+             data-last-name="{{ member.last_name|lower }}"
+             data-prayer-date="{{ member.last_prayer_date if member.last_prayer_date else '1900-01-01' }}"
+             onclick="openMemberModal({{ member.member_id }})">
             <h3>{{ member.full_name }}</h3>
             <p><strong>Gender:</strong> {{ member.gender }}</p>
             <p><strong>Phone:</strong> {{ member.phone }}</p>
@@ -40,38 +50,156 @@
 
 {% block scripts %}
 <script>
-    // Filter functionality
+    // Filter and sort functionality
     const filterButtons = document.querySelectorAll('.btn-filter');
-    const memberCards = document.querySelectorAll('.member-card');
+    const memberCards = Array.from(document.querySelectorAll('.member-card'));
     const searchBox = document.getElementById('search-box');
-    let currentFilter = 'all';
+    const membersGrid = document.getElementById('members-grid');
+    const sortAlphaBtn = document.getElementById('sort-alpha');
+    const sortPrayerBtn = document.getElementById('sort-prayer');
 
+    let currentFilter = 'all';
+    let alphaSort = null; // null, 'asc', 'desc'
+    let prayerSort = null; // null, 'asc', 'desc'
+
+    // Filter buttons
     filterButtons.forEach(button => {
         button.addEventListener('click', () => {
             filterButtons.forEach(b => b.classList.remove('active'));
             button.classList.add('active');
             currentFilter = button.dataset.filter;
-            applyFilters();
+            applyFiltersAndSort();
         });
     });
 
+    // Search box with fuzzy matching
     searchBox.addEventListener('input', (e) => {
-        applyFilters();
+        applyFiltersAndSort();
     });
 
-    function applyFilters() {
-        const searchTerm = searchBox.value.toLowerCase();
+    // Alphabetic sort toggle
+    sortAlphaBtn.addEventListener('click', () => {
+        // Toggle: null -> asc -> desc -> null
+        if (alphaSort === null) {
+            alphaSort = 'asc';
+            sortAlphaBtn.textContent = 'A→Z';
+            sortAlphaBtn.classList.add('active');
+        } else if (alphaSort === 'asc') {
+            alphaSort = 'desc';
+            sortAlphaBtn.textContent = 'Z→A';
+        } else {
+            alphaSort = null;
+            sortAlphaBtn.textContent = 'A→Z';
+            sortAlphaBtn.classList.remove('active');
+        }
 
-        memberCards.forEach(card => {
+        // Clear other sort
+        prayerSort = null;
+        sortPrayerBtn.textContent = 'Prayer Date ↓';
+        sortPrayerBtn.classList.remove('active');
+
+        applyFiltersAndSort();
+    });
+
+    // Prayer date sort toggle
+    sortPrayerBtn.addEventListener('click', () => {
+        // Toggle: null -> asc (oldest first) -> desc (newest first) -> null
+        if (prayerSort === null) {
+            prayerSort = 'asc';
+            sortPrayerBtn.textContent = 'Prayer Date ↑';
+            sortPrayerBtn.classList.add('active');
+        } else if (prayerSort === 'asc') {
+            prayerSort = 'desc';
+            sortPrayerBtn.textContent = 'Prayer Date ↓';
+        } else {
+            prayerSort = null;
+            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.classList.remove('active');
+        }
+
+        // Clear other sort
+        alphaSort = null;
+        sortAlphaBtn.textContent = 'A→Z';
+        sortAlphaBtn.classList.remove('active');
+
+        applyFiltersAndSort();
+    });
+
+    // Fuzzy matching function
+    function fuzzyMatch(searchTerm, card) {
+        if (searchTerm === '') return true;
+
+        // Split search term into words
+        const queryWords = searchTerm.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        if (queryWords.length === 0) return true;
+
+        const firstName = card.dataset.firstName;
+        const lastName = card.dataset.lastName;
+        const nameParts = [firstName, lastName];
+
+        // Each query word must match the start of at least one name part
+        for (const queryWord of queryWords) {
+            let matched = false;
+            for (const namePart of nameParts) {
+                if (namePart.startsWith(queryWord)) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    function applyFiltersAndSort() {
+        const searchTerm = searchBox.value.toLowerCase().trim();
+
+        // Filter cards
+        let visibleCards = memberCards.filter(card => {
             const matchesFilter = currentFilter === 'all' || card.dataset.gender === currentFilter;
-            const matchesSearch = searchTerm === '' || card.dataset.name.includes(searchTerm);
+            const matchesSearch = fuzzyMatch(searchTerm, card);
 
             if (matchesFilter && matchesSearch) {
                 card.style.display = '';
+                return true;
             } else {
                 card.style.display = 'none';
+                return false;
             }
         });
+
+        // Sort visible cards
+        if (alphaSort !== null) {
+            visibleCards.sort((a, b) => {
+                const nameA = a.dataset.name;
+                const nameB = b.dataset.name;
+                if (alphaSort === 'asc') {
+                    return nameA.localeCompare(nameB);
+                } else {
+                    return nameB.localeCompare(nameA);
+                }
+            });
+        } else if (prayerSort !== null) {
+            visibleCards.sort((a, b) => {
+                const dateA = a.dataset.prayerDate;
+                const dateB = b.dataset.prayerDate;
+                if (prayerSort === 'asc') {
+                    return dateA.localeCompare(dateB);
+                } else {
+                    return dateB.localeCompare(dateA);
+                }
+            });
+        }
+
+        // Re-append cards in sorted order
+        if (alphaSort !== null || prayerSort !== null) {
+            visibleCards.forEach(card => {
+                membersGrid.appendChild(card);
+            });
+        }
     }
 </script>
 {% endblock %}
