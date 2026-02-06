@@ -21,6 +21,70 @@ MLS3 (Member Leadership Scheduling System v3) is a church scheduling and communi
 
 ---
 
+## Data Management
+
+### Data Storage Strategy
+
+**Separation of Code and Data:**
+- **Code Repository** (git): All application code, mock data for development
+- **Production Data** (outside git): Real member data stored separately, never committed
+
+**Directory Structure:**
+```
+/home/nlod/
+├── claude/mls3/              # Git repository
+│   ├── .git/
+│   ├── .gitignore            # Excludes production data
+│   ├── app.py
+│   ├── models.py
+│   ├── config.py
+│   ├── data/                 # Mock data for development (IN git)
+│   │   ├── members.example.csv
+│   │   ├── prayer_assignments.example.csv
+│   │   └── message_templates.yaml
+│   └── ...
+└── mls3-data/                # Production data (NOT in git)
+    ├── members.csv
+    ├── prayer_assignments.csv
+    ├── message_templates.yaml (copy from repo, customize)
+    └── backups/
+        ├── members_2026-02-05.csv
+        └── prayer_assignments_2026-02-05.csv
+```
+
+**Configuration (config.py):**
+```python
+import os
+
+# Data directory - defaults to development mock data
+# Set MLS3_DATA_DIR environment variable for production
+DATA_DIR = os.getenv('MLS3_DATA_DIR', './data')
+
+# Usage in development:
+#   python app.py
+#   (uses ./data/ with mock data)
+
+# Usage in production (Termux):
+#   export MLS3_DATA_DIR=/home/nlod/mls3-data
+#   python app.py
+#   (uses real data from separate directory)
+```
+
+**Benefits:**
+- Sensitive member data never committed to git
+- Easy development with mock data (no setup required)
+- Production data can live anywhere (Termux storage, SD card, cloud-synced folder)
+- User controls backup strategy for production data
+- Custom utility scripts can work with either mock or production data
+
+**Backup Strategy (User Managed):**
+- Manual file copies to cloud storage (Dropbox, Google Drive)
+- Automated backups via separate scripts (user-created)
+- Version snapshots saved in `backups/` subdirectory
+- Git for code only, not data
+
+---
+
 ## Data Model
 
 ### Member Database (members.csv)
@@ -762,7 +826,13 @@ Prayer scheduling system is considered successful when:
 
 ## Revision History
 
-- **2026-02-05**: Initial master plan created
+- **2026-02-05 (v1.1)**: Added data management strategy
+  - Documented code/data separation approach
+  - Added config-based DATA_DIR with environment variable support
+  - Specified mock data in git, production data outside git
+  - Defined .gitignore strategy for sensitive data protection
+
+- **2026-02-05 (v1.0)**: Initial master plan created
   - Defined project scope and Phase 1 goals
   - Documented simplified state workflow (Draft → Invited → Accepted → Reminded → Completed)
   - Specified bubble/card UI design
