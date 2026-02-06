@@ -13,7 +13,9 @@
             <h3>Opening Prayer</h3>
 
             {% if opening_assignment %}
-                {% include 'partials/assignment_detail.html' with assignment=opening_assignment prayer_type='Opening' %}
+                {% set assignment = opening_assignment %}
+                {% set prayer_type = 'Opening' %}
+                {% include 'partials/assignment_detail.html' %}
             {% else %}
                 <div class="assignment-empty">
                     <p class="empty-state">No assignment created yet</p>
@@ -27,7 +29,9 @@
             <h3>Closing Prayer</h3>
 
             {% if closing_assignment %}
-                {% include 'partials/assignment_detail.html' with assignment=closing_assignment prayer_type='Closing' %}
+                {% set assignment = closing_assignment %}
+                {% set prayer_type = 'Closing' %}
+                {% include 'partials/assignment_detail.html' %}
             {% else %}
                 <div class="assignment-empty">
                     <p class="empty-state">No assignment created yet</p>
@@ -66,24 +70,35 @@
 
 {% block scripts %}
 <script>
+    console.log('Prayer scheduler JavaScript loaded');
     const nextSunday = '{{ next_sunday.strftime("%Y-%m-%d") }}';
+    console.log('Next Sunday:', nextSunday);
     let currentAssignment = null;
     let currentField = null;
 
     // Create new assignment
     async function createAssignment(prayerType) {
-        const response = await fetch('/api/assignments/create', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                member_id: null,
-                date: nextSunday,
-                prayer_type: prayerType
-            })
-        });
+        try {
+            const response = await fetch('/api/assignments/create', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    member_id: null,
+                    date: nextSunday,
+                    prayer_type: prayerType
+                })
+            });
 
-        if (response.ok) {
-            location.reload();
+            if (response.ok) {
+                location.reload();
+            } else {
+                const error = await response.json();
+                console.error('Failed to create assignment:', error);
+                alert('Failed to create assignment: ' + (error.error || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Error creating assignment:', error);
+            alert('Error creating assignment: ' + error.message);
         }
     }
 

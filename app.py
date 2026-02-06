@@ -136,17 +136,17 @@ def api_create_assignment():
     """Create a new prayer assignment"""
     data = request.json
 
-    member_id = data.get('member_id')
+    member_id = data.get('member_id')  # Can be null initially
     date_str = data.get('date')
     prayer_type = data.get('prayer_type', 'Undecided')
 
-    if not member_id or not date_str:
-        return jsonify({'error': 'Missing required fields'}), 400
+    if not date_str:
+        return jsonify({'error': 'Missing required field: date'}), 400
 
     # Parse date
     target_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
 
-    # Create assignment
+    # Create assignment (member_id can be None/null)
     assignment = assignments_db.create_assignment(member_id, target_date, prayer_type)
 
     return jsonify({
