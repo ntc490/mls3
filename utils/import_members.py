@@ -18,13 +18,65 @@ import config
 from models import MemberDatabase, Member
 
 
-def load_church_csv(filepath: Path, field_mapping: dict) -> list:
+def parse_name(name_str: str) -> tuple:
+    """
+    Parse 'Last, First' format into first and last names.
+
+    Args:
+        name_str: Name in format "Last, First" or "Last,First"
+
+    Returns:
+        Tuple of (first_name, last_name)
+    """
+    if ',' in name_str:
+        parts = name_str.split(',', 1)
+        last_name = parts[0].strip()
+        first_name = parts[1].strip() if len(parts) > 1 else ''
+        return (first_name, last_name)
+    else:
+        # Fallback if no comma
+        parts = name_str.strip().split()
+        if len(parts) >= 2:
+            return (parts[0], ' '.join(parts[1:]))
+        else:
+            return (name_str.strip(), '')
+
+
+def parse_birth_date(date_str: str) -> str:
+    """
+    Parse birth date from format like "5 Dec 1953" to YYYY-MM-DD.
+
+    Args:
+        date_str: Date in format "5 Dec 1953" or similar
+
+    Returns:
+        Date string in YYYY-MM-DD format, or empty string if invalid
+    """
+    if not date_str:
+        return ''
+
+    try:
+        # Try parsing "5 Dec 1953" format
+        dt = datetime.strptime(date_str.strip(), '%d %b %Y')
+        return dt.strftime('%Y-%m-%d')
+    except ValueError:
+        try:
+            # Try "Dec 5, 1953" format
+            dt = datetime.strptime(date_str.strip(), '%b %d, %Y')
+            return dt.strftime('%Y-%m-%d')
+        except ValueError:
+            # Return as-is if we can't parse it
+            return date_str.strip()
+
+
+def load_church_csv(filepath: Path, field_mapping: dict, delimiter: str = ',') -> list:
     """
     Load members from church website CSV export.
 
     Args:
         filepath: Path to church CSV file
         field_mapping: Dictionary mapping church fields to MLS3 fields
+        delimiter: CSV delimiter (default: ',', use '\t' for tab-separated)
 
     Returns:
         List of dictionaries with MLS3 field names
@@ -32,16 +84,28 @@ def load_church_csv(filepath: Path, field_mapping: dict) -> list:
     members = []
 
     with open(filepath, 'r', newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
+        reader = csv.DictReader(f, delimiter=delimiter)
 
         for row in reader:
             member_data = {}
 
             for mls3_field, church_field in field_mapping.items():
                 if church_field in row:
-                    member_data[mls3_field] = row[church_field].strip()
+                    value = row[church_field].strip()
+
+                    # Special handling for name field
+                    if mls3_field == 'name' and value:
+                        first, last = parse_name(value)
+                        member_data['first_name'] = first
+                        member_data['last_name'] = last
+                    # Special handling for birth date
+                    elif mls3_field == 'birthday' and value:
+                        member_data['birthday'] = parse_birth_date(value)
+                    else:
+                        member_data[mls3_field] = value
                 else:
-                    member_data[mls3_field] = ''
+                    if mls3_field not in ['name']:  # Skip 'name' since we split it
+                        member_data[mls3_field] = ''
 
             members.append(member_data)
 
@@ -185,6 +249,11 @@ def main():
         action='store_true',
         help='Preview changes without saving'
     )
+    parser.add_argument(
+        '--delimiter',
+        default='\t',
+        help='CSV delimiter (default: tab)'
+    )
 
     args = parser.parse_args()
 
@@ -203,23 +272,24 @@ def main():
         create_backup(db)
 
     # Define field mapping
-    # Adjust this mapping based on your church's CSV export format
+    # Format: Name    Gender  Age     Birth Date      Phone Number    E-mail
+    # Name is "Last, First" format
     field_mapping = {
-        'first_name': 'First Name',        # Change to match church CSV
-        'last_name': 'Last Name',          # Change to match church CSV
-        'gender': 'Gender',                # Change to match church CSV
-        'phone': 'Phone',                  # Change to match church CSV
-        'birthday': 'Birth Date',          # Change to match church CSV
-        'recommend_expiration': 'Temple Recommend Expiration',  # Change to match
+        'name': 'Name',                    # Will be split into first_name and last_name
+        'gender': 'Gender',                # M or F
+        'birthday': 'Birth Date',          # Format: "5 Dec 1953"
+        'phone': 'Phone Number',           # Format: 801-419-2655
+        # Skip Age and E-mail - we don't need them
     }
 
     print(f"\nImporting from: {args.csv_file}")
+    print(f"Delimiter: {'tab' if args.delimiter == '\\t' else repr(args.delimiter)}")
     print(f"Field mapping: {field_mapping}")
     print()
 
     # Load church CSV
     try:
-        new_members = load_church_csv(args.csv_file, field_mapping)
+        new_members = load_church_csv(args.csv_file, field_mapping, delimiter=args.delimiter)
         print(f"Loaded {len(new_members)} members from church CSV")
     except Exception as e:
         print(f"Error loading church CSV: {e}")
