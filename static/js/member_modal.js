@@ -46,6 +46,9 @@ async function openMemberModal(memberId, date = null) {
         document.getElementById('modalBirthday').textContent = member.birthday || 'Not specified';
         document.getElementById('modalPhone').textContent = member.phone || 'Not specified';
 
+        // Update skip until display
+        updateSkipUntilDisplay(member.skip_until);
+
         // Show notes only if they exist
         const notesRow = document.getElementById('modalNotesRow');
         if (member.notes && member.notes.trim()) {
@@ -248,57 +251,55 @@ async function setMemberFlag(flag) {
 }
 
 /**
- * Open the pray dialog
+ * Update Skip Until display in the main member modal
  */
-function openPrayDialog() {
-    if (!currentMemberId) return;
-
-    // Show pray dialog
-    const dialog = document.getElementById('prayDialogModal');
-    dialog.style.display = 'flex';
-
-    // Update skip status in dialog
-    fetch(`/api/members/${currentMemberId}`)
-        .then(response => response.json())
-        .then(member => {
-            updateDialogSkipStatus(member.skip_until);
-        })
-        .catch(error => {
-            console.error('Error loading member for pray dialog:', error);
-        });
-}
-
-/**
- * Close the pray dialog
- */
-function closePrayDialog() {
-    const dialog = document.getElementById('prayDialogModal');
-    dialog.style.display = 'none';
-}
-
-/**
- * Update skip status display in pray dialog
- */
-function updateDialogSkipStatus(skip_until) {
-    const statusEl = document.getElementById('dialogSkipStatus');
+function updateSkipUntilDisplay(skip_until) {
+    const skipUntilEl = document.getElementById('modalSkipUntil');
     if (skip_until) {
         const skipDate = new Date(skip_until);
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time for comparison
+
         if (skipDate > today) {
-            statusEl.textContent = `Currently skipped until ${skipDate.toLocaleDateString()}`;
-            statusEl.className = 'skip-status active';
+            skipUntilEl.textContent = skipDate.toLocaleDateString();
+            skipUntilEl.classList.add('active');
         } else {
-            statusEl.textContent = 'Skip date has passed - member is back in rotation';
-            statusEl.className = 'skip-status expired';
+            // Skip date has passed
+            skipUntilEl.textContent = 'Not set';
+            skipUntilEl.classList.remove('active');
         }
     } else {
-        statusEl.textContent = 'Not currently skipped';
-        statusEl.className = 'skip-status';
+        skipUntilEl.textContent = 'Not set';
+        skipUntilEl.classList.remove('active');
     }
 }
 
 /**
- * Set skip_until date from pray dialog (months from now)
+ * Open the skip dialog
+ */
+function openSkipDialog() {
+    if (!currentMemberId) return;
+
+    const dialog = document.getElementById('skipDialogModal');
+    dialog.style.display = 'flex';
+}
+
+/**
+ * Close the skip dialog
+ */
+function closeSkipDialog() {
+    const dialog = document.getElementById('skipDialogModal');
+    dialog.style.display = 'none';
+
+    // Clear the date picker
+    const dateInput = document.getElementById('skipDatePicker');
+    if (dateInput) {
+        dateInput.value = '';
+    }
+}
+
+/**
+ * Set skip_until date from skip dialog (months from now)
  */
 async function setSkipUntilFromDialog(months) {
     if (!currentMemberId) return;
@@ -319,9 +320,10 @@ async function setSkipUntilFromDialog(months) {
         }
 
         const result = await response.json();
-        updateDialogSkipStatus(result.skip_until);
+        updateSkipUntilDisplay(result.skip_until);
         memberDataDirty = true;
         showToast(`Member skipped until ${skipDate.toLocaleDateString()}`);
+        closeSkipDialog();
 
     } catch (error) {
         console.error('Error setting skip date:', error);
@@ -355,11 +357,11 @@ async function setCustomSkipDate() {
         }
 
         const result = await response.json();
-        updateDialogSkipStatus(result.skip_until);
+        updateSkipUntilDisplay(result.skip_until);
         memberDataDirty = true;
         const skipDate = new Date(skipDateStr);
         showToast(`Member skipped until ${skipDate.toLocaleDateString()}`);
-        dateInput.value = ''; // Clear the input
+        closeSkipDialog();
 
     } catch (error) {
         console.error('Error setting skip date:', error);
@@ -368,7 +370,7 @@ async function setCustomSkipDate() {
 }
 
 /**
- * Clear skip_until from pray dialog
+ * Clear skip_until from skip dialog
  */
 async function clearSkipFromDialog() {
     if (!currentMemberId) return;
@@ -385,9 +387,10 @@ async function clearSkipFromDialog() {
         }
 
         const result = await response.json();
-        updateDialogSkipStatus(result.skip_until);
+        updateSkipUntilDisplay(result.skip_until);
         memberDataDirty = true;
         showToast('Skip cleared - member back in rotation');
+        closeSkipDialog();
 
     } catch (error) {
         console.error('Error clearing skip date:', error);
@@ -494,19 +497,10 @@ document.addEventListener('DOMContentLoaded', () => {
         sendTextBtn.addEventListener('click', sendTextMessage);
     }
 
-    // Pray button - opens pray dialog
+    // Pray button - goes directly to prayer scheduler
     const prayBtn = document.getElementById('prayBtn');
     if (prayBtn) {
-        prayBtn.addEventListener('click', openPrayDialog);
-    }
-
-    // Assign prayer button in pray dialog
-    const assignPrayerBtn = document.getElementById('assignPrayerBtn');
-    if (assignPrayerBtn) {
-        assignPrayerBtn.addEventListener('click', () => {
-            closePrayDialog();
-            createPrayerAssignment();
-        });
+        prayBtn.addEventListener('click', createPrayerAssignment);
     }
 
     // Close member modal on outside click
@@ -519,12 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Close pray dialog on outside click
-    const prayDialog = document.getElementById('prayDialogModal');
-    if (prayDialog) {
-        prayDialog.addEventListener('click', (e) => {
-            if (e.target === prayDialog) {
-                closePrayDialog();
+    // Close skip dialog on outside click
+    const skipDialog = document.getElementById('skipDialogModal');
+    if (skipDialog) {
+        skipDialog.addEventListener('click', (e) => {
+            if (e.target === skipDialog) {
+                closeSkipDialog();
             }
         });
     }

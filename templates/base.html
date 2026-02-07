@@ -47,6 +47,10 @@
                         <span class="info-label">Phone:</span>
                         <span id="modalPhone"></span>
                     </div>
+                    <div class="info-row info-row-clickable" onclick="openSkipDialog()">
+                        <span class="info-label">Skip Until:</span>
+                        <span id="modalSkipUntil" class="skip-until-value">Not set</span>
+                    </div>
                     <div class="info-row" id="modalNotesRow" style="display: none;">
                         <span class="info-label">Notes:</span>
                         <span id="modalNotes"></span>
@@ -99,33 +103,27 @@
         </div>
     </div>
 
-    <!-- Pray Dialog Modal -->
-    <div id="prayDialogModal" class="modal pray-dialog-modal">
-        <div class="modal-content pray-dialog-content">
+    <!-- Skip Dialog Modal -->
+    <div id="skipDialogModal" class="modal">
+        <div class="modal-content skip-dialog-content">
             <div class="modal-header">
-                <h2>Create Prayer Assignment</h2>
-                <button class="close-btn" onclick="closePrayDialog()">&times;</button>
+                <h2>Skip Until</h2>
+                <button class="close-btn" onclick="closeSkipDialog()">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="pray-dialog-section">
-                    <h3>Skip Until</h3>
-                    <p class="help-text">Temporarily remove this member from prayer rotation</p>
-                    <div class="skip-quick-buttons">
-                        <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(1)">1 Month</button>
-                        <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(3)">3 Months</button>
-                        <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(6)">6 Months</button>
-                    </div>
-                    <div class="skip-date-picker">
-                        <label for="skipDatePicker">Or choose a custom date:</label>
-                        <input type="date" id="skipDatePicker" class="date-input">
-                        <button class="btn btn-sm btn-secondary" onclick="setCustomSkipDate()">Set Date</button>
-                        <button class="btn btn-sm btn-secondary" onclick="clearSkipFromDialog()">Clear Skip</button>
-                    </div>
-                    <p id="dialogSkipStatus" class="skip-status"></p>
+                <p class="help-text">Temporarily remove this member from prayer rotation</p>
+                <div class="skip-quick-buttons">
+                    <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(1)">1 Month</button>
+                    <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(3)">3 Months</button>
+                    <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(6)">6 Months</button>
                 </div>
-
-                <div class="pray-dialog-actions">
-                    <button id="assignPrayerBtn" class="btn btn-primary btn-large">Assign Prayer</button>
+                <div class="skip-date-picker">
+                    <label for="skipDatePicker">Or choose a custom date:</label>
+                    <input type="date" id="skipDatePicker" class="date-input">
+                    <button class="btn btn-sm btn-secondary" onclick="setCustomSkipDate()">Set Date</button>
+                </div>
+                <div class="skip-dialog-actions">
+                    <button class="btn btn-secondary" onclick="clearSkipFromDialog()">Clear Skip</button>
                 </div>
             </div>
         </div>
