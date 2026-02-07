@@ -7,7 +7,10 @@
     <h1 id="page-title">Members <span id="member-count" class="text-muted" style="font-size: 0.7em;">({{ active_count }})</span></h1>
 
     <div class="filters">
-        <input type="text" id="search-box" placeholder="Search members..." class="search-input">
+        <div class="search-container">
+            <input type="text" id="search-box" placeholder="Search members..." class="search-input">
+            <button class="search-clear-btn" id="search-clear-btn" title="Clear search">&times;</button>
+        </div>
         <div class="filter-buttons">
             <button class="btn btn-filter active" id="filter-active-status">Active: Yes</button>
             <button class="btn btn-filter" id="filter-gender">Gender: All</button>
@@ -114,6 +117,12 @@
     // Restore search box value
     if (filterState.searchTerm) {
         searchBox.value = filterState.searchTerm;
+    }
+
+    // Initialize clear button visibility
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    if (searchBox.value.trim()) {
+        searchClearBtn.classList.add('visible');
     }
 
     // Function to save filter state
@@ -338,6 +347,20 @@
 
     // Search box with fuzzy matching
     searchBox.addEventListener('input', (e) => {
+        // Show/hide clear button based on whether there's text
+        if (searchBox.value.trim()) {
+            searchClearBtn.classList.add('visible');
+        } else {
+            searchClearBtn.classList.remove('visible');
+        }
+        saveFilterState();
+        applyFiltersAndSort();
+    });
+
+    // Clear button click handler
+    searchClearBtn.addEventListener('click', () => {
+        searchBox.value = '';
+        searchClearBtn.classList.remove('visible');
         saveFilterState();
         applyFiltersAndSort();
     });
