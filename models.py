@@ -162,19 +162,12 @@ class MemberDatabase:
             self.save()
 
     def get_last_prayer_date(self, member_id: int, assignments_db) -> Optional[str]:
-        """Get member's last completed prayer date from assignments"""
-        # Get all completed assignments for this member
-        completed = [
-            a for a in assignments_db.assignments
-            if a.member_id == member_id and a.state == 'Completed'
-        ]
-
-        if not completed:
+        """Get member's last prayer date from members.csv"""
+        member = self.get_by_id(member_id)
+        if not member:
             return None
 
-        # Sort by date descending and get the most recent
-        completed.sort(key=lambda a: a.date, reverse=True)
-        return completed[0].date
+        return member.last_prayer_date
 
 
 class PrayerAssignmentDatabase:

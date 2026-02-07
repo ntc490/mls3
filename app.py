@@ -290,10 +290,15 @@ def api_update_assignment_state(assignment_id):
     if not new_state:
         return jsonify({'error': 'Missing state'}), 400
 
+    assignment = assignments_db.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+
     assignments_db.update_state(assignment_id, new_state)
 
-    # last_prayer_date is now dynamically calculated from completed assignments
-    # No need to update member record
+    # If marking as Completed, update member's last_prayer_date
+    if new_state == 'Completed' and assignment.member_id:
+        members_db.update_member(assignment.member_id, last_prayer_date=assignment.date)
 
     return jsonify({'success': True})
 
