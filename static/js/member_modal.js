@@ -5,12 +5,14 @@
 
 let currentMemberId = null;
 let currentMemberPhone = null;
+let targetDate = null; // Optional date for creating assignments
 
 /**
  * Open the member info modal and load member data
  */
-async function openMemberModal(memberId) {
+async function openMemberModal(memberId, date = null) {
     currentMemberId = memberId;
+    targetDate = date; // Store the target date if provided
 
     // Show modal
     const modal = document.getElementById('memberInfoModal');
@@ -256,10 +258,16 @@ async function createPrayerAssignment() {
     if (!currentMemberId) return;
 
     try {
+        // Build request body with optional date
+        const requestBody = {};
+        if (targetDate) {
+            requestBody.date = targetDate;
+        }
+
         const response = await fetch(`/api/members/${currentMemberId}/create-assignment`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({})
+            body: JSON.stringify(requestBody)
         });
 
         const result = await response.json();
@@ -270,8 +278,12 @@ async function createPrayerAssignment() {
             return;
         }
 
-        // Success - redirect to prayer scheduler
-        window.location.href = '/prayer-scheduler';
+        // Success - redirect to prayer scheduler with the date if available
+        if (targetDate) {
+            window.location.href = `/prayer-scheduler?date=${targetDate}`;
+        } else {
+            window.location.href = '/prayer-scheduler';
+        }
 
     } catch (error) {
         console.error('Error creating assignment:', error);

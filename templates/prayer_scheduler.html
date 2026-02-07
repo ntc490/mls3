@@ -7,40 +7,41 @@
     <h1>Prayer Scheduler</h1>
 
     <div class="date-navigation">
-        <a href="?date={{ prev_sunday.strftime('%Y-%m-%d') }}" class="btn btn-secondary">← Previous Week</a>
-        <h2>{{ target_sunday | format_date }}</h2>
-        <a href="?date={{ next_sunday_nav.strftime('%Y-%m-%d') }}" class="btn btn-secondary">Next Week →</a>
+        <a href="?date={{ prev_sunday.strftime('%Y-%m-%d') }}" class="btn btn-secondary">← Previous</a>
+        <div class="date-center">
+            <h2>{{ target_sunday | format_date }}</h2>
+            <a href="/prayer-scheduler" class="btn btn-primary btn-sm">This Week</a>
+        </div>
+        <a href="?date={{ next_sunday_nav.strftime('%Y-%m-%d') }}" class="btn btn-secondary">Next →</a>
     </div>
 
     <div class="assignments-container">
-        <!-- Opening Prayer Card -->
-        <div class="assignment-card" id="opening-card" data-prayer-type="Opening">
-            <h3>Opening Prayer</h3>
+        <!-- Slot 1 -->
+        <div class="assignment-card" id="slot1-card">
+            <h3>Slot 1</h3>
 
-            {% if opening_assignment %}
-                {% set assignment = opening_assignment %}
-                {% set prayer_type = 'Opening' %}
+            {% if slot1 %}
+                {% set assignment = slot1 %}
                 {% include 'partials/assignment_detail.html' %}
             {% else %}
                 <div class="assignment-empty">
                     <p class="empty-state">No assignment created yet</p>
-                    <button class="btn btn-primary" onclick="createAssignment('Opening')">Create Assignment</button>
+                    <button class="btn btn-primary" onclick="createAssignment('Undecided')">Create Assignment</button>
                 </div>
             {% endif %}
         </div>
 
-        <!-- Closing Prayer Card -->
-        <div class="assignment-card" id="closing-card" data-prayer-type="Closing">
-            <h3>Closing Prayer</h3>
+        <!-- Slot 2 -->
+        <div class="assignment-card" id="slot2-card">
+            <h3>Slot 2</h3>
 
-            {% if closing_assignment %}
-                {% set assignment = closing_assignment %}
-                {% set prayer_type = 'Closing' %}
+            {% if slot2 %}
+                {% set assignment = slot2 %}
                 {% include 'partials/assignment_detail.html' %}
             {% else %}
                 <div class="assignment-empty">
                     <p class="empty-state">No assignment created yet</p>
-                    <button class="btn btn-primary" onclick="createAssignment('Closing')">Create Assignment</button>
+                    <button class="btn btn-primary" onclick="createAssignment('Undecided')">Create Assignment</button>
                 </div>
             {% endif %}
         </div>
@@ -107,8 +108,8 @@
 {% block scripts %}
 <script>
     console.log('Prayer scheduler JavaScript loaded');
-    const nextSunday = '{{ next_sunday.strftime("%Y-%m-%d") }}';
-    console.log('Next Sunday:', nextSunday);
+    const targetSunday = '{{ target_sunday.strftime("%Y-%m-%d") }}';
+    console.log('Target Sunday:', targetSunday);
     let currentAssignment = null;
     let currentField = null;
 
@@ -130,7 +131,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     member_id: null,
-                    date: nextSunday,
+                    date: targetSunday,
                     prayer_type: prayerType
                 })
             });
@@ -305,9 +306,16 @@
         }
     }
 
-    // Toggle prayer type
+    // Toggle prayer type - cycles through Undecided -> Opening -> Closing -> Undecided
     async function togglePrayerType(assignmentId, currentType) {
-        const newType = currentType === 'Opening' ? 'Closing' : 'Opening';
+        let newType;
+        if (currentType === 'Undecided') {
+            newType = 'Opening';
+        } else if (currentType === 'Opening') {
+            newType = 'Closing';
+        } else {
+            newType = 'Undecided';
+        }
 
         const response = await fetch(`/api/assignments/${assignmentId}/update`, {
             method: 'POST',
@@ -362,6 +370,32 @@
             hideLoading();
             console.error('Error deleting assignment:', error);
             alert('Error deleting assignment: ' + error.message);
+        }
+    }
+
+    // Clear slot - completely delete the assignment
+    async function clearSlot(assignmentId) {
+        if (!confirm('Clear this slot completely? This will remove the assignment.')) {
+            return;
+        }
+
+        showLoading();
+        try {
+            const response = await fetch(`/api/assignments/${assignmentId}/delete`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                hideLoading();
+                alert('Failed to clear slot');
+            }
+        } catch (error) {
+            hideLoading();
+            console.error('Error clearing slot:', error);
+            alert('Error clearing slot: ' + error.message);
         }
     }
 

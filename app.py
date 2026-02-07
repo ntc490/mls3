@@ -104,19 +104,12 @@ def prayer_scheduler():
     # Get existing assignments for target Sunday
     sunday_assignments = assignments_db.get_assignments_for_date(target_sunday)
 
-    # Find opening and closing assignments (including Completed ones)
-    opening = None
-    closing = None
+    # Find slot assignments (two unnamed slots)
+    # Sort by assignment_id only - keep in creation order
+    sorted_assignments = sorted(sunday_assignments, key=lambda a: a.assignment_id)
 
-    for assignment in sunday_assignments:
-        if assignment.prayer_type == 'Opening':
-            # Take the most recent one (highest ID)
-            if not opening or assignment.assignment_id > opening.assignment_id:
-                opening = assignment
-        elif assignment.prayer_type == 'Closing':
-            # Take the most recent one (highest ID)
-            if not closing or assignment.assignment_id > closing.assignment_id:
-                closing = assignment
+    slot1 = sorted_assignments[0] if len(sorted_assignments) > 0 else None
+    slot2 = sorted_assignments[1] if len(sorted_assignments) > 1 else None
 
     # Get all active assignments for other dates (the queue)
     all_active = assignments_db.get_active_assignments()
@@ -139,8 +132,8 @@ def prayer_scheduler():
         'prayer_scheduler.html',
         target_sunday=target_sunday,
         next_sunday=get_next_sunday(),  # For "Create Assignment" default
-        opening_assignment=opening,
-        closing_assignment=closing,
+        slot1=slot1,
+        slot2=slot2,
         active_queue=active_queue,
         members_db=members_db,
         prev_sunday=prev_sunday,
@@ -257,12 +250,33 @@ def api_update_assignment(assignment_id):
     if date_str:
         target_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
 
-    assignments_db.update_assignment(
-        assignment_id,
-        member_id=member_id,
-        prayer_type=prayer_type,
-        date=target_date
-    )
+    # Handle updates with prayer type syncing
+    if prayer_type:
+        # User is manually toggling prayer type
+        assignment = assignments_db.get_by_id(assignment_id)
+        if assignment:
+            # Update this assignment
+            assignments_db.update_assignment(assignment_id, prayer_type=prayer_type)
+
+            # If setting to Opening or Closing, set the other slot to the opposite
+            if prayer_type in ['Opening', 'Closing']:
+                same_date_assignments = assignments_db.get_assignments_for_date(
+                    datetime.strptime(assignment.date, config.DATE_FORMAT).date()
+                )
+                opposite_type = 'Closing' if prayer_type == 'Opening' else 'Opening'
+
+                for other in same_date_assignments:
+                    if other.assignment_id != assignment_id and other.state != 'Completed':
+                        # Always set other slot to the opposite type
+                        assignments_db.update_assignment(other.assignment_id, prayer_type=opposite_type)
+                        break
+            # If setting to Undecided, leave the other slot alone
+    elif member_id is not None:
+        # Assigning a member - keep prayer type as-is
+        assignments_db.update_assignment(assignment_id, member_id=member_id)
+    elif target_date:
+        # Date update
+        assignments_db.update_assignment(assignment_id, date=target_date)
 
     return jsonify({'success': True})
 
@@ -498,50 +512,56 @@ def api_create_member_assignment(member_id):
     # Check if this member already has an assignment for this date
     member_has_assignment = any(a.member_id == member_id for a in active_assignments)
     if member_has_assignment:
+        # Member already assigned - just redirect to scheduler (success, no new assignment created)
         return jsonify({
-            'error': 'Member already has an assignment for this date'
-        }), 400
+            'success': True,
+            'redirect': True,
+            'message': 'Member already has an assignment for this date'
+        })
 
-    # Find existing empty slots (Draft assignments with member_id=0 or None)
-    opening_slot = None
-    closing_slot = None
+    # Check how many slots exist and their types
+    num_slots = len(active_assignments)
 
+    # Find any empty slot (member_id=0 or None)
+    empty_slot = None
     for a in active_assignments:
-        if a.prayer_type == 'Opening':
-            if not a.member_id or a.member_id == 0:
-                opening_slot = a
-            # else: slot is filled
-        elif a.prayer_type == 'Closing':
-            if not a.member_id or a.member_id == 0:
-                closing_slot = a
-            # else: slot is filled
+        if not a.member_id or a.member_id == 0:
+            empty_slot = a
+            break
 
-    # Check if both slots are filled (not None and member assigned)
-    opening_filled = any(a.prayer_type == 'Opening' and a.member_id and a.member_id > 0 for a in active_assignments)
-    closing_filled = any(a.prayer_type == 'Closing' and a.member_id and a.member_id > 0 for a in active_assignments)
-
-    if opening_filled and closing_filled:
+    # Check if both slots are filled with members
+    filled_slots = [a for a in active_assignments if a.member_id and a.member_id > 0]
+    if len(filled_slots) >= 2:
+        # Both slots full with different members
         return jsonify({
-            'error': 'Both prayer slots are already filled for this date'
+            'error': 'All prayer slots are full for this week. Please choose a different week or clear an existing slot.'
         }), 400
 
-    # Use existing empty slot or create new assignment
-    if opening_slot:
-        # Fill the existing Opening slot
-        assignments_db.update_assignment(opening_slot.assignment_id, member_id=member_id)
-        assignment = assignments_db.get_by_id(opening_slot.assignment_id)
-    elif closing_slot:
-        # Fill the existing Closing slot
-        assignments_db.update_assignment(closing_slot.assignment_id, member_id=member_id)
-        assignment = assignments_db.get_by_id(closing_slot.assignment_id)
-    elif not opening_filled:
-        # Create new Opening assignment
-        assignment = assignments_db.create_assignment(member_id, target_date, 'Opening')
-    elif not closing_filled:
-        # Create new Closing assignment
-        assignment = assignments_db.create_assignment(member_id, target_date, 'Closing')
+    # Determine what to do
+    if empty_slot:
+        # Fill the existing empty slot - keep its prayer type
+        assignments_db.update_assignment(empty_slot.assignment_id, member_id=member_id)
+        assignment = assignments_db.get_by_id(empty_slot.assignment_id)
+    elif num_slots == 0:
+        # No slots exist - create first one as Undecided
+        assignment = assignments_db.create_assignment(member_id, target_date, 'Undecided')
+    elif num_slots == 1:
+        # One slot exists - check its prayer type
+        existing = active_assignments[0]
+
+        if existing.prayer_type == 'Undecided':
+            # Existing slot is Undecided - create new one as Undecided
+            new_prayer_type = 'Undecided'
+        elif existing.prayer_type == 'Opening':
+            # Existing slot is Opening - create new one as Closing
+            new_prayer_type = 'Closing'
+        else:  # Closing
+            # Existing slot is Closing - create new one as Opening
+            new_prayer_type = 'Opening'
+
+        assignment = assignments_db.create_assignment(member_id, target_date, new_prayer_type)
     else:
-        # This shouldn't happen, but just in case
+        # Two slots exist but one is empty (already handled above)
         return jsonify({
             'error': 'Unable to create assignment - slots unavailable'
         }), 400
