@@ -154,6 +154,14 @@ async function toggleActiveStatus() {
         // Show feedback
         showToast(result.active ? 'Member activated' : 'Member deactivated');
 
+        // Reload the parent page if we're on the members list
+        if (window.location.pathname === '/members') {
+            // Delay slightly so toast is visible
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }
+
     } catch (error) {
         console.error('Error toggling active status:', error);
         alert('Failed to update active status');
