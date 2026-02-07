@@ -503,6 +503,13 @@ def api_create_member_assignment(member_id):
     else:
         target_date = get_next_sunday()
 
+    # Don't allow creating prayers for past dates
+    current_sunday = get_next_sunday()
+    if target_date < current_sunday:
+        return jsonify({
+            'error': 'Cannot create prayer assignments for past weeks. Please use current or future dates.'
+        }), 400
+
     # Check existing assignments for this date
     existing_assignments = assignments_db.get_assignments_for_date(target_date)
 
