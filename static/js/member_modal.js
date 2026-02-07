@@ -43,7 +43,6 @@ async function openMemberModal(memberId, date = null) {
         document.getElementById('modalGender').textContent = member.gender === 'M' ? 'Male' : 'Female';
         document.getElementById('modalBirthday').textContent = member.birthday || 'Not specified';
         document.getElementById('modalPhone').textContent = member.phone || 'Not specified';
-        document.getElementById('modalRecommend').textContent = member.recommend_expiration || 'Not specified';
 
         // Show notes only if they exist
         const notesRow = document.getElementById('modalNotesRow');
