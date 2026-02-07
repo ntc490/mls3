@@ -14,6 +14,7 @@
             <button class="btn btn-filter" id="filter-minors">Minors: No</button>
             <button class="btn btn-filter" id="filter-prayed">Prayed: All</button>
             <button class="btn btn-filter" id="filter-flag">Flag: All</button>
+            <button class="btn btn-filter" id="filter-name-format">Name Format</button>
         </div>
         <div class="sort-buttons">
             <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
@@ -28,6 +29,8 @@
              data-name="{{ member.full_name|lower }}"
              data-first-name="{{ member.first_name|lower }}"
              data-last-name="{{ member.last_name|lower }}"
+             data-first-name-display="{{ member.first_name }}"
+             data-last-name-display="{{ member.last_name }}"
              data-prayer-date="{{ member.last_prayer_date if member.last_prayer_date else '1900-01-01' }}"
              data-active="{{ 'true' if member.active else 'false' }}"
              data-age="{{ member.age if member.age is not none else '999' }}"
@@ -82,6 +85,7 @@
     const filterMinorsBtn = document.getElementById('filter-minors');
     const filterPrayedBtn = document.getElementById('filter-prayed');
     const filterFlagBtn = document.getElementById('filter-flag');
+    const filterNameFormatBtn = document.getElementById('filter-name-format');
 
     // Load filter state from sessionStorage or use defaults
     const savedFilters = sessionStorage.getItem('memberListFilters');
@@ -93,7 +97,8 @@
         flagFilter: 'all',
         alphaSort: null,
         prayerSort: null,
-        searchTerm: ''
+        searchTerm: '',
+        nameFormat: 'first-last'  // 'first-last' or 'last-first'
     };
 
     // Filter states
@@ -104,6 +109,7 @@
     let flagFilter = filterState.flagFilter;
     let alphaSort = filterState.alphaSort;
     let prayerSort = filterState.prayerSort;
+    let nameFormat = filterState.nameFormat || 'first-last';
 
     // Restore search box value
     if (filterState.searchTerm) {
@@ -120,7 +126,8 @@
             flagFilter,
             alphaSort,
             prayerSort,
-            searchTerm: searchBox.value
+            searchTerm: searchBox.value,
+            nameFormat
         };
         sessionStorage.setItem('memberListFilters', JSON.stringify(state));
     }
@@ -185,6 +192,13 @@
         } else {
             filterFlagBtn.textContent = 'Flag: All';
             filterFlagBtn.classList.remove('active');
+        }
+
+        // Name format button
+        if (nameFormat === 'last-first') {
+            filterNameFormatBtn.classList.add('active');
+        } else {
+            filterNameFormatBtn.classList.remove('active');
         }
 
         // Sort buttons
@@ -308,6 +322,20 @@
         applyFiltersAndSort();
     });
 
+    // Name format button - toggles between First Last and Last, First
+    filterNameFormatBtn.addEventListener('click', () => {
+        if (nameFormat === 'first-last') {
+            nameFormat = 'last-first';
+            filterNameFormatBtn.classList.add('active');
+        } else {
+            nameFormat = 'first-last';
+            filterNameFormatBtn.classList.remove('active');
+        }
+        updateMemberNames();
+        saveFilterState();
+        applyFiltersAndSort();
+    });
+
     // Search box with fuzzy matching
     searchBox.addEventListener('input', (e) => {
         saveFilterState();
@@ -393,6 +421,39 @@
         return true;
     }
 
+    // Function to update all member names based on current format
+    function updateMemberNames() {
+        memberCards.forEach(card => {
+            const h3 = card.querySelector('h3');
+            const firstName = card.dataset.firstNameDisplay;
+            const lastName = card.dataset.lastNameDisplay;
+
+            // Get the inactive badge if it exists
+            const inactiveBadge = h3.querySelector('.inactive-badge');
+
+            if (nameFormat === 'last-first') {
+                h3.textContent = `${lastName}, ${firstName}`;
+            } else {
+                h3.textContent = `${firstName} ${lastName}`;
+            }
+
+            // Re-append the inactive badge if it existed
+            if (inactiveBadge) {
+                h3.appendChild(document.createTextNode(' '));
+                h3.appendChild(inactiveBadge);
+            }
+        });
+    }
+
+    // Function to get the sort key for a card based on name format
+    function getSortName(card) {
+        if (nameFormat === 'last-first') {
+            return card.dataset.lastName.toLowerCase() + ', ' + card.dataset.firstName.toLowerCase();
+        } else {
+            return card.dataset.firstName.toLowerCase() + ' ' + card.dataset.lastName.toLowerCase();
+        }
+    }
+
     function applyFiltersAndSort() {
         const searchTerm = searchBox.value.toLowerCase().trim();
 
@@ -457,8 +518,8 @@
         // Sort visible cards
         if (alphaSort !== null) {
             visibleCards.sort((a, b) => {
-                const nameA = a.dataset.name;
-                const nameB = b.dataset.name;
+                const nameA = getSortName(a);
+                const nameB = getSortName(b);
                 if (alphaSort === 'asc') {
                     return nameA.localeCompare(nameB);
                 } else {
@@ -485,7 +546,8 @@
         }
     }
 
-    // Apply initial filter on page load
+    // Apply initial name format and filter on page load
+    updateMemberNames();
     applyFiltersAndSort();
 </script>
 {% endblock %}
