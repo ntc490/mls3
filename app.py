@@ -68,7 +68,8 @@ def members_list():
             'last_prayer_date': members_db.get_last_prayer_date(m.member_id, assignments_db),
             'dont_ask_prayer': m.dont_ask_prayer,
             'active': m.active,
-            'notes': m.notes
+            'notes': m.notes,
+            'flag': m.flag
         }
         all_members.append(member_dict)
 
@@ -462,6 +463,7 @@ def api_get_member(member_id):
         'last_prayer_date': members_db.get_last_prayer_date(member_id, assignments_db),
         'notes': member.notes,
         'skip_until': member.skip_until,
+        'flag': member.flag,
         'prayer_history': prayer_history
     })
 
@@ -516,6 +518,29 @@ def api_set_skip_until(member_id):
     return jsonify({
         'success': True,
         'skip_until': member.skip_until
+    })
+
+
+@app.route('/api/members/<int:member_id>/set-flag', methods=['POST'])
+def api_set_member_flag(member_id):
+    """Set color flag for a member"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    data = request.json
+    flag = data.get('flag', '')  # Can be '', 'red', 'yellow', 'blue'
+
+    # Validate flag value
+    if flag not in ['', 'red', 'yellow', 'blue']:
+        return jsonify({'error': 'Invalid flag color'}), 400
+
+    member.flag = flag
+    members_db.save()
+
+    return jsonify({
+        'success': True,
+        'flag': member.flag
     })
 
 

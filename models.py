@@ -27,6 +27,7 @@ class Member:
     active: bool = True
     notes: str = ""
     skip_until: Optional[str] = None  # Date to skip member until (YYYY-MM-DD)
+    flag: str = ""  # Color flag: empty, 'red', 'yellow', 'blue'
 
     @property
     def full_name(self):
@@ -97,7 +98,8 @@ class MemberDatabase:
                     dont_ask_prayer=row['dont_ask_prayer'].lower() == 'true',
                     active=row['active'].lower() == 'true',
                     notes=row['notes'],
-                    skip_until=row.get('skip_until') if row.get('skip_until') else None
+                    skip_until=row.get('skip_until') if row.get('skip_until') else None,
+                    flag=row.get('flag', '')
                 )
                 self.members.append(member)
 
@@ -109,7 +111,7 @@ class MemberDatabase:
             fieldnames = [
                 'member_id', 'first_name', 'last_name', 'gender', 'phone',
                 'birthday', 'recommend_expiration', 'last_prayer_date',
-                'dont_ask_prayer', 'active', 'notes', 'skip_until'
+                'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()

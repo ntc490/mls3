@@ -13,6 +13,7 @@
             <button class="btn btn-filter" id="filter-gender">Gender: All</button>
             <button class="btn btn-filter" id="filter-minors">Minors: No</button>
             <button class="btn btn-filter" id="filter-prayed">Prayed: All</button>
+            <button class="btn btn-filter" id="filter-flag">Flag: All</button>
         </div>
         <div class="sort-buttons">
             <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
@@ -32,7 +33,11 @@
              data-age="{{ member.age if member.age is not none else '999' }}"
              data-is-minor="{{ 'true' if member.age is not none and member.age < 18 else 'false' }}"
              data-has-prayed="{{ 'true' if member.last_prayer_date else 'false' }}"
+             data-flag="{{ member.flag if member.flag else '' }}"
              onclick="openMemberModal({{ member.member_id }})">
+            {% if member.flag %}
+            <span class="flag-circle flag-{{ member.flag }}"></span>
+            {% endif %}
             <h3>{{ member.full_name }}{% if not member.active %} <span class="inactive-badge">Inactive</span>{% endif %}</h3>
             {% if member.age is not none %}
             <p><strong>Age:</strong> {{ member.age }}{% if member.age < 18 %} (minor){% endif %}</p>
@@ -72,12 +77,14 @@
     const filterGenderBtn = document.getElementById('filter-gender');
     const filterMinorsBtn = document.getElementById('filter-minors');
     const filterPrayedBtn = document.getElementById('filter-prayed');
+    const filterFlagBtn = document.getElementById('filter-flag');
 
     // Filter states
     let activeFilter = 'active'; // 'active', 'inactive', 'all'
     let genderFilter = 'all'; // 'M', 'F', 'all'
     let showMinors = false; // true, false - default to hiding minors
     let prayerHistoryFilter = 'all'; // 'all', 'prayed', 'never'
+    let flagFilter = 'all'; // 'all', 'blue', 'yellow', 'red'
     let alphaSort = null; // null, 'asc', 'desc'
     let prayerSort = null; // null, 'asc', 'desc'
 
@@ -135,6 +142,24 @@
         } else {
             prayerHistoryFilter = 'all';
             filterPrayedBtn.textContent = 'Prayed: All';
+        }
+        applyFiltersAndSort();
+    });
+
+    // Flag button - cycles through All -> Blue -> Yellow -> Red
+    filterFlagBtn.addEventListener('click', () => {
+        if (flagFilter === 'all') {
+            flagFilter = 'blue';
+            filterFlagBtn.textContent = 'Flag: 🔵';
+        } else if (flagFilter === 'blue') {
+            flagFilter = 'yellow';
+            filterFlagBtn.textContent = 'Flag: 🟡';
+        } else if (flagFilter === 'yellow') {
+            flagFilter = 'red';
+            filterFlagBtn.textContent = 'Flag: 🔴';
+        } else {
+            flagFilter = 'all';
+            filterFlagBtn.textContent = 'Flag: All';
         }
         applyFiltersAndSort();
     });
@@ -230,6 +255,7 @@
             const gender = card.dataset.gender;
             const isMinor = card.dataset.isMinor === 'true';
             const hasPrayed = card.dataset.hasPrayed === 'true';
+            const flag = card.dataset.flag;
 
             // Check active status filter
             let matchesActive = false;
@@ -257,11 +283,14 @@
                 matchesPrayerHistory = !hasPrayed;
             }
 
+            // Check flag filter
+            let matchesFlag = (flagFilter === 'all' || flag === flagFilter);
+
             // Check search
             const matchesSearch = fuzzyMatch(searchTerm, card);
 
             // All filters must match
-            if (matchesActive && matchesGender && matchesMinors && matchesPrayerHistory && matchesSearch) {
+            if (matchesActive && matchesGender && matchesMinors && matchesPrayerHistory && matchesFlag && matchesSearch) {
                 card.style.display = '';
                 return true;
             } else {

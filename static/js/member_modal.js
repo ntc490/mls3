@@ -64,6 +64,9 @@ async function openMemberModal(memberId, date = null) {
         // Update skip status
         updateSkipStatus(member.skip_until);
 
+        // Update flag selector
+        updateFlagSelector(member.flag);
+
         // Load prayer history
         loadPrayerHistory(member.prayer_history);
 
@@ -257,6 +260,57 @@ async function clearSkipUntil() {
     } catch (error) {
         console.error('Error clearing skip date:', error);
         alert('Failed to clear skip date');
+    }
+}
+
+/**
+ * Update flag selector to show current flag
+ */
+function updateFlagSelector(currentFlag) {
+    // Remove active class from all buttons
+    const buttons = document.querySelectorAll('.flag-selector-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+
+    // Add active class to current flag button
+    const activeButton = document.querySelector(`.flag-selector-btn[data-flag="${currentFlag || ''}"]`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+}
+
+/**
+ * Set member flag
+ */
+async function setMemberFlag(flag) {
+    if (!currentMemberId) return;
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/set-flag`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ flag: flag })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to set flag');
+        }
+
+        const result = await response.json();
+        updateFlagSelector(result.flag);
+
+        const flagName = flag === '' ? 'None' : flag.charAt(0).toUpperCase() + flag.slice(1);
+        showToast(`Flag set to: ${flagName}`);
+
+        // Reload the parent page if we're on the members list
+        if (window.location.pathname === '/members') {
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }
+
+    } catch (error) {
+        console.error('Error setting flag:', error);
+        alert('Failed to set flag');
     }
 }
 

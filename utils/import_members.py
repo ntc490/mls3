@@ -260,7 +260,8 @@ def merge_members(existing_db: MemberDatabase, new_members: list, match_field: s
                     dont_ask_prayer=False,
                     active=True,
                     notes='',
-                    skip_until=None
+                    skip_until=None,
+                    flag=''
                 )
                 existing_db.members.append(new_member)
                 existing_lookup[lookup_key] = new_member
