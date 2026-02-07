@@ -1189,3 +1189,135 @@ input:checked + .slider:before {
     display: flex;
     justify-content: center;
 }
+
+/* ============================================
+   Calendar Section (Home Page)
+   ============================================ */
+
+.calendar-section {
+    margin-top: 2rem;
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-section h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-dark);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.5rem;
+}
+
+.calendar-date-group {
+    margin-bottom: 2rem;
+}
+
+.calendar-date-group:last-child {
+    margin-bottom: 0;
+}
+
+.calendar-date-header {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.calendar-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--light-bg);
+    border-radius: 4px;
+    border-left: 3px solid var(--primary-color);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.calendar-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-item-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    flex-wrap: wrap;
+}
+
+.calendar-item-text {
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+.calendar-item-state {
+    display: inline-block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    width: fit-content;
+}
+
+/* State-specific colors */
+.state-draft {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+.state-invited {
+    background-color: #cfe2ff;
+    color: #084298;
+}
+
+.state-accepted {
+    background-color: #d1e7dd;
+    color: #0a3622;
+}
+
+.state-reminded {
+    background-color: #fff3cd;
+    color: #664d03;
+}
+
+.state-completed {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.calendar-item-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+    .calendar-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .calendar-item-actions {
+        width: 100%;
+    }
+
+    .calendar-item-actions .btn {
+        width: 100%;
+    }
+}

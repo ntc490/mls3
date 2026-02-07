@@ -19,8 +19,67 @@
         </div>
     </div>
 
-    <div class="actions">
-        <a href="{{ url_for('prayer_scheduler') }}" class="btn btn-primary">Schedule Prayers</a>
+    <div class="calendar-section">
+        <h2>Events</h2>
+
+        {% if calendar_items %}
+            {% for date_str, assignments in calendar_items %}
+            <div class="calendar-date-group">
+                <h3 class="calendar-date-header">{{ date_str | format_date }}</h3>
+                <div class="calendar-items-list">
+                    {% for assignment in assignments %}
+                    <div class="calendar-item calendar-item-prayer">
+                        <div class="calendar-item-info">
+                            <span class="calendar-item-text">
+                                🙏 {{ assignment.member_name }} - {{ assignment.prayer_type }}
+                            </span>
+                            <span class="calendar-item-state state-{{ assignment.state.lower() }}">{{ assignment.state }}</span>
+                        </div>
+                        <div class="calendar-item-actions">
+                            <button class="btn btn-sm btn-secondary" onclick="sendReminder({{ assignment.assignment_id }})">
+                                Reminder
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted">No upcoming items scheduled</p>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function sendReminder(assignmentId) {
+    if (!confirm('Send reminder SMS for this prayer assignment?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/assignments/${assignmentId}/remind`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to send reminder');
+        }
+
+        const result = await response.json();
+        alert(result.message || 'Reminder sent successfully');
+
+        // Reload page to refresh state
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error sending reminder:', error);
+        alert(error.message || 'Failed to send reminder');
+    }
+}
+</script>
 {% endblock %}

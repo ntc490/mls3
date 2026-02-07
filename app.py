@@ -31,11 +31,42 @@ def get_next_sunday(from_date: date = None) -> date:
 
 @app.route('/')
 def index():
-    """Homepage"""
+    """Homepage with calendar view"""
+    from collections import defaultdict
+
+    # Get all upcoming assignments (from today onwards)
+    today = date.today()
+    upcoming_assignments = [
+        a for a in assignments_db.assignments
+        if a.date_obj >= today
+    ]
+
+    # Sort by date
+    upcoming_assignments.sort(key=lambda a: a.date_obj)
+
+    # Group assignments by date
+    assignments_by_date = defaultdict(list)
+    for assignment in upcoming_assignments:
+        # Get member name
+        member = members_db.get_by_id(assignment.member_id)
+        member_name = member.full_name if member else "Unknown"
+
+        assignments_by_date[assignment.date].append({
+            'assignment_id': assignment.assignment_id,
+            'member_name': member_name,
+            'prayer_type': assignment.prayer_type,
+            'state': assignment.state,
+            'date_obj': assignment.date_obj
+        })
+
+    # Convert to sorted list of (date, assignments) tuples
+    calendar_items = sorted(assignments_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
+
     return render_template(
         'index.html',
         member_count=len(members_db.get_active_members()),
-        next_sunday=get_next_sunday()
+        next_sunday=get_next_sunday(),
+        calendar_items=calendar_items
     )
 
 
