@@ -414,6 +414,39 @@ def api_send_invitation(assignment_id):
         }), 500
 
 
+@app.route('/api/assignments/<int:assignment_id>/reminder-message', methods=['GET'])
+def api_get_reminder_message(assignment_id):
+    """Get the reminder message text for an assignment"""
+    assignment = assignments_db.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+
+    if not assignment.member_id or assignment.member_id == 0:
+        return jsonify({'error': 'No member assigned'}), 400
+
+    member = members_db.get_by_id(assignment.member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Format the date
+    from datetime import datetime
+    formatted_date = datetime.strptime(assignment.date, config.DATE_FORMAT).strftime(config.DISPLAY_DATE_FORMAT)
+
+    # Get the reminder message template
+    message = templates.expand_template(
+        'prayer',
+        'reminder',
+        first_name=member.display_name,
+        prayer_type=assignment.prayer_type,
+        date=formatted_date
+    )
+
+    return jsonify({
+        'message': message,
+        'phone': member.phone
+    })
+
+
 @app.route('/api/assignments/<int:assignment_id>/remind', methods=['POST'])
 def api_send_reminder(assignment_id):
     """Send reminder SMS and update state to Reminded"""

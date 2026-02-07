@@ -39,7 +39,7 @@
                             <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ assignment.member_phone }}')">
                                 SMS
                             </button>
-                            <button class="btn btn-sm btn-secondary" onclick="sendReminder({{ assignment.assignment_id }})">
+                            <button class="btn btn-sm btn-secondary" onclick="openReminderSMS({{ assignment.assignment_id }}, '{{ assignment.member_phone }}', '{{ date_str }}', '{{ assignment.prayer_type }}')">
                                 Reminder
                             </button>
                         </div>
@@ -67,31 +67,29 @@ function openSMS(phone) {
     window.location.href = smsUrl;
 }
 
-async function sendReminder(assignmentId) {
-    if (!confirm('Send reminder SMS for this prayer assignment?')) {
+async function openReminderSMS(assignmentId, phone, date, prayerType) {
+    if (!phone) {
+        alert('No phone number on file for this member');
         return;
     }
 
     try {
-        const response = await fetch(`/api/assignments/${assignmentId}/remind`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'}
-        });
+        // Fetch the reminder message
+        const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to send reminder');
+            throw new Error('Failed to get reminder message');
         }
 
         const result = await response.json();
-        alert(result.message || 'Reminder sent successfully');
 
-        // Reload page to refresh state
-        window.location.reload();
+        // Open SMS app with pre-filled message
+        const smsUrl = `sms:${phone}?body=${encodeURIComponent(result.message)}`;
+        window.location.href = smsUrl;
 
     } catch (error) {
-        console.error('Error sending reminder:', error);
-        alert(error.message || 'Failed to send reminder');
+        console.error('Error opening reminder SMS:', error);
+        alert('Failed to open reminder SMS');
     }
 }
 </script>
