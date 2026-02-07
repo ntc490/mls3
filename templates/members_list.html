@@ -11,17 +11,24 @@
             <input type="text" id="search-box" placeholder="Search members..." class="search-input">
             <button class="search-clear-btn" id="search-clear-btn" title="Clear search">&times;</button>
         </div>
-        <div class="filter-buttons">
-            <button class="btn btn-filter active" id="filter-active-status">Active: Yes</button>
-            <button class="btn btn-filter" id="filter-gender">Gender: All</button>
-            <button class="btn btn-filter" id="filter-minors">Minors: No</button>
-            <button class="btn btn-filter" id="filter-prayed">Prayed: All</button>
-            <button class="btn btn-filter" id="filter-flag">Flag: All</button>
-            <button class="btn btn-filter" id="filter-name-format">Name Format</button>
-        </div>
-        <div class="sort-buttons">
-            <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
-            <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Prayer Date ↓</button>
+
+        <button class="btn btn-secondary filters-toggle" id="filters-toggle">
+            <span id="filters-toggle-text">Show Filters</span>
+        </button>
+
+        <div class="filters-collapsible" id="filters-collapsible">
+            <div class="filter-buttons">
+                <button class="btn btn-filter active" id="filter-active-status">Active: Yes</button>
+                <button class="btn btn-filter" id="filter-gender">Gender: All</button>
+                <button class="btn btn-filter" id="filter-minors">Minors: No</button>
+                <button class="btn btn-filter" id="filter-prayed">Prayed: All</button>
+                <button class="btn btn-filter" id="filter-flag">Flag: All</button>
+                <button class="btn btn-filter" id="filter-name-format">Name Format</button>
+            </div>
+            <div class="sort-buttons">
+                <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
+                <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Prayer Date ↓</button>
+            </div>
         </div>
     </div>
 
@@ -124,6 +131,30 @@
     if (searchBox.value.trim()) {
         searchClearBtn.classList.add('visible');
     }
+
+    // Filters collapse/expand functionality
+    const filtersToggle = document.getElementById('filters-toggle');
+    const filtersToggleText = document.getElementById('filters-toggle-text');
+    const filtersCollapsible = document.getElementById('filters-collapsible');
+    let filtersExpanded = sessionStorage.getItem('filtersExpanded') === 'true';
+
+    // Set initial state
+    if (filtersExpanded) {
+        filtersCollapsible.classList.add('expanded');
+        filtersToggleText.textContent = 'Hide Filters';
+    }
+
+    filtersToggle.addEventListener('click', () => {
+        filtersExpanded = !filtersExpanded;
+        if (filtersExpanded) {
+            filtersCollapsible.classList.add('expanded');
+            filtersToggleText.textContent = 'Hide Filters';
+        } else {
+            filtersCollapsible.classList.remove('expanded');
+            filtersToggleText.textContent = 'Show Filters';
+        }
+        sessionStorage.setItem('filtersExpanded', filtersExpanded);
+    });
 
     // Function to save filter state
     function saveFilterState() {

@@ -241,6 +241,23 @@ main {
     margin: 2rem 0;
 }
 
+.filters-toggle {
+    width: 100%;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.filters-collapsible {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+
+.filters-collapsible.expanded {
+    max-height: 500px;
+    transition: max-height 0.3s ease-in;
+}
+
 .search-container {
     position: relative;
     width: 100%;
