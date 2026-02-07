@@ -152,6 +152,30 @@ class MemberDatabase:
             member.last_prayer_date = prayer_date.strftime(config.DATE_FORMAT)
             self.save()
 
+    def update_member(self, member_id: int, **kwargs):
+        """Update member fields"""
+        member = self.get_by_id(member_id)
+        if member:
+            for key, value in kwargs.items():
+                if hasattr(member, key):
+                    setattr(member, key, value)
+            self.save()
+
+    def get_last_prayer_date(self, member_id: int, assignments_db) -> Optional[str]:
+        """Get member's last completed prayer date from assignments"""
+        # Get all completed assignments for this member
+        completed = [
+            a for a in assignments_db.assignments
+            if a.member_id == member_id and a.state == 'Completed'
+        ]
+
+        if not completed:
+            return None
+
+        # Sort by date descending and get the most recent
+        completed.sort(key=lambda a: a.date, reverse=True)
+        return completed[0].date
+
 
 class PrayerAssignmentDatabase:
     """Manages prayer assignment data from CSV"""

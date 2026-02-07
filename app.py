@@ -65,7 +65,7 @@ def members_list():
             'phone': m.phone,
             'birthday': m.birthday,
             'age': calc_age(m.birthday),
-            'last_prayer_date': m.last_prayer_date,
+            'last_prayer_date': members_db.get_last_prayer_date(m.member_id, assignments_db),
             'dont_ask_prayer': m.dont_ask_prayer,
             'active': m.active,
             'notes': m.notes
@@ -170,7 +170,7 @@ def api_members_search():
             'id': m.member_id,
             'name': m.full_name,
             'gender': m.gender,
-            'last_prayer_date': m.last_prayer_date,
+            'last_prayer_date': members_db.get_last_prayer_date(m.member_id, assignments_db),
             'phone': m.phone,
             'age': calc_age(m.birthday)
         }
@@ -292,13 +292,40 @@ def api_update_assignment_state(assignment_id):
 
     assignments_db.update_state(assignment_id, new_state)
 
-    # If completed, update member's last prayer date
-    if new_state == 'Completed':
-        assignment = assignments_db.get_by_id(assignment_id)
-        if assignment:
-            members_db.update_last_prayer_date(assignment.member_id, assignment.date_obj)
+    # last_prayer_date is now dynamically calculated from completed assignments
+    # No need to update member record
 
     return jsonify({'success': True})
+
+
+@app.route('/api/assignments/<int:assignment_id>/decline', methods=['POST'])
+def api_decline_assignment(assignment_id):
+    """Handle member declining - clear them and skip for a few weeks"""
+    assignment = assignments_db.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+
+    # Get the member before clearing
+    member_id = assignment.member_id
+    skip_until_str = None
+
+    if member_id and member_id > 0:
+        # Set skip_until to 2 weeks from now
+        from datetime import timedelta
+        skip_until_date = date.today() + timedelta(weeks=2)
+        skip_until_str = skip_until_date.strftime(config.DATE_FORMAT)
+
+        # Update member's skip_until
+        members_db.update_member(member_id, skip_until=skip_until_str)
+
+    # Clear the member from assignment and reset to Draft
+    assignments_db.update_assignment(assignment_id, member_id=0)
+    assignments_db.update_state(assignment_id, 'Draft')
+
+    return jsonify({
+        'success': True,
+        'skip_until': skip_until_str
+    })
 
 
 @app.route('/api/assignments/<int:assignment_id>/delete', methods=['POST'])
@@ -427,7 +454,7 @@ def api_get_member(member_id):
         'recommend_expiration': member.recommend_expiration,
         'active': member.active,
         'dont_ask_prayer': member.dont_ask_prayer,
-        'last_prayer_date': member.last_prayer_date,
+        'last_prayer_date': members_db.get_last_prayer_date(member_id, assignments_db),
         'notes': member.notes,
         'skip_until': member.skip_until,
         'prayer_history': prayer_history

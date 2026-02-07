@@ -120,7 +120,6 @@ function loadPrayerHistory(history) {
         html += `
             <li class="prayer-history-item">
                 <span class="prayer-date">${prayer.formatted_date}</span>
-                <span class="prayer-type">${prayer.prayer_type}</span>
             </li>
         `;
     });

@@ -51,7 +51,16 @@ def get_next_candidates(
 
     # Sort by last_prayer_date (oldest first, nulls first)
     # Nulls = never prayed, they should go first
-    eligible.sort(key=lambda m: m.last_prayer_date_obj or date.min)
+    # Get last prayer date dynamically from assignments
+    def get_sort_key(m):
+        last_date_str = members_db.get_last_prayer_date(m.member_id, assignments_db)
+        if last_date_str:
+            from datetime import datetime
+            import config
+            return datetime.strptime(last_date_str, config.DATE_FORMAT).date()
+        return date.min
+
+    eligible.sort(key=get_sort_key)
 
     return eligible[:count]
 
@@ -80,10 +89,9 @@ def get_candidates_with_context(
 
     results = []
     for i, member in enumerate(candidates):
-        if member.last_prayer_date:
-            display_date = member.last_prayer_date
-        else:
-            display_date = "Never"
+        # Get last prayer date dynamically
+        last_date = members_db.get_last_prayer_date(member.member_id, assignments_db)
+        display_date = last_date if last_date else "Never"
 
         results.append({
             'member': member,
