@@ -604,6 +604,11 @@ def main():
         action='store_true',
         help='List all members with active=False'
     )
+    parser.add_argument(
+        '--tsv',
+        action='store_true',
+        help='Output in TSV format (for --show-* commands)'
+    )
 
     args = parser.parse_args()
 
@@ -622,34 +627,52 @@ def main():
     # Handle --show-dont-ask mode
     if args.show_dont_ask:
         dont_ask_members = [m for m in db.members if m.dont_ask_prayer]
-        print(f"\n=== Members with Don't Ask Flag ===")
-        print(f"Total: {len(dont_ask_members)}\n")
 
-        if dont_ask_members:
-            # Sort by last name
+        if args.tsv:
+            # TSV output: single Name column in "Last, First" format
+            print("Name")
             dont_ask_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
             for m in dont_ask_members:
-                status = "inactive" if not m.active else "active"
-                print(f"  {m.full_name} ({m.gender}) - {status}")
+                print(f"{m.last_name}, {m.first_name}")
         else:
-            print("  (none)")
+            # Human-readable output
+            print(f"\n=== Members with Don't Ask Flag ===")
+            print(f"Total: {len(dont_ask_members)}\n")
+
+            if dont_ask_members:
+                # Sort by last name
+                dont_ask_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+                for m in dont_ask_members:
+                    status = "inactive" if not m.active else "active"
+                    print(f"  {m.full_name} ({m.gender}) - {status}")
+            else:
+                print("  (none)")
 
         return
 
     # Handle --show-inactive mode
     if args.show_inactive:
         inactive_members = [m for m in db.members if not m.active]
-        print(f"\n=== Inactive Members ===")
-        print(f"Total: {len(inactive_members)}\n")
 
-        if inactive_members:
-            # Sort by last name
+        if args.tsv:
+            # TSV output: single Name column in "Last, First" format
+            print("Name")
             inactive_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
             for m in inactive_members:
-                dont_ask_status = " [DON'T ASK]" if m.dont_ask_prayer else ""
-                print(f"  {m.full_name} ({m.gender}){dont_ask_status}")
+                print(f"{m.last_name}, {m.first_name}")
         else:
-            print("  (none)")
+            # Human-readable output
+            print(f"\n=== Inactive Members ===")
+            print(f"Total: {len(inactive_members)}\n")
+
+            if inactive_members:
+                # Sort by last name
+                inactive_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+                for m in inactive_members:
+                    dont_ask_status = " [DON'T ASK]" if m.dont_ask_prayer else ""
+                    print(f"  {m.full_name} ({m.gender}){dont_ask_status}")
+            else:
+                print("  (none)")
 
         return
 
