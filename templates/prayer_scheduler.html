@@ -110,6 +110,10 @@
     console.log('Prayer scheduler JavaScript loaded');
     const targetSunday = '{{ target_sunday.strftime("%Y-%m-%d") }}';
     console.log('Target Sunday:', targetSunday);
+
+    // Store target date in sessionStorage so it persists when navigating to other pages
+    sessionStorage.setItem('prayer_scheduler_target_date', targetSunday);
+
     let currentAssignment = null;
     let currentField = null;
 

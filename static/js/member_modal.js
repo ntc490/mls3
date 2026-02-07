@@ -12,7 +12,9 @@ let targetDate = null; // Optional date for creating assignments
  */
 async function openMemberModal(memberId, date = null) {
     currentMemberId = memberId;
-    targetDate = date; // Store the target date if provided
+
+    // Use provided date, or check sessionStorage for prayer scheduler target date
+    targetDate = date || sessionStorage.getItem('prayer_scheduler_target_date');
 
     // Show modal
     const modal = document.getElementById('memberInfoModal');
