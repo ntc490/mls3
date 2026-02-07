@@ -1,10 +1,11 @@
 {% set member = members_db.get_by_id(assignment.member_id) if assignment.member_id and assignment.member_id > 0 else None %}
 {# Determine gender: use member's gender if assigned, otherwise show both genders as candidates #}
 {% set gender = member.gender if member else None %}
+{% set is_completed = assignment.state == 'Completed' %}
 
-<div class="assignment-details">
+<div class="assignment-details {% if is_completed %}assignment-completed{% endif %}">
     <!-- Person Bubble -->
-    <div class="bubble bubble-person" onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')">
+    <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')"{% endif %}>
         <label>Person</label>
         <div class="bubble-value">
             {% if member %}
@@ -17,10 +18,12 @@
                         <span class="date-note">(never)</span>
                         {% endif %}
                     </div>
+                    {% if not is_completed %}
                     <div class="member-actions">
                         <button class="btn-icon btn-info" onclick="event.stopPropagation(); openMemberModal({{ member.member_id }})" title="Member info">ⓘ</button>
                         <button class="btn-icon btn-clear" onclick="event.stopPropagation(); clearMember({{ assignment.assignment_id }})" title="Clear selection">×</button>
                     </div>
+                    {% endif %}
                 </div>
             {% else %}
                 <span class="placeholder">Click to select</span>
@@ -35,7 +38,7 @@
     </div>
 
     <!-- Prayer Type Bubble -->
-    <div class="bubble bubble-type" onclick="togglePrayerType({{ assignment.assignment_id }}, '{{ assignment.prayer_type }}')">
+    <div class="bubble bubble-type {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="togglePrayerType({{ assignment.assignment_id }}, '{{ assignment.prayer_type }}')"{% endif %}>
         <label>Type</label>
         <div class="bubble-value">{{ assignment.prayer_type }}</div>
     </div>
@@ -45,7 +48,10 @@
 
     <!-- Actions -->
     <div class="actions">
-        {% if assignment.state == 'Draft' and assignment.member_id and assignment.member_id > 0 %}
+        {% if is_completed %}
+            <button class="btn btn-danger" onclick="deleteCompletedAssignment({{ assignment.assignment_id }})">Delete</button>
+            <p class="help-text">Changing the date will make this assignment editable again.</p>
+        {% elif assignment.state == 'Draft' and assignment.member_id and assignment.member_id > 0 %}
             <button class="btn btn-primary" onclick="sendInvite({{ assignment.assignment_id }})">Invite</button>
         {% elif assignment.state == 'Invited' %}
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Accepted')">Accept</button>

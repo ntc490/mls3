@@ -57,6 +57,9 @@ async function openMemberModal(memberId) {
         // Store phone for SMS
         currentMemberPhone = member.phone;
 
+        // Update skip status
+        updateSkipStatus(member.skip_until);
+
         // Load prayer history
         loadPrayerHistory(member.prayer_history);
 
@@ -64,6 +67,27 @@ async function openMemberModal(memberId) {
         console.error('Error loading member:', error);
         alert('Failed to load member information');
         closeMemberModal();
+    }
+}
+
+/**
+ * Update skip status display
+ */
+function updateSkipStatus(skip_until) {
+    const statusEl = document.getElementById('skipStatus');
+    if (skip_until) {
+        const skipDate = new Date(skip_until);
+        const today = new Date();
+        if (skipDate > today) {
+            statusEl.textContent = `Skipped until ${skipDate.toLocaleDateString()}`;
+            statusEl.className = 'skip-status active';
+        } else {
+            statusEl.textContent = 'Skip date has passed - member is back in rotation';
+            statusEl.className = 'skip-status expired';
+        }
+    } else {
+        statusEl.textContent = 'Not currently skipped';
+        statusEl.className = 'skip-status';
     }
 }
 
@@ -168,6 +192,94 @@ async function toggleDontAsk() {
 }
 
 /**
+ * Set skip_until date (months from now)
+ */
+async function setSkipUntil(months) {
+    if (!currentMemberId) return;
+
+    const today = new Date();
+    const skipDate = new Date(today.setMonth(today.getMonth() + months));
+    const skipDateStr = skipDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/skip-until`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ skip_until: skipDateStr })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to set skip date');
+        }
+
+        const result = await response.json();
+        updateSkipStatus(result.skip_until);
+        showToast(`Member skipped until ${skipDate.toLocaleDateString()}`);
+
+    } catch (error) {
+        console.error('Error setting skip date:', error);
+        alert('Failed to set skip date');
+    }
+}
+
+/**
+ * Clear skip_until date
+ */
+async function clearSkipUntil() {
+    if (!currentMemberId) return;
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/skip-until`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ skip_until: null })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to clear skip date');
+        }
+
+        const result = await response.json();
+        updateSkipStatus(result.skip_until);
+        showToast('Skip cleared - member back in rotation');
+
+    } catch (error) {
+        console.error('Error clearing skip date:', error);
+        alert('Failed to clear skip date');
+    }
+}
+
+/**
+ * Create prayer assignment and go to scheduler
+ */
+async function createPrayerAssignment() {
+    if (!currentMemberId) return;
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/create-assignment`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({})
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            // Show specific error message from server
+            alert(result.error || 'Failed to create prayer assignment');
+            return;
+        }
+
+        // Success - redirect to prayer scheduler
+        window.location.href = '/prayer-scheduler';
+
+    } catch (error) {
+        console.error('Error creating assignment:', error);
+        alert('Failed to create prayer assignment');
+    }
+}
+
+/**
  * Send text message to member
  */
 function sendTextMessage() {
@@ -224,6 +336,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendTextBtn = document.getElementById('sendTextBtn');
     if (sendTextBtn) {
         sendTextBtn.addEventListener('click', sendTextMessage);
+    }
+
+    // Pray button
+    const prayBtn = document.getElementById('prayBtn');
+    if (prayBtn) {
+        prayBtn.addEventListener('click', createPrayerAssignment);
     }
 
     // Close modal on outside click

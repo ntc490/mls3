@@ -91,42 +91,60 @@ def members_list():
 @app.route('/prayer-scheduler')
 def prayer_scheduler():
     """Main prayer scheduling interface"""
-    next_sunday = get_next_sunday()
+    # Allow viewing different dates via query param
+    date_param = request.args.get('date')
+    if date_param:
+        try:
+            target_sunday = datetime.strptime(date_param, config.DATE_FORMAT).date()
+        except ValueError:
+            target_sunday = get_next_sunday()
+    else:
+        target_sunday = get_next_sunday()
 
-    # Get existing assignments for next Sunday
-    sunday_assignments = assignments_db.get_assignments_for_date(next_sunday)
+    # Get existing assignments for target Sunday
+    sunday_assignments = assignments_db.get_assignments_for_date(target_sunday)
 
-    # Find opening and closing assignments
+    # Find opening and closing assignments (including Completed ones)
     opening = None
     closing = None
 
     for assignment in sunday_assignments:
-        if assignment.state != 'Completed':
-            if assignment.prayer_type == 'Opening':
+        if assignment.prayer_type == 'Opening':
+            # Take the most recent one (highest ID)
+            if not opening or assignment.assignment_id > opening.assignment_id:
                 opening = assignment
-            elif assignment.prayer_type == 'Closing':
+        elif assignment.prayer_type == 'Closing':
+            # Take the most recent one (highest ID)
+            if not closing or assignment.assignment_id > closing.assignment_id:
                 closing = assignment
 
     # Get all active assignments for other dates (the queue)
     all_active = assignments_db.get_active_assignments()
-    next_sunday_str = next_sunday.strftime(config.DATE_FORMAT)
+    target_sunday_str = target_sunday.strftime(config.DATE_FORMAT)
 
-    # Filter to only future assignments not for next Sunday
+    # Filter to only future assignments not for target Sunday
     active_queue = [
         a for a in all_active
-        if a.date != next_sunday_str and a.state != 'Completed'
+        if a.date != target_sunday_str and a.state != 'Completed'
     ]
 
     # Sort by date
     active_queue.sort(key=lambda a: a.date)
 
+    # Calculate prev/next Sunday for navigation
+    prev_sunday = target_sunday - timedelta(days=7)
+    next_sunday_nav = target_sunday + timedelta(days=7)
+
     return render_template(
         'prayer_scheduler.html',
-        next_sunday=next_sunday,
+        target_sunday=target_sunday,
+        next_sunday=get_next_sunday(),  # For "Create Assignment" default
         opening_assignment=opening,
         closing_assignment=closing,
         active_queue=active_queue,
-        members_db=members_db
+        members_db=members_db,
+        prev_sunday=prev_sunday,
+        next_sunday_nav=next_sunday_nav
     )
 
 
@@ -269,6 +287,20 @@ def api_update_assignment_state(assignment_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/assignments/<int:assignment_id>/delete', methods=['POST'])
+def api_delete_assignment(assignment_id):
+    """Delete an assignment"""
+    assignment = assignments_db.get_by_id(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+
+    # Remove from list and save
+    assignments_db.assignments = [a for a in assignments_db.assignments if a.assignment_id != assignment_id]
+    assignments_db.save()
+
+    return jsonify({'success': True})
+
+
 @app.route('/api/assignments/<int:assignment_id>/invite', methods=['POST'])
 def api_send_invitation(assignment_id):
     """Send invitation SMS and update state to Invited"""
@@ -383,6 +415,7 @@ def api_get_member(member_id):
         'dont_ask_prayer': member.dont_ask_prayer,
         'last_prayer_date': member.last_prayer_date,
         'notes': member.notes,
+        'skip_until': member.skip_until,
         'prayer_history': prayer_history
     })
 
@@ -418,6 +451,106 @@ def api_toggle_dont_ask(member_id):
     return jsonify({
         'success': True,
         'dont_ask_prayer': member.dont_ask_prayer
+    })
+
+
+@app.route('/api/members/<int:member_id>/skip-until', methods=['POST'])
+def api_set_skip_until(member_id):
+    """Set skip_until date for a member"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    data = request.json
+    skip_until = data.get('skip_until')  # Can be date string or null
+
+    member.skip_until = skip_until
+    members_db.save()
+
+    return jsonify({
+        'success': True,
+        'skip_until': member.skip_until
+    })
+
+
+@app.route('/api/members/<int:member_id>/create-assignment', methods=['POST'])
+def api_create_member_assignment(member_id):
+    """Create a prayer assignment for a specific member"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Get target date (default to next Sunday)
+    data = request.json or {}
+    date_str = data.get('date')
+
+    if date_str:
+        target_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
+    else:
+        target_date = get_next_sunday()
+
+    # Check existing assignments for this date
+    existing_assignments = assignments_db.get_assignments_for_date(target_date)
+
+    # Filter to non-completed assignments
+    active_assignments = [a for a in existing_assignments if a.state != 'Completed']
+
+    # Check if this member already has an assignment for this date
+    member_has_assignment = any(a.member_id == member_id for a in active_assignments)
+    if member_has_assignment:
+        return jsonify({
+            'error': 'Member already has an assignment for this date'
+        }), 400
+
+    # Find existing empty slots (Draft assignments with member_id=0 or None)
+    opening_slot = None
+    closing_slot = None
+
+    for a in active_assignments:
+        if a.prayer_type == 'Opening':
+            if not a.member_id or a.member_id == 0:
+                opening_slot = a
+            # else: slot is filled
+        elif a.prayer_type == 'Closing':
+            if not a.member_id or a.member_id == 0:
+                closing_slot = a
+            # else: slot is filled
+
+    # Check if both slots are filled (not None and member assigned)
+    opening_filled = any(a.prayer_type == 'Opening' and a.member_id and a.member_id > 0 for a in active_assignments)
+    closing_filled = any(a.prayer_type == 'Closing' and a.member_id and a.member_id > 0 for a in active_assignments)
+
+    if opening_filled and closing_filled:
+        return jsonify({
+            'error': 'Both prayer slots are already filled for this date'
+        }), 400
+
+    # Use existing empty slot or create new assignment
+    if opening_slot:
+        # Fill the existing Opening slot
+        assignments_db.update_assignment(opening_slot.assignment_id, member_id=member_id)
+        assignment = assignments_db.get_by_id(opening_slot.assignment_id)
+    elif closing_slot:
+        # Fill the existing Closing slot
+        assignments_db.update_assignment(closing_slot.assignment_id, member_id=member_id)
+        assignment = assignments_db.get_by_id(closing_slot.assignment_id)
+    elif not opening_filled:
+        # Create new Opening assignment
+        assignment = assignments_db.create_assignment(member_id, target_date, 'Opening')
+    elif not closing_filled:
+        # Create new Closing assignment
+        assignment = assignments_db.create_assignment(member_id, target_date, 'Closing')
+    else:
+        # This shouldn't happen, but just in case
+        return jsonify({
+            'error': 'Unable to create assignment - slots unavailable'
+        }), 400
+
+    return jsonify({
+        'success': True,
+        'assignment_id': assignment.assignment_id,
+        'date': assignment.date,
+        'prayer_type': assignment.prayer_type
     })
 
 

@@ -18,7 +18,7 @@ def get_next_candidates(
     Get the next eligible candidates for prayer assignment.
 
     Returns members sorted by last_prayer_date (oldest first).
-    Excludes anyone currently in active queue or marked dont_ask.
+    Excludes anyone currently in active queue, marked dont_ask, or skipped until future date.
 
     Args:
         members_db: Member database
@@ -29,10 +29,18 @@ def get_next_candidates(
     Returns:
         List of Member objects (up to count)
     """
+    today = date.today()
+
     # Get all active members of specified gender
     eligible = [
         m for m in members_db.members
         if m.active and m.gender == gender and not m.dont_ask_prayer
+    ]
+
+    # Exclude members with skip_until date in the future
+    eligible = [
+        m for m in eligible
+        if not m.skip_until_obj or m.skip_until_obj <= today
     ]
 
     # Get member IDs with active assignments

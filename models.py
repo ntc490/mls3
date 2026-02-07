@@ -26,6 +26,7 @@ class Member:
     dont_ask_prayer: bool = False
     active: bool = True
     notes: str = ""
+    skip_until: Optional[str] = None  # Date to skip member until (YYYY-MM-DD)
 
     @property
     def full_name(self):
@@ -37,6 +38,13 @@ class Member:
         """Returns last_prayer_date as a date object, or None"""
         if self.last_prayer_date:
             return datetime.strptime(self.last_prayer_date, config.DATE_FORMAT).date()
+        return None
+
+    @property
+    def skip_until_obj(self) -> Optional[date]:
+        """Returns skip_until as a date object, or None"""
+        if self.skip_until:
+            return datetime.strptime(self.skip_until, config.DATE_FORMAT).date()
         return None
 
 
@@ -88,7 +96,8 @@ class MemberDatabase:
                     last_prayer_date=row['last_prayer_date'] if row['last_prayer_date'] else None,
                     dont_ask_prayer=row['dont_ask_prayer'].lower() == 'true',
                     active=row['active'].lower() == 'true',
-                    notes=row['notes']
+                    notes=row['notes'],
+                    skip_until=row.get('skip_until') if row.get('skip_until') else None
                 )
                 self.members.append(member)
 
@@ -100,7 +109,7 @@ class MemberDatabase:
             fieldnames = [
                 'member_id', 'first_name', 'last_name', 'gender', 'phone',
                 'birthday', 'recommend_expiration', 'last_prayer_date',
-                'dont_ask_prayer', 'active', 'notes'
+                'dont_ask_prayer', 'active', 'notes', 'skip_until'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()

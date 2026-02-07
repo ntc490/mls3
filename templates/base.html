@@ -74,8 +74,20 @@
                     </div>
                 </div>
 
+                <div class="member-skip-section">
+                    <h3>Skip in Rotation</h3>
+                    <p id="skipStatus" class="skip-status"></p>
+                    <div class="skip-buttons">
+                        <button class="btn btn-skip-small" onclick="setSkipUntil(1)">Skip 1 Month</button>
+                        <button class="btn btn-skip-small" onclick="setSkipUntil(3)">Skip 3 Months</button>
+                        <button class="btn btn-skip-small" onclick="setSkipUntil(6)">Skip 6 Months</button>
+                        <button class="btn btn-skip-clear" onclick="clearSkipUntil()">Clear Skip</button>
+                    </div>
+                </div>
+
                 <div class="member-actions-section">
                     <button id="sendTextBtn" class="btn btn-secondary">Send Text Message</button>
+                    <button id="prayBtn" class="btn btn-primary">Pray</button>
                 </div>
 
                 <div class="prayer-history-section">
