@@ -28,11 +28,18 @@ class Member:
     notes: str = ""
     skip_until: Optional[str] = None  # Date to skip member until (YYYY-MM-DD)
     flag: str = ""  # Color flags: comma-separated list like 'red,yellow,blue' or empty
+    aka: str = ""  # Also known as / preferred name (e.g., "Mike" instead of "Michael")
 
     @property
     def full_name(self):
-        """Returns full name"""
-        return f"{self.first_name} {self.last_name}"
+        """Returns full name using AKA if set, otherwise first_name"""
+        display_first = self.aka if self.aka else self.first_name
+        return f"{display_first} {self.last_name}"
+
+    @property
+    def display_name(self):
+        """Returns the name to display (AKA or first name)"""
+        return self.aka if self.aka else self.first_name
 
     @property
     def flags_list(self) -> List[str]:
@@ -124,7 +131,8 @@ class MemberDatabase:
                     active=row['active'].lower() == 'true',
                     notes=row['notes'],
                     skip_until=row.get('skip_until') if row.get('skip_until') else None,
-                    flag=row.get('flag', '')
+                    flag=row.get('flag', ''),
+                    aka=row.get('aka', '')
                 )
                 self.members.append(member)
 
@@ -136,7 +144,7 @@ class MemberDatabase:
             fieldnames = [
                 'member_id', 'first_name', 'last_name', 'gender', 'phone',
                 'birthday', 'recommend_expiration', 'last_prayer_date',
-                'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag'
+                'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()

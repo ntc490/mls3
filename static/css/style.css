@@ -1147,6 +1147,40 @@ input:checked + .slider:before {
     font-weight: 500;
 }
 
+.aka-value {
+    color: var(--text-light);
+    font-style: italic;
+}
+
+.aka-value.active {
+    color: var(--text);
+    font-style: normal;
+    font-weight: 500;
+}
+
+.aka-input-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.aka-input-section label {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.aka-input-section .text-input {
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.aka-input-section .btn {
+    align-self: flex-start;
+}
+
 /* Skip Dialog Modal */
 .skip-dialog-content {
     max-width: 400px;

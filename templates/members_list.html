@@ -29,7 +29,7 @@
              data-name="{{ member.full_name|lower }}"
              data-first-name="{{ member.first_name|lower }}"
              data-last-name="{{ member.last_name|lower }}"
-             data-first-name-display="{{ member.first_name }}"
+             data-first-name-display="{{ member.display_name }}"
              data-last-name-display="{{ member.last_name }}"
              data-prayer-date="{{ member.last_prayer_date if member.last_prayer_date else '1900-01-01' }}"
              data-active="{{ 'true' if member.active else 'false' }}"
@@ -402,7 +402,14 @@
 
         const firstName = card.dataset.firstName;
         const lastName = card.dataset.lastName;
+        const displayName = card.dataset.firstNameDisplay.toLowerCase();
+
+        // Include both first name and display name (AKA) for searching
         const nameParts = [firstName, lastName];
+        // If display name is different from first name, add it to search
+        if (displayName && displayName !== firstName) {
+            nameParts.push(displayName);
+        }
 
         // Each query word must match the start of at least one name part
         for (const queryWord of queryWords) {

@@ -47,6 +47,10 @@
                         <span class="info-label">Phone:</span>
                         <span id="modalPhone"></span>
                     </div>
+                    <div class="info-row info-row-clickable" id="modalAkaRow" onclick="openAkaDialog()">
+                        <span class="info-label">AKA:</span>
+                        <span id="modalAka" class="aka-value">Not set</span>
+                    </div>
                     <div class="info-row info-row-clickable" onclick="openSkipDialog()">
                         <span class="info-label">Skip Until:</span>
                         <span id="modalSkipUntil" class="skip-until-value">Not set</span>
@@ -98,6 +102,27 @@
                     <div id="prayerHistoryList" class="prayer-history-list">
                         <p class="text-muted">Loading...</p>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AKA Dialog Modal -->
+    <div id="akaDialogModal" class="modal">
+        <div class="modal-content skip-dialog-content">
+            <div class="modal-header">
+                <h2>Also Known As (AKA)</h2>
+                <button class="close-btn" onclick="closeAkaDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="help-text">Set a preferred name for this member (e.g., "Mike" instead of "Michael")</p>
+                <div class="aka-input-section">
+                    <label for="akaInput">Preferred Name:</label>
+                    <input type="text" id="akaInput" class="text-input" placeholder="Enter preferred name">
+                    <button class="btn btn-sm btn-secondary" onclick="setAka()">Set AKA</button>
+                </div>
+                <div class="skip-dialog-actions">
+                    <button class="btn btn-secondary" onclick="clearAka()">Clear AKA</button>
                 </div>
             </div>
         </div>

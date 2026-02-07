@@ -92,6 +92,7 @@ def members_list():
             'full_name': m.full_name,
             'first_name': m.first_name,
             'last_name': m.last_name,
+            'display_name': m.display_name,
             'gender': m.gender,
             'phone': m.phone,
             'birthday': m.birthday,
@@ -495,6 +496,7 @@ def api_get_member(member_id):
         'notes': member.notes,
         'skip_until': member.skip_until,
         'flag': member.flag,
+        'aka': member.aka,
         'prayer_history': prayer_history
     })
 
@@ -549,6 +551,25 @@ def api_set_skip_until(member_id):
     return jsonify({
         'success': True,
         'skip_until': member.skip_until
+    })
+
+
+@app.route('/api/members/<int:member_id>/aka', methods=['POST'])
+def api_set_aka(member_id):
+    """Set AKA (also known as / preferred name) for a member"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    data = request.json
+    aka = data.get('aka', '').strip()  # Get AKA, default to empty string
+
+    member.aka = aka
+    members_db.save()
+
+    return jsonify({
+        'success': True,
+        'aka': member.aka
     })
 
 

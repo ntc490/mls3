@@ -32,7 +32,11 @@ async function openMemberModal(memberId, date = null) {
         const member = await response.json();
 
         // Populate modal with member data
-        document.getElementById('modalMemberName').textContent = member.name;
+        // Show AKA in header with actual first name in parentheses if AKA is set
+        const headerText = member.aka && member.aka.trim()
+            ? `${member.aka} ${member.last_name} (${member.first_name})`
+            : member.name;
+        document.getElementById('modalMemberName').textContent = headerText;
 
         // Display age with indicator for minors
         if (member.age !== null && member.age !== undefined) {
@@ -48,6 +52,9 @@ async function openMemberModal(memberId, date = null) {
 
         // Update skip until display
         updateSkipUntilDisplay(member.skip_until);
+
+        // Update AKA display
+        updateAkaDisplay(member.aka);
 
         // Show notes only if they exist
         const notesRow = document.getElementById('modalNotesRow');
@@ -271,6 +278,114 @@ function updateSkipUntilDisplay(skip_until) {
     } else {
         skipUntilEl.textContent = 'Not set';
         skipUntilEl.classList.remove('active');
+    }
+}
+
+/**
+ * Update AKA display in the main member modal
+ */
+function updateAkaDisplay(aka) {
+    const akaEl = document.getElementById('modalAka');
+    if (aka && aka.trim()) {
+        akaEl.textContent = aka;
+        akaEl.classList.add('active');
+    } else {
+        akaEl.textContent = 'Not set';
+        akaEl.classList.remove('active');
+    }
+}
+
+/**
+ * Open the AKA dialog
+ */
+function openAkaDialog() {
+    if (!currentMemberId) return;
+
+    const dialog = document.getElementById('akaDialogModal');
+    dialog.style.display = 'flex';
+
+    // Pre-populate the input with current AKA if set
+    const currentAka = document.getElementById('modalAka').textContent;
+    const akaInput = document.getElementById('akaInput');
+    if (currentAka && currentAka !== 'Not set') {
+        akaInput.value = currentAka;
+    } else {
+        akaInput.value = '';
+    }
+}
+
+/**
+ * Close the AKA dialog
+ */
+function closeAkaDialog() {
+    const dialog = document.getElementById('akaDialogModal');
+    dialog.style.display = 'none';
+
+    // Clear the input
+    const akaInput = document.getElementById('akaInput');
+    if (akaInput) {
+        akaInput.value = '';
+    }
+}
+
+/**
+ * Set AKA for the member
+ */
+async function setAka() {
+    if (!currentMemberId) return;
+
+    const akaInput = document.getElementById('akaInput');
+    const akaValue = akaInput.value.trim();
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/aka`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ aka: akaValue })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to set AKA');
+        }
+
+        const result = await response.json();
+        updateAkaDisplay(result.aka);
+        memberDataDirty = true;
+        showToast(akaValue ? `AKA set to "${akaValue}"` : 'AKA cleared');
+        closeAkaDialog();
+
+    } catch (error) {
+        console.error('Error setting AKA:', error);
+        alert('Failed to set AKA');
+    }
+}
+
+/**
+ * Clear AKA for the member
+ */
+async function clearAka() {
+    if (!currentMemberId) return;
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/aka`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ aka: '' })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to clear AKA');
+        }
+
+        const result = await response.json();
+        updateAkaDisplay(result.aka);
+        memberDataDirty = true;
+        showToast('AKA cleared');
+        closeAkaDialog();
+
+    } catch (error) {
+        console.error('Error clearing AKA:', error);
+        alert('Failed to clear AKA');
     }
 }
 
@@ -509,6 +624,16 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 closeMemberModal();
+            }
+        });
+    }
+
+    // Close AKA dialog on outside click
+    const akaDialog = document.getElementById('akaDialogModal');
+    if (akaDialog) {
+        akaDialog.addEventListener('click', (e) => {
+            if (e.target === akaDialog) {
+                closeAkaDialog();
             }
         });
     }
