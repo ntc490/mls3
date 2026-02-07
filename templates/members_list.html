@@ -36,7 +36,11 @@
              data-flag="{{ member.flag if member.flag else '' }}"
              onclick="openMemberModal({{ member.member_id }})">
             {% if member.flag %}
-            <span class="flag-circle flag-{{ member.flag }}"></span>
+            <div class="flag-circles-container">
+                {% for flag_color in member.flag.split(',') %}
+                <span class="flag-circle flag-{{ flag_color.strip() }}"></span>
+                {% endfor %}
+            </div>
             {% endif %}
             <h3>{{ member.full_name }}{% if not member.active %} <span class="inactive-badge">Inactive</span>{% endif %}</h3>
             {% if member.age is not none %}
@@ -426,8 +430,13 @@
                 matchesPrayerHistory = !hasPrayed;
             }
 
-            // Check flag filter
-            let matchesFlag = (flagFilter === 'all' || flag === flagFilter);
+            // Check flag filter (member can have multiple flags)
+            let matchesFlag = flagFilter === 'all';
+            if (!matchesFlag && flag) {
+                // Check if member has the filtered flag among their flags
+                const memberFlags = flag.split(',').map(f => f.trim());
+                matchesFlag = memberFlags.includes(flagFilter);
+            }
 
             // Check search
             const matchesSearch = fuzzyMatch(searchTerm, card);

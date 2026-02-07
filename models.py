@@ -27,12 +27,37 @@ class Member:
     active: bool = True
     notes: str = ""
     skip_until: Optional[str] = None  # Date to skip member until (YYYY-MM-DD)
-    flag: str = ""  # Color flag: empty, 'red', 'yellow', 'blue'
+    flag: str = ""  # Color flags: comma-separated list like 'red,yellow,blue' or empty
 
     @property
     def full_name(self):
         """Returns full name"""
         return f"{self.first_name} {self.last_name}"
+
+    @property
+    def flags_list(self) -> List[str]:
+        """Returns list of flags set for this member"""
+        if not self.flag:
+            return []
+        return [f.strip() for f in self.flag.split(',') if f.strip()]
+
+    def has_flag(self, flag_color: str) -> bool:
+        """Check if member has a specific flag"""
+        return flag_color in self.flags_list
+
+    def toggle_flag(self, flag_color: str):
+        """Toggle a specific flag on/off"""
+        flags = set(self.flags_list)
+        if flag_color in flags:
+            flags.remove(flag_color)
+        else:
+            flags.add(flag_color)
+        # Store in consistent order: blue, yellow, red
+        ordered = []
+        for color in ['blue', 'yellow', 'red']:
+            if color in flags:
+                ordered.append(color)
+        self.flag = ','.join(ordered) if ordered else ''
 
     @property
     def last_prayer_date_obj(self) -> Optional[date]:

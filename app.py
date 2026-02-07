@@ -521,26 +521,28 @@ def api_set_skip_until(member_id):
     })
 
 
-@app.route('/api/members/<int:member_id>/set-flag', methods=['POST'])
-def api_set_member_flag(member_id):
-    """Set color flag for a member"""
+@app.route('/api/members/<int:member_id>/toggle-flag', methods=['POST'])
+def api_toggle_member_flag(member_id):
+    """Toggle a color flag for a member (can have multiple flags)"""
     member = members_db.get_by_id(member_id)
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
     data = request.json
-    flag = data.get('flag', '')  # Can be '', 'red', 'yellow', 'blue'
+    flag = data.get('flag', '')  # 'red', 'yellow', or 'blue'
 
     # Validate flag value
-    if flag not in ['', 'red', 'yellow', 'blue']:
+    if flag not in ['red', 'yellow', 'blue']:
         return jsonify({'error': 'Invalid flag color'}), 400
 
-    member.flag = flag
+    # Toggle the flag
+    member.toggle_flag(flag)
     members_db.save()
 
     return jsonify({
         'success': True,
-        'flag': member.flag
+        'flag': member.flag,
+        'flags_list': member.flags_list
     })
 
 

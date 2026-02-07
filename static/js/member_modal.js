@@ -186,47 +186,44 @@ async function toggleDontAsk() {
     }
 }
 
-// Track current flag state
-let currentMemberFlag = '';
+// Track current flags state (array of colors)
+let currentMemberFlags = [];
 
 /**
- * Update flag selector to show current flag
+ * Update flag selector to show current flags (can be multiple)
  */
-function updateFlagSelector(currentFlag) {
-    // Store current flag state
-    currentMemberFlag = currentFlag || '';
+function updateFlagSelector(flagString) {
+    // Parse flags from comma-separated string
+    currentMemberFlags = flagString ? flagString.split(',').map(f => f.trim()) : [];
 
     // Remove active class from all buttons
     const buttons = document.querySelectorAll('.flag-selector-btn');
     buttons.forEach(btn => btn.classList.remove('active'));
 
-    // Add active class to current flag button if one is set
-    if (currentFlag) {
-        const activeButton = document.querySelector(`.flag-selector-btn[data-flag="${currentFlag}"]`);
+    // Add active class to each active flag button
+    currentMemberFlags.forEach(flagColor => {
+        const activeButton = document.querySelector(`.flag-selector-btn[data-flag="${flagColor}"]`);
         if (activeButton) {
             activeButton.classList.add('active');
         }
-    }
+    });
 }
 
 /**
- * Set member flag (toggle off if clicking the same flag)
+ * Toggle a flag on/off (can have multiple flags)
  */
 async function setMemberFlag(flag) {
     if (!currentMemberId) return;
 
-    // If clicking the same flag, toggle it off
-    const flagToSet = (flag === currentMemberFlag) ? '' : flag;
-
     try {
-        const response = await fetch(`/api/members/${currentMemberId}/set-flag`, {
+        const response = await fetch(`/api/members/${currentMemberId}/toggle-flag`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ flag: flagToSet })
+            body: JSON.stringify({ flag: flag })
         });
 
         if (!response.ok) {
-            throw new Error('Failed to set flag');
+            throw new Error('Failed to toggle flag');
         }
 
         const result = await response.json();
@@ -235,12 +232,18 @@ async function setMemberFlag(flag) {
         // Mark data as dirty
         memberDataDirty = true;
 
-        const flagName = flagToSet === '' ? 'None' : flagToSet.charAt(0).toUpperCase() + flagToSet.slice(1);
-        showToast(`Flag set to: ${flagName}`);
+        // Show which flags are now active
+        const flagsList = result.flags_list || [];
+        if (flagsList.length === 0) {
+            showToast('All flags removed');
+        } else {
+            const flagNames = flagsList.map(f => f.charAt(0).toUpperCase() + f.slice(1)).join(', ');
+            showToast(`Flags: ${flagNames}`);
+        }
 
     } catch (error) {
-        console.error('Error setting flag:', error);
-        alert('Failed to set flag');
+        console.error('Error toggling flag:', error);
+        alert('Failed to toggle flag');
     }
 }
 
