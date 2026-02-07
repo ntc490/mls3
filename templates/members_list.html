@@ -4,15 +4,15 @@
 
 {% block content %}
 <div class="container">
-    <h1>Active Members</h1>
+    <h1 id="page-title">Members <span id="member-count" class="text-muted" style="font-size: 0.7em;">({{ active_count }})</span></h1>
 
     <div class="filters">
         <input type="text" id="search-box" placeholder="Search members..." class="search-input">
         <div class="filter-buttons">
-            <button class="btn btn-filter active" data-filter="active">Active ({{ active_count }})</button>
-            <button class="btn btn-filter" data-filter="M">Men ({{ men_count }})</button>
-            <button class="btn btn-filter" data-filter="F">Women ({{ women_count }})</button>
-            <button class="btn btn-filter" data-filter="inactive">Inactive ({{ inactive_count }})</button>
+            <button class="btn btn-filter active" id="filter-active-status">Active: Yes</button>
+            <button class="btn btn-filter" id="filter-gender">Gender: All</button>
+            <button class="btn btn-filter" id="filter-minors">Minors: No</button>
+            <button class="btn btn-filter" id="filter-prayed">Prayed: All</button>
         </div>
         <div class="sort-buttons">
             <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
@@ -29,6 +29,9 @@
              data-last-name="{{ member.last_name|lower }}"
              data-prayer-date="{{ member.last_prayer_date if member.last_prayer_date else '1900-01-01' }}"
              data-active="{{ 'true' if member.active else 'false' }}"
+             data-age="{{ member.age if member.age is not none else '999' }}"
+             data-is-minor="{{ 'true' if member.age is not none and member.age < 18 else 'false' }}"
+             data-has-prayed="{{ 'true' if member.last_prayer_date else 'false' }}"
              onclick="openMemberModal({{ member.member_id }})">
             <h3>{{ member.full_name }}{% if not member.active %} <span class="inactive-badge">Inactive</span>{% endif %}</h3>
             {% if member.age is not none %}
@@ -58,25 +61,82 @@
 {% block scripts %}
 <script>
     // Filter and sort functionality
-    const filterButtons = document.querySelectorAll('.btn-filter');
     const memberCards = Array.from(document.querySelectorAll('.member-card'));
     const searchBox = document.getElementById('search-box');
     const membersGrid = document.getElementById('members-grid');
     const sortAlphaBtn = document.getElementById('sort-alpha');
     const sortPrayerBtn = document.getElementById('sort-prayer');
 
-    let currentFilter = 'active'; // Default to showing active members
+    // Filter buttons
+    const filterActiveBtn = document.getElementById('filter-active-status');
+    const filterGenderBtn = document.getElementById('filter-gender');
+    const filterMinorsBtn = document.getElementById('filter-minors');
+    const filterPrayedBtn = document.getElementById('filter-prayed');
+
+    // Filter states
+    let activeFilter = 'active'; // 'active', 'inactive', 'all'
+    let genderFilter = 'all'; // 'M', 'F', 'all'
+    let showMinors = false; // true, false - default to hiding minors
+    let prayerHistoryFilter = 'all'; // 'all', 'prayed', 'never'
     let alphaSort = null; // null, 'asc', 'desc'
     let prayerSort = null; // null, 'asc', 'desc'
 
-    // Filter buttons
-    filterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            filterButtons.forEach(b => b.classList.remove('active'));
-            button.classList.add('active');
-            currentFilter = button.dataset.filter;
-            applyFiltersAndSort();
-        });
+    // Active status button - cycles through yes -> no -> all
+    filterActiveBtn.addEventListener('click', () => {
+        if (activeFilter === 'active') {
+            activeFilter = 'inactive';
+            filterActiveBtn.textContent = 'Active: No';
+        } else if (activeFilter === 'inactive') {
+            activeFilter = 'all';
+            filterActiveBtn.textContent = 'Active: All';
+        } else {
+            activeFilter = 'active';
+            filterActiveBtn.textContent = 'Active: Yes';
+        }
+        applyFiltersAndSort();
+    });
+
+    // Gender button - cycles through All -> M -> F
+    filterGenderBtn.addEventListener('click', () => {
+        if (genderFilter === 'all') {
+            genderFilter = 'M';
+            filterGenderBtn.textContent = 'Gender: M';
+        } else if (genderFilter === 'M') {
+            genderFilter = 'F';
+            filterGenderBtn.textContent = 'Gender: F';
+        } else {
+            genderFilter = 'all';
+            filterGenderBtn.textContent = 'Gender: All';
+        }
+        applyFiltersAndSort();
+    });
+
+    // Minors button - toggles yes/no
+    filterMinorsBtn.addEventListener('click', () => {
+        showMinors = !showMinors;
+        if (showMinors) {
+            filterMinorsBtn.textContent = 'Minors: Yes';
+            filterMinorsBtn.classList.add('active');
+        } else {
+            filterMinorsBtn.textContent = 'Minors: No';
+            filterMinorsBtn.classList.remove('active');
+        }
+        applyFiltersAndSort();
+    });
+
+    // Prayer history button - cycles through All -> Yes -> No
+    filterPrayedBtn.addEventListener('click', () => {
+        if (prayerHistoryFilter === 'all') {
+            prayerHistoryFilter = 'prayed';
+            filterPrayedBtn.textContent = 'Prayed: Yes';
+        } else if (prayerHistoryFilter === 'prayed') {
+            prayerHistoryFilter = 'never';
+            filterPrayedBtn.textContent = 'Prayed: No';
+        } else {
+            prayerHistoryFilter = 'all';
+            filterPrayedBtn.textContent = 'Prayed: All';
+        }
+        applyFiltersAndSort();
     });
 
     // Search box with fuzzy matching
@@ -168,21 +228,40 @@
         let visibleCards = memberCards.filter(card => {
             const isActive = card.dataset.active === 'true';
             const gender = card.dataset.gender;
+            const isMinor = card.dataset.isMinor === 'true';
+            const hasPrayed = card.dataset.hasPrayed === 'true';
 
-            // Determine if card matches the current filter
-            let matchesFilter = false;
-            if (currentFilter === 'active') {
-                matchesFilter = isActive;
-            } else if (currentFilter === 'inactive') {
-                matchesFilter = !isActive;
-            } else if (currentFilter === 'M' || currentFilter === 'F') {
-                // Gender filters only show active members of that gender
-                matchesFilter = isActive && gender === currentFilter;
+            // Check active status filter
+            let matchesActive = false;
+            if (activeFilter === 'all') {
+                matchesActive = true;
+            } else if (activeFilter === 'active') {
+                matchesActive = isActive;
+            } else { // inactive
+                matchesActive = !isActive;
             }
 
+            // Check gender filter
+            let matchesGender = (genderFilter === 'all' || gender === genderFilter);
+
+            // Check minors filter
+            let matchesMinors = (showMinors || !isMinor);
+
+            // Check prayer history filter
+            let matchesPrayerHistory = false;
+            if (prayerHistoryFilter === 'all') {
+                matchesPrayerHistory = true;
+            } else if (prayerHistoryFilter === 'prayed') {
+                matchesPrayerHistory = hasPrayed;
+            } else { // never
+                matchesPrayerHistory = !hasPrayed;
+            }
+
+            // Check search
             const matchesSearch = fuzzyMatch(searchTerm, card);
 
-            if (matchesFilter && matchesSearch) {
+            // All filters must match
+            if (matchesActive && matchesGender && matchesMinors && matchesPrayerHistory && matchesSearch) {
                 card.style.display = '';
                 return true;
             } else {
@@ -190,6 +269,9 @@
                 return false;
             }
         });
+
+        // Update member count
+        document.getElementById('member-count').textContent = `(${visibleCards.length})`;
 
         // Sort visible cards
         if (alphaSort !== null) {
