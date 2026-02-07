@@ -31,7 +31,7 @@
                     <div class="calendar-item calendar-item-prayer">
                         <div class="calendar-item-info">
                             <span class="calendar-item-text">
-                                🙏 {{ assignment.member_name }} - {{ assignment.prayer_type }}
+                                🙏 <a href="{{ url_for('prayer_scheduler') }}?date={{ date_str }}" class="event-link">{{ assignment.member_name }}</a> - {{ assignment.prayer_type }}
                             </span>
                             <span class="calendar-item-state state-{{ assignment.state.lower() }}">{{ assignment.state }}</span>
                         </div>

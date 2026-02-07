@@ -1296,6 +1296,18 @@ input:checked + .slider:before {
     color: var(--text-dark);
 }
 
+.event-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.event-link:hover {
+    color: #1e4380;
+    text-decoration: underline;
+}
+
 .calendar-item-state {
     display: inline-block;
     font-size: 0.75rem;
