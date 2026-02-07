@@ -79,27 +79,153 @@
     const filterPrayedBtn = document.getElementById('filter-prayed');
     const filterFlagBtn = document.getElementById('filter-flag');
 
+    // Load filter state from sessionStorage or use defaults
+    const savedFilters = sessionStorage.getItem('memberListFilters');
+    let filterState = savedFilters ? JSON.parse(savedFilters) : {
+        activeFilter: 'active',
+        genderFilter: 'all',
+        showMinors: false,
+        prayerHistoryFilter: 'all',
+        flagFilter: 'all',
+        alphaSort: null,
+        prayerSort: null,
+        searchTerm: ''
+    };
+
     // Filter states
-    let activeFilter = 'active'; // 'active', 'inactive', 'all'
-    let genderFilter = 'all'; // 'M', 'F', 'all'
-    let showMinors = false; // true, false - default to hiding minors
-    let prayerHistoryFilter = 'all'; // 'all', 'prayed', 'never'
-    let flagFilter = 'all'; // 'all', 'blue', 'yellow', 'red'
-    let alphaSort = null; // null, 'asc', 'desc'
-    let prayerSort = null; // null, 'asc', 'desc'
+    let activeFilter = filterState.activeFilter;
+    let genderFilter = filterState.genderFilter;
+    let showMinors = filterState.showMinors;
+    let prayerHistoryFilter = filterState.prayerHistoryFilter;
+    let flagFilter = filterState.flagFilter;
+    let alphaSort = filterState.alphaSort;
+    let prayerSort = filterState.prayerSort;
+
+    // Restore search box value
+    if (filterState.searchTerm) {
+        searchBox.value = filterState.searchTerm;
+    }
+
+    // Function to save filter state
+    function saveFilterState() {
+        const state = {
+            activeFilter,
+            genderFilter,
+            showMinors,
+            prayerHistoryFilter,
+            flagFilter,
+            alphaSort,
+            prayerSort,
+            searchTerm: searchBox.value
+        };
+        sessionStorage.setItem('memberListFilters', JSON.stringify(state));
+    }
+
+    // Restore button labels based on saved state
+    function restoreButtonLabels() {
+        // Active filter
+        if (activeFilter === 'active') {
+            filterActiveBtn.textContent = 'Active: Yes';
+            filterActiveBtn.classList.add('active');
+        } else if (activeFilter === 'inactive') {
+            filterActiveBtn.textContent = 'Active: No';
+            filterActiveBtn.classList.add('active');
+        } else {
+            filterActiveBtn.textContent = 'Active: All';
+            filterActiveBtn.classList.remove('active');
+        }
+
+        // Gender filter
+        if (genderFilter === 'M') {
+            filterGenderBtn.textContent = 'Gender: M';
+            filterGenderBtn.classList.add('active');
+        } else if (genderFilter === 'F') {
+            filterGenderBtn.textContent = 'Gender: F';
+            filterGenderBtn.classList.add('active');
+        } else {
+            filterGenderBtn.textContent = 'Gender: All';
+            filterGenderBtn.classList.remove('active');
+        }
+
+        // Minors filter
+        if (showMinors) {
+            filterMinorsBtn.textContent = 'Minors: Yes';
+            filterMinorsBtn.classList.add('active');
+        } else {
+            filterMinorsBtn.textContent = 'Minors: No';
+            filterMinorsBtn.classList.remove('active');
+        }
+
+        // Prayer history filter
+        if (prayerHistoryFilter === 'prayed') {
+            filterPrayedBtn.textContent = 'Prayed: Yes';
+            filterPrayedBtn.classList.add('active');
+        } else if (prayerHistoryFilter === 'never') {
+            filterPrayedBtn.textContent = 'Prayed: No';
+            filterPrayedBtn.classList.add('active');
+        } else {
+            filterPrayedBtn.textContent = 'Prayed: All';
+            filterPrayedBtn.classList.remove('active');
+        }
+
+        // Flag filter
+        if (flagFilter === 'blue') {
+            filterFlagBtn.textContent = 'Flag: 🔵';
+            filterFlagBtn.classList.add('active');
+        } else if (flagFilter === 'yellow') {
+            filterFlagBtn.textContent = 'Flag: 🟡';
+            filterFlagBtn.classList.add('active');
+        } else if (flagFilter === 'red') {
+            filterFlagBtn.textContent = 'Flag: 🔴';
+            filterFlagBtn.classList.add('active');
+        } else {
+            filterFlagBtn.textContent = 'Flag: All';
+            filterFlagBtn.classList.remove('active');
+        }
+
+        // Sort buttons
+        if (alphaSort === 'asc') {
+            sortAlphaBtn.textContent = 'A→Z';
+            sortAlphaBtn.classList.add('active');
+        } else if (alphaSort === 'desc') {
+            sortAlphaBtn.textContent = 'Z→A';
+            sortAlphaBtn.classList.add('active');
+        } else {
+            sortAlphaBtn.textContent = 'A→Z';
+            sortAlphaBtn.classList.remove('active');
+        }
+
+        if (prayerSort === 'asc') {
+            sortPrayerBtn.textContent = 'Prayer Date ↑';
+            sortPrayerBtn.classList.add('active');
+        } else if (prayerSort === 'desc') {
+            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.classList.add('active');
+        } else {
+            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.classList.remove('active');
+        }
+    }
+
+    // Restore button labels on page load
+    restoreButtonLabels();
 
     // Active status button - cycles through yes -> no -> all
     filterActiveBtn.addEventListener('click', () => {
         if (activeFilter === 'active') {
             activeFilter = 'inactive';
             filterActiveBtn.textContent = 'Active: No';
+            filterActiveBtn.classList.add('active');
         } else if (activeFilter === 'inactive') {
             activeFilter = 'all';
             filterActiveBtn.textContent = 'Active: All';
+            filterActiveBtn.classList.remove('active');
         } else {
             activeFilter = 'active';
             filterActiveBtn.textContent = 'Active: Yes';
+            filterActiveBtn.classList.add('active');
         }
+        saveFilterState();
         applyFiltersAndSort();
     });
 
@@ -108,13 +234,17 @@
         if (genderFilter === 'all') {
             genderFilter = 'M';
             filterGenderBtn.textContent = 'Gender: M';
+            filterGenderBtn.classList.add('active');
         } else if (genderFilter === 'M') {
             genderFilter = 'F';
             filterGenderBtn.textContent = 'Gender: F';
+            filterGenderBtn.classList.add('active');
         } else {
             genderFilter = 'all';
             filterGenderBtn.textContent = 'Gender: All';
+            filterGenderBtn.classList.remove('active');
         }
+        saveFilterState();
         applyFiltersAndSort();
     });
 
@@ -128,6 +258,7 @@
             filterMinorsBtn.textContent = 'Minors: No';
             filterMinorsBtn.classList.remove('active');
         }
+        saveFilterState();
         applyFiltersAndSort();
     });
 
@@ -136,13 +267,17 @@
         if (prayerHistoryFilter === 'all') {
             prayerHistoryFilter = 'prayed';
             filterPrayedBtn.textContent = 'Prayed: Yes';
+            filterPrayedBtn.classList.add('active');
         } else if (prayerHistoryFilter === 'prayed') {
             prayerHistoryFilter = 'never';
             filterPrayedBtn.textContent = 'Prayed: No';
+            filterPrayedBtn.classList.add('active');
         } else {
             prayerHistoryFilter = 'all';
             filterPrayedBtn.textContent = 'Prayed: All';
+            filterPrayedBtn.classList.remove('active');
         }
+        saveFilterState();
         applyFiltersAndSort();
     });
 
@@ -151,21 +286,27 @@
         if (flagFilter === 'all') {
             flagFilter = 'blue';
             filterFlagBtn.textContent = 'Flag: 🔵';
+            filterFlagBtn.classList.add('active');
         } else if (flagFilter === 'blue') {
             flagFilter = 'yellow';
             filterFlagBtn.textContent = 'Flag: 🟡';
+            filterFlagBtn.classList.add('active');
         } else if (flagFilter === 'yellow') {
             flagFilter = 'red';
             filterFlagBtn.textContent = 'Flag: 🔴';
+            filterFlagBtn.classList.add('active');
         } else {
             flagFilter = 'all';
             filterFlagBtn.textContent = 'Flag: All';
+            filterFlagBtn.classList.remove('active');
         }
+        saveFilterState();
         applyFiltersAndSort();
     });
 
     // Search box with fuzzy matching
     searchBox.addEventListener('input', (e) => {
+        saveFilterState();
         applyFiltersAndSort();
     });
 
@@ -190,6 +331,7 @@
         sortPrayerBtn.textContent = 'Prayer Date ↓';
         sortPrayerBtn.classList.remove('active');
 
+        saveFilterState();
         applyFiltersAndSort();
     });
 
@@ -214,6 +356,7 @@
         sortAlphaBtn.textContent = 'A→Z';
         sortAlphaBtn.classList.remove('active');
 
+        saveFilterState();
         applyFiltersAndSort();
     });
 

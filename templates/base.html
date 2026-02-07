@@ -53,6 +53,11 @@
                     </div>
                 </div>
 
+                <div class="member-actions-section">
+                    <button id="sendTextBtn" class="btn btn-secondary">SMS</button>
+                    <button id="prayBtn" class="btn btn-primary">Pray</button>
+                </div>
+
                 <div class="member-toggles-section">
                     <div class="toggle-row">
                         <span class="toggle-label">Active Member</span>
@@ -71,11 +76,7 @@
                 </div>
 
                 <div class="member-flag-section">
-                    <h3>Flag</h3>
                     <div class="flag-selector">
-                        <button class="flag-selector-btn" data-flag="" onclick="setMemberFlag('')">
-                            <span class="flag-selector-circle flag-none">None</span>
-                        </button>
                         <button class="flag-selector-btn" data-flag="blue" onclick="setMemberFlag('blue')">
                             <span class="flag-selector-circle flag-blue"></span>
                         </button>
@@ -88,27 +89,43 @@
                     </div>
                 </div>
 
-                <div class="member-skip-section">
-                    <h3>Skip in Rotation</h3>
-                    <p id="skipStatus" class="skip-status"></p>
-                    <div class="skip-buttons">
-                        <button class="btn btn-skip-small" onclick="setSkipUntil(1)">Skip 1 Month</button>
-                        <button class="btn btn-skip-small" onclick="setSkipUntil(3)">Skip 3 Months</button>
-                        <button class="btn btn-skip-small" onclick="setSkipUntil(6)">Skip 6 Months</button>
-                        <button class="btn btn-skip-clear" onclick="clearSkipUntil()">Clear Skip</button>
-                    </div>
-                </div>
-
-                <div class="member-actions-section">
-                    <button id="sendTextBtn" class="btn btn-secondary">Send Text Message</button>
-                    <button id="prayBtn" class="btn btn-primary">Pray</button>
-                </div>
-
                 <div class="prayer-history-section">
                     <h3>Prayer History</h3>
                     <div id="prayerHistoryList" class="prayer-history-list">
                         <p class="text-muted">Loading...</p>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pray Dialog Modal -->
+    <div id="prayDialogModal" class="modal pray-dialog-modal">
+        <div class="modal-content pray-dialog-content">
+            <div class="modal-header">
+                <h2>Create Prayer Assignment</h2>
+                <button class="close-btn" onclick="closePrayDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="pray-dialog-section">
+                    <h3>Skip Until</h3>
+                    <p class="help-text">Temporarily remove this member from prayer rotation</p>
+                    <div class="skip-quick-buttons">
+                        <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(1)">1 Month</button>
+                        <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(3)">3 Months</button>
+                        <button class="btn btn-sm btn-secondary" onclick="setSkipUntilFromDialog(6)">6 Months</button>
+                    </div>
+                    <div class="skip-date-picker">
+                        <label for="skipDatePicker">Or choose a custom date:</label>
+                        <input type="date" id="skipDatePicker" class="date-input">
+                        <button class="btn btn-sm btn-secondary" onclick="setCustomSkipDate()">Set Date</button>
+                        <button class="btn btn-sm btn-secondary" onclick="clearSkipFromDialog()">Clear Skip</button>
+                    </div>
+                    <p id="dialogSkipStatus" class="skip-status"></p>
+                </div>
+
+                <div class="pray-dialog-actions">
+                    <button id="assignPrayerBtn" class="btn btn-primary btn-large">Assign Prayer</button>
                 </div>
             </div>
         </div>

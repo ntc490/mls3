@@ -6,12 +6,14 @@
 let currentMemberId = null;
 let currentMemberPhone = null;
 let targetDate = null; // Optional date for creating assignments
+let memberDataDirty = false; // Track if member data has been modified
 
 /**
  * Open the member info modal and load member data
  */
 async function openMemberModal(memberId, date = null) {
     currentMemberId = memberId;
+    memberDataDirty = false; // Reset dirty flag when opening modal
 
     // Use provided date, or check sessionStorage for prayer scheduler target date
     targetDate = date || sessionStorage.getItem('prayer_scheduler_target_date');
@@ -60,9 +62,6 @@ async function openMemberModal(memberId, date = null) {
         // Store phone for SMS
         currentMemberPhone = member.phone;
 
-        // Update skip status
-        updateSkipStatus(member.skip_until);
-
         // Update flag selector
         updateFlagSelector(member.flag);
 
@@ -77,27 +76,6 @@ async function openMemberModal(memberId, date = null) {
 }
 
 /**
- * Update skip status display
- */
-function updateSkipStatus(skip_until) {
-    const statusEl = document.getElementById('skipStatus');
-    if (skip_until) {
-        const skipDate = new Date(skip_until);
-        const today = new Date();
-        if (skipDate > today) {
-            statusEl.textContent = `Skipped until ${skipDate.toLocaleDateString()}`;
-            statusEl.className = 'skip-status active';
-        } else {
-            statusEl.textContent = 'Skip date has passed - member is back in rotation';
-            statusEl.className = 'skip-status expired';
-        }
-    } else {
-        statusEl.textContent = 'Not currently skipped';
-        statusEl.className = 'skip-status';
-    }
-}
-
-/**
  * Close the member info modal
  */
 function closeMemberModal() {
@@ -105,6 +83,12 @@ function closeMemberModal() {
     modal.style.display = 'none';
     currentMemberId = null;
     currentMemberPhone = null;
+
+    // Reload the members list if data was modified and we're on the members page
+    if (memberDataDirty && window.location.pathname === '/members') {
+        window.location.reload();
+    }
+    memberDataDirty = false;
 }
 
 /**
@@ -153,16 +137,11 @@ async function toggleActiveStatus() {
         // Update checkbox to match server state
         document.getElementById('toggleActive').checked = result.active;
 
+        // Mark data as dirty
+        memberDataDirty = true;
+
         // Show feedback
         showToast(result.active ? 'Member activated' : 'Member deactivated');
-
-        // Reload the parent page if we're on the members list
-        if (window.location.pathname === '/members') {
-            // Delay slightly so toast is visible
-            setTimeout(() => {
-                window.location.reload();
-            }, 500);
-        }
 
     } catch (error) {
         console.error('Error toggling active status:', error);
@@ -193,6 +172,9 @@ async function toggleDontAsk() {
         // Update checkbox to match server state
         document.getElementById('toggleDontAsk').checked = result.dont_ask_prayer;
 
+        // Mark data as dirty
+        memberDataDirty = true;
+
         // Show feedback
         showToast(result.dont_ask_prayer ? 'Member marked as "don\'t ask"' : 'Member can be asked for prayers');
 
@@ -204,10 +186,118 @@ async function toggleDontAsk() {
     }
 }
 
+// Track current flag state
+let currentMemberFlag = '';
+
 /**
- * Set skip_until date (months from now)
+ * Update flag selector to show current flag
  */
-async function setSkipUntil(months) {
+function updateFlagSelector(currentFlag) {
+    // Store current flag state
+    currentMemberFlag = currentFlag || '';
+
+    // Remove active class from all buttons
+    const buttons = document.querySelectorAll('.flag-selector-btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+
+    // Add active class to current flag button if one is set
+    if (currentFlag) {
+        const activeButton = document.querySelector(`.flag-selector-btn[data-flag="${currentFlag}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+    }
+}
+
+/**
+ * Set member flag (toggle off if clicking the same flag)
+ */
+async function setMemberFlag(flag) {
+    if (!currentMemberId) return;
+
+    // If clicking the same flag, toggle it off
+    const flagToSet = (flag === currentMemberFlag) ? '' : flag;
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/set-flag`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ flag: flagToSet })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to set flag');
+        }
+
+        const result = await response.json();
+        updateFlagSelector(result.flag);
+
+        // Mark data as dirty
+        memberDataDirty = true;
+
+        const flagName = flagToSet === '' ? 'None' : flagToSet.charAt(0).toUpperCase() + flagToSet.slice(1);
+        showToast(`Flag set to: ${flagName}`);
+
+    } catch (error) {
+        console.error('Error setting flag:', error);
+        alert('Failed to set flag');
+    }
+}
+
+/**
+ * Open the pray dialog
+ */
+function openPrayDialog() {
+    if (!currentMemberId) return;
+
+    // Show pray dialog
+    const dialog = document.getElementById('prayDialogModal');
+    dialog.style.display = 'flex';
+
+    // Update skip status in dialog
+    fetch(`/api/members/${currentMemberId}`)
+        .then(response => response.json())
+        .then(member => {
+            updateDialogSkipStatus(member.skip_until);
+        })
+        .catch(error => {
+            console.error('Error loading member for pray dialog:', error);
+        });
+}
+
+/**
+ * Close the pray dialog
+ */
+function closePrayDialog() {
+    const dialog = document.getElementById('prayDialogModal');
+    dialog.style.display = 'none';
+}
+
+/**
+ * Update skip status display in pray dialog
+ */
+function updateDialogSkipStatus(skip_until) {
+    const statusEl = document.getElementById('dialogSkipStatus');
+    if (skip_until) {
+        const skipDate = new Date(skip_until);
+        const today = new Date();
+        if (skipDate > today) {
+            statusEl.textContent = `Currently skipped until ${skipDate.toLocaleDateString()}`;
+            statusEl.className = 'skip-status active';
+        } else {
+            statusEl.textContent = 'Skip date has passed - member is back in rotation';
+            statusEl.className = 'skip-status expired';
+        }
+    } else {
+        statusEl.textContent = 'Not currently skipped';
+        statusEl.className = 'skip-status';
+    }
+}
+
+/**
+ * Set skip_until date from pray dialog (months from now)
+ */
+async function setSkipUntilFromDialog(months) {
     if (!currentMemberId) return;
 
     const today = new Date();
@@ -226,7 +316,8 @@ async function setSkipUntil(months) {
         }
 
         const result = await response.json();
-        updateSkipStatus(result.skip_until);
+        updateDialogSkipStatus(result.skip_until);
+        memberDataDirty = true;
         showToast(`Member skipped until ${skipDate.toLocaleDateString()}`);
 
     } catch (error) {
@@ -236,9 +327,47 @@ async function setSkipUntil(months) {
 }
 
 /**
- * Clear skip_until date
+ * Set custom skip date from date picker
  */
-async function clearSkipUntil() {
+async function setCustomSkipDate() {
+    if (!currentMemberId) return;
+
+    const dateInput = document.getElementById('skipDatePicker');
+    const skipDateStr = dateInput.value;
+
+    if (!skipDateStr) {
+        alert('Please select a date');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/members/${currentMemberId}/skip-until`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ skip_until: skipDateStr })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to set skip date');
+        }
+
+        const result = await response.json();
+        updateDialogSkipStatus(result.skip_until);
+        memberDataDirty = true;
+        const skipDate = new Date(skipDateStr);
+        showToast(`Member skipped until ${skipDate.toLocaleDateString()}`);
+        dateInput.value = ''; // Clear the input
+
+    } catch (error) {
+        console.error('Error setting skip date:', error);
+        alert('Failed to set skip date');
+    }
+}
+
+/**
+ * Clear skip_until from pray dialog
+ */
+async function clearSkipFromDialog() {
     if (!currentMemberId) return;
 
     try {
@@ -253,63 +382,13 @@ async function clearSkipUntil() {
         }
 
         const result = await response.json();
-        updateSkipStatus(result.skip_until);
+        updateDialogSkipStatus(result.skip_until);
+        memberDataDirty = true;
         showToast('Skip cleared - member back in rotation');
 
     } catch (error) {
         console.error('Error clearing skip date:', error);
         alert('Failed to clear skip date');
-    }
-}
-
-/**
- * Update flag selector to show current flag
- */
-function updateFlagSelector(currentFlag) {
-    // Remove active class from all buttons
-    const buttons = document.querySelectorAll('.flag-selector-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-
-    // Add active class to current flag button
-    const activeButton = document.querySelector(`.flag-selector-btn[data-flag="${currentFlag || ''}"]`);
-    if (activeButton) {
-        activeButton.classList.add('active');
-    }
-}
-
-/**
- * Set member flag
- */
-async function setMemberFlag(flag) {
-    if (!currentMemberId) return;
-
-    try {
-        const response = await fetch(`/api/members/${currentMemberId}/set-flag`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ flag: flag })
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to set flag');
-        }
-
-        const result = await response.json();
-        updateFlagSelector(result.flag);
-
-        const flagName = flag === '' ? 'None' : flag.charAt(0).toUpperCase() + flag.slice(1);
-        showToast(`Flag set to: ${flagName}`);
-
-        // Reload the parent page if we're on the members list
-        if (window.location.pathname === '/members') {
-            setTimeout(() => {
-                window.location.reload();
-            }, 500);
-        }
-
-    } catch (error) {
-        console.error('Error setting flag:', error);
-        alert('Failed to set flag');
     }
 }
 
@@ -412,18 +491,37 @@ document.addEventListener('DOMContentLoaded', () => {
         sendTextBtn.addEventListener('click', sendTextMessage);
     }
 
-    // Pray button
+    // Pray button - opens pray dialog
     const prayBtn = document.getElementById('prayBtn');
     if (prayBtn) {
-        prayBtn.addEventListener('click', createPrayerAssignment);
+        prayBtn.addEventListener('click', openPrayDialog);
     }
 
-    // Close modal on outside click
+    // Assign prayer button in pray dialog
+    const assignPrayerBtn = document.getElementById('assignPrayerBtn');
+    if (assignPrayerBtn) {
+        assignPrayerBtn.addEventListener('click', () => {
+            closePrayDialog();
+            createPrayerAssignment();
+        });
+    }
+
+    // Close member modal on outside click
     const modal = document.getElementById('memberInfoModal');
     if (modal) {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 closeMemberModal();
+            }
+        });
+    }
+
+    // Close pray dialog on outside click
+    const prayDialog = document.getElementById('prayDialogModal');
+    if (prayDialog) {
+        prayDialog.addEventListener('click', (e) => {
+            if (e.target === prayDialog) {
+                closePrayDialog();
             }
         });
     }
