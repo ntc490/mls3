@@ -36,6 +36,9 @@
                             <span class="calendar-item-state state-{{ assignment.state.lower() }}">{{ assignment.state }}</span>
                         </div>
                         <div class="calendar-item-actions">
+                            <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ assignment.member_phone }}')">
+                                SMS
+                            </button>
                             <button class="btn btn-sm btn-secondary" onclick="sendReminder({{ assignment.assignment_id }})">
                                 Reminder
                             </button>
@@ -54,6 +57,16 @@
 
 {% block scripts %}
 <script>
+function openSMS(phone) {
+    if (!phone) {
+        alert('No phone number on file for this member');
+        return;
+    }
+    // Open SMS app using Android intent
+    const smsUrl = `sms:${phone}`;
+    window.location.href = smsUrl;
+}
+
 async function sendReminder(assignmentId) {
     if (!confirm('Send reminder SMS for this prayer assignment?')) {
         return;

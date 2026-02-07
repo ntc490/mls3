@@ -47,13 +47,15 @@ def index():
     # Group assignments by date
     assignments_by_date = defaultdict(list)
     for assignment in upcoming_assignments:
-        # Get member name
+        # Get member name and phone
         member = members_db.get_by_id(assignment.member_id)
         member_name = member.full_name if member else "Unknown"
+        member_phone = member.phone if member else ""
 
         assignments_by_date[assignment.date].append({
             'assignment_id': assignment.assignment_id,
             'member_name': member_name,
+            'member_phone': member_phone,
             'prayer_type': assignment.prayer_type,
             'state': assignment.state,
             'date_obj': assignment.date_obj
