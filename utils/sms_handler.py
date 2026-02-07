@@ -4,6 +4,7 @@ SMS Handler for MLS3
 Generates SMS messages from templates and opens them via Android intents.
 """
 import subprocess
+import time
 from urllib.parse import quote_plus
 from datetime import date
 from typing import Optional
@@ -77,30 +78,66 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
         return True
 
     try:
-        # URL encode the message
-        encoded_message = quote_plus(message)
+        # Debug: Show what we're sending
+        print("\n" + "="*60)
+        print(f"SMS SEND ATTEMPT:")
+        print(f"  Phone Number: [{phone_number}]")
+        print(f"  Message: [{message}]")
+        print(f"  Length: {len(message)} characters")
+        print("="*60)
 
-        # Create SMS intent URL
-        intent_url = f"sms:{phone_number}?body={encoded_message}"
+        # Validate phone number is not empty
+        if not phone_number or phone_number.strip() == '':
+            print("ERROR: Phone number is empty!")
+            return False
 
-        # Launch via termux-open-url
-        result = subprocess.run(
-            ['termux-open-url', intent_url],
-            capture_output=True,
-            timeout=5
-        )
+        # Write to Tasker file queue
+        # Tasker monitors this file and sends SMS when it's modified
+        # Tasker uses literal \n (two characters) as delimiter, not actual newlines
+        print(f"\nWriting to Tasker queue:")
+        print(f"  Phone: {phone_number}")
+        print(f"  Message: {message}")
+        print("")
 
-        return result.returncode == 0
+        try:
+            # Write to Tasker queue file
+            # Format: phone_number\nmessage (literal backslash-n, not newline)
+            content = f"{phone_number}\\n{message}"
 
-    except FileNotFoundError:
-        # termux-open-url not found (probably not on Termux)
-        print("Error: termux-open-url not found")
-        print(f"Would send SMS to {phone_number}:")
+            with open('/sdcard/tasker_sms.txt', 'w') as f:
+                f.write(content)
+
+            print(f"✓ SMS queued for Tasker")
+            print(f"  File content: {content}")
+            return True
+
+        except Exception as e:
+            print(f"Failed to write to Tasker queue: {e}")
+            return False
+
+        # Try method 2: Use Android 'am' command directly
+        try:
+            result = subprocess.run(
+                ['am', 'start', '-a', 'android.intent.action.SENDTO', '-d', intent_url],
+                capture_output=True,
+                timeout=5
+            )
+            if result.returncode == 0:
+                print(f"SMS opened via 'am' command to {phone_number}")
+                return True
+            else:
+                print(f"'am' command failed with code {result.returncode}")
+                print(f"stderr: {result.stderr.decode()}")
+        except FileNotFoundError:
+            print("'am' command not found")
+
+        # All methods failed
+        print(f"All SMS methods failed. Would send to {phone_number}:")
         print(f"Message: {message}")
         return False
 
     except subprocess.TimeoutExpired:
-        print("Error: termux-open-url timed out")
+        print("Error: SMS command timed out")
         return False
 
     except Exception as e:
