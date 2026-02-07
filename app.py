@@ -42,12 +42,41 @@ def index():
 @app.route('/members')
 def members_list():
     """List all members"""
-    all_members = members_db.members
-    active_members = [m for m in all_members if m.active]
-    inactive_members = [m for m in all_members if not m.active]
+    # Helper function to calculate age
+    def calc_age(birthday_str):
+        if not birthday_str:
+            return None
+        try:
+            birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
+            today = date.today()
+            return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        except ValueError:
+            return None
 
-    active_men = [m for m in active_members if m.gender == 'M']
-    active_women = [m for m in active_members if m.gender == 'F']
+    # Create member dicts with age
+    all_members = []
+    for m in members_db.members:
+        member_dict = {
+            'member_id': m.member_id,
+            'full_name': m.full_name,
+            'first_name': m.first_name,
+            'last_name': m.last_name,
+            'gender': m.gender,
+            'phone': m.phone,
+            'birthday': m.birthday,
+            'age': calc_age(m.birthday),
+            'last_prayer_date': m.last_prayer_date,
+            'dont_ask_prayer': m.dont_ask_prayer,
+            'active': m.active,
+            'notes': m.notes
+        }
+        all_members.append(member_dict)
+
+    active_members = [m for m in all_members if m['active']]
+    inactive_members = [m for m in all_members if not m['active']]
+
+    active_men = [m for m in active_members if m['gender'] == 'M']
+    active_women = [m for m in active_members if m['gender'] == 'F']
 
     return render_template(
         'members_list.html',
@@ -113,6 +142,17 @@ def api_members_search():
     else:
         members = members_db.get_active_members(gender=gender)
 
+    # Helper function to calculate age
+    def calc_age(birthday_str):
+        if not birthday_str:
+            return None
+        try:
+            birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
+            today = date.today()
+            return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        except ValueError:
+            return None
+
     # Convert to JSON-friendly format
     results = [
         {
@@ -120,7 +160,8 @@ def api_members_search():
             'name': m.full_name,
             'gender': m.gender,
             'last_prayer_date': m.last_prayer_date,
-            'phone': m.phone
+            'phone': m.phone,
+            'age': calc_age(m.birthday)
         }
         for m in members
     ]
@@ -136,12 +177,24 @@ def api_candidates(gender):
     count = int(request.args.get('count', config.NEXT_CANDIDATE_COUNT))
     candidates = get_candidates_with_context(members_db, assignments_db, gender, count)
 
+    # Helper function to calculate age
+    def calc_age(birthday_str):
+        if not birthday_str:
+            return None
+        try:
+            birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
+            today = date.today()
+            return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        except ValueError:
+            return None
+
     results = [
         {
             'id': c['member'].member_id,
             'name': c['member'].full_name,
             'last_prayer_date': c['last_prayer_date_display'],
-            'priority': c['priority']
+            'priority': c['priority'],
+            'age': calc_age(c['member'].birthday)
         }
         for c in candidates
     ]
@@ -287,6 +340,16 @@ def api_get_member(member_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
+    # Calculate age from birthday
+    age = None
+    if member.birthday:
+        try:
+            birth_date = datetime.strptime(member.birthday, '%Y-%m-%d').date()
+            today = date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+        except ValueError:
+            pass
+
     # Get prayer history for this member
     member_assignments = [
         a for a in assignments_db.assignments
@@ -313,6 +376,7 @@ def api_get_member(member_id):
         'last_name': member.last_name,
         'gender': member.gender,
         'birthday': member.birthday,
+        'age': age,
         'phone': member.phone,
         'recommend_expiration': member.recommend_expiration,
         'active': member.active,

@@ -31,6 +31,11 @@
              data-active="{{ 'true' if member.active else 'false' }}"
              onclick="openMemberModal({{ member.member_id }})">
             <h3>{{ member.full_name }}{% if not member.active %} <span class="inactive-badge">Inactive</span>{% endif %}</h3>
+            {% if member.age is not none %}
+            <p><strong>Age:</strong> {{ member.age }}{% if member.age < 18 %} (minor){% endif %}</p>
+            {% else %}
+            <p><strong>Age:</strong> <span class="text-muted">Unknown</span></p>
+            {% endif %}
             <p><strong>Gender:</strong> {{ member.gender }}</p>
             <p><strong>Phone:</strong> {{ member.phone }}</p>
             {% if member.last_prayer_date %}
@@ -216,5 +221,8 @@
             });
         }
     }
+
+    // Apply initial filter on page load
+    applyFiltersAndSort();
 </script>
 {% endblock %}

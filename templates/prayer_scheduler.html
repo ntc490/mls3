@@ -181,8 +181,9 @@
             menCandidates.forEach(candidate => {
                 const div = document.createElement('div');
                 div.className = 'candidate-item';
+                const agePart = candidate.age !== null && candidate.age !== undefined ? ` (${candidate.age})` : '';
                 div.innerHTML = `
-                    <strong>${candidate.name}</strong>
+                    <strong>${candidate.name}${agePart}</strong>
                     <span class="date-note">(last: ${candidate.last_prayer_date})</span>
                 `;
                 div.onclick = () => selectCandidate(candidate.id, candidate.name);
@@ -202,8 +203,9 @@
             womenCandidates.forEach(candidate => {
                 const div = document.createElement('div');
                 div.className = 'candidate-item';
+                const agePart = candidate.age !== null && candidate.age !== undefined ? ` (${candidate.age})` : '';
                 div.innerHTML = `
-                    <strong>${candidate.name}</strong>
+                    <strong>${candidate.name}${agePart}</strong>
                     <span class="date-note">(last: ${candidate.last_prayer_date})</span>
                 `;
                 div.onclick = () => selectCandidate(candidate.id, candidate.name);
@@ -217,8 +219,9 @@
             candidates.forEach(candidate => {
                 const div = document.createElement('div');
                 div.className = 'candidate-item';
+                const agePart = candidate.age !== null && candidate.age !== undefined ? ` (${candidate.age})` : '';
                 div.innerHTML = `
-                    <strong>${candidate.name}</strong>
+                    <strong>${candidate.name}${agePart}</strong>
                     <span class="date-note">(last: ${candidate.last_prayer_date})</span>
                 `;
                 div.onclick = () => selectCandidate(candidate.id, candidate.name);
@@ -258,8 +261,9 @@
         results.forEach(member => {
             const div = document.createElement('div');
             div.className = 'candidate-item';
+            const agePart = member.age !== null && member.age !== undefined ? ` (${member.age})` : '';
             div.innerHTML = `
-                <strong>${member.name}</strong> (${member.gender})
+                <strong>${member.name}${agePart}</strong> (${member.gender})
                 ${member.last_prayer_date ? `<span class="date-note">(last: ${member.last_prayer_date})</span>` : '<span class="date-note">(never)</span>'}
             `;
             div.onclick = () => selectCandidate(member.id, member.name);

@@ -27,6 +27,15 @@ async function openMemberModal(memberId) {
 
         // Populate modal with member data
         document.getElementById('modalMemberName').textContent = member.name;
+
+        // Display age with indicator for minors
+        if (member.age !== null && member.age !== undefined) {
+            const ageText = member.age < 18 ? `${member.age} (minor)` : member.age.toString();
+            document.getElementById('modalAge').textContent = ageText;
+        } else {
+            document.getElementById('modalAge').textContent = 'Unknown';
+        }
+
         document.getElementById('modalGender').textContent = member.gender === 'M' ? 'Male' : 'Female';
         document.getElementById('modalBirthday').textContent = member.birthday || 'Not specified';
         document.getElementById('modalPhone').textContent = member.phone || 'Not specified';
