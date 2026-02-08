@@ -1890,3 +1890,81 @@ input:checked + .slider:before {
         flex-direction: column;
     }
 }
+
+/* SMS Composer Styles */
+.composer-header {
+    margin-bottom: 2rem;
+}
+
+.composer-header h1 {
+    margin-bottom: 0.5rem;
+}
+
+.composer-header .member-name {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.composer-header .error-message {
+    color: var(--danger-color);
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
+.composer-form {
+    max-width: 600px;
+}
+
+.custom-vars-section {
+    background: var(--light-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.custom-vars-section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    color: var(--text-dark);
+}
+
+.form-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    resize: vertical;
+    min-height: 150px;
+}
+
+.form-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.message-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.message-info #charCount {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.composer-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.composer-actions .btn {
+    flex: 1;
+}

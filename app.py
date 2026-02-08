@@ -1290,6 +1290,114 @@ def get_appointment(appointment_id):
     })
 
 
+@app.route('/sms-composer')
+def sms_composer():
+    """
+    SMS message composer page.
+
+    Query params:
+        member_id (int, required): Member to send message to
+
+    Returns:
+        Rendered template with member data and available templates
+    """
+    member_id = request.args.get('member_id', type=int)
+
+    if not member_id:
+        # No member specified, redirect to home
+        return redirect('/')
+
+    member = members_db.get_by_id(member_id)
+    if not member:
+        # Member not found, redirect to home
+        return redirect('/')
+
+    # Get adhoc template categories from YAML
+    adhoc_templates = templates.templates.get('adhoc', {})
+
+    return render_template('sms_composer.html',
+                          member=member,
+                          adhoc_templates=adhoc_templates)
+
+
+@app.route('/api/expand-template', methods=['POST'])
+def api_expand_template():
+    """
+    Expand template with member context and custom variables.
+
+    Request JSON:
+        {
+            "member_id": 123,
+            "template": "Hi {name|blue?formal:casual}, {random:casual_greeting} ...",
+            "variables": {
+                "event_name": "Ward Picnic",
+                "calling_name": "Primary Teacher"
+            }
+        }
+
+    Returns:
+        {
+            "expanded": "Hi John, I hope you're well. ...",
+            "length": 145
+        }
+    """
+    from utils.template_expander import SmartTemplateExpander
+
+    data = request.json
+    member_id = data.get('member_id')
+    template_str = data.get('template', '')
+    custom_vars = data.get('variables', {})
+
+    if not member_id:
+        return jsonify({'error': 'Missing member_id'}), 400
+
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Expand template with smart variables
+    expander = SmartTemplateExpander(templates)
+    expanded = expander.expand(template_str, member, appointment=None, **custom_vars)
+
+    return jsonify({
+        'expanded': expanded,
+        'length': len(expanded)
+    })
+
+
+@app.route('/api/queue-sms', methods=['POST'])
+def api_queue_sms():
+    """
+    Queue SMS for sending via Tasker.
+    Used by composer for ad-hoc messages.
+
+    Request JSON:
+        {
+            "phone": "+1234567890",
+            "message": "Hi John, ..."
+        }
+
+    Returns:
+        {"success": true}
+    """
+    from utils.sms_handler import send_sms_intent
+
+    data = request.json
+    phone = data.get('phone')
+    message = data.get('message')
+
+    if not phone or not message:
+        return jsonify({'error': 'Missing phone or message'}), 400
+
+    # Send via Tasker
+    success = send_sms_intent(phone, message)
+
+    if success:
+        return jsonify({'success': True})
+    else:
+        return jsonify({'error': 'Failed to queue SMS'}), 500
+
+
 @app.template_filter('format_date')
 def format_date_filter(date_obj):
     """Template filter to format dates"""

@@ -602,17 +602,13 @@ async function createPrayerAssignment() {
 }
 
 /**
- * Send text message to member
+ * Send text message - opens SMS composer
  */
 function sendTextMessage() {
-    if (!currentMemberPhone) {
-        alert('No phone number on file for this member');
-        return;
-    }
+    if (!currentMemberId) return;
 
-    // Open SMS app using Android intent
-    const smsUrl = `sms:${currentMemberPhone}`;
-    window.location.href = smsUrl;
+    // Redirect to SMS composer
+    window.location.href = `/sms-composer?member_id=${currentMemberId}`;
 }
 
 /**

@@ -60,3 +60,16 @@ appointments:
 
   Living Ordinance_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a living ordinance interview on {date} at {time}?"
   Living Ordinance_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Living ordinance interview {smart_date} at {time} with Bishop"
+
+adhoc:
+  general_checkin: "Hi {name|blue?formal:casual}, {random:casual_greeting} Just wanted to check in and see how you're doing. Let me know if there's anything I can help with."
+
+  event_invitation: "Hi {name|blue?formal:casual}, {random:casual_greeting} We're having {event_name} on {date} at {time}. Hope you can join us!"
+
+  calling_extension: "Hi {name|blue?formal:casual}, I wanted to reach out about extending your calling as {calling_name}. Would you be willing to continue serving?"
+
+  birthday: "Hi {name|blue?formal:casual}, Happy Birthday! Hope you have a wonderful day!"
+
+  thank_you: "Hi {name|blue?formal:casual}, thank you so much for {action}. It really means a lot!"
+
+  follow_up: "Hi {name|blue?formal:casual}, {random:casual_greeting} Just following up on {topic}. Let me know if you have any questions."
