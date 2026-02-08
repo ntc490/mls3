@@ -121,6 +121,19 @@ main {
     background-color: #5a6268;
 }
 
+.btn:disabled,
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* Info Cards */
 .info-cards {
     display: grid;

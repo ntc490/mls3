@@ -38,8 +38,10 @@ class Member:
 
     @property
     def display_name(self):
-        """Returns the name to display (AKA or first name)"""
-        return self.aka if self.aka else self.first_name
+        """Returns the name to display for messages (first word of AKA or first name)"""
+        name = self.aka if self.aka else self.first_name
+        # Return only the first word (handles cases like "John Paul" -> "John")
+        return name.split()[0] if name else ""
 
     @property
     def flags_list(self) -> List[str]:

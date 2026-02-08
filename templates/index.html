@@ -54,7 +54,9 @@
                                 <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ item.member_phone }}')">
                                     SMS
                                 </button>
-                                <button class="btn btn-sm btn-secondary" onclick="openAppointmentReminderSMS({{ item.appointment_id }}, '{{ item.member_phone }}')">
+                                <button class="btn btn-sm btn-secondary"
+                                        onclick="openAppointmentReminderSMS({{ item.appointment_id }}, '{{ item.member_phone }}')"
+                                        {% if item.state in ['Draft', 'Invited'] %}disabled{% endif %}>
                                     Reminder
                                 </button>
                             </div>
@@ -116,22 +118,21 @@ async function openAppointmentReminderSMS(appointmentId, phone) {
     }
 
     try {
-        // Fetch the reminder message
-        const response = await fetch(`/api/appointments/${appointmentId}/reminder-message`);
+        // Send reminder via API (which handles SMS)
+        const response = await fetch(`/api/appointments/${appointmentId}/remind`, {
+            method: 'POST'
+        });
 
         if (!response.ok) {
-            throw new Error('Failed to get reminder message');
+            throw new Error('Failed to send reminder');
         }
 
         const result = await response.json();
-
-        // Open SMS app with pre-filled message
-        const smsUrl = `sms:${phone}?body=${encodeURIComponent(result.message)}`;
-        window.location.href = smsUrl;
+        alert('Reminder sent!');
 
     } catch (error) {
-        console.error('Error opening reminder SMS:', error);
-        alert('Failed to open reminder SMS');
+        console.error('Error sending reminder:', error);
+        alert('Failed to send reminder');
     }
 }
 </script>

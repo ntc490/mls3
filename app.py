@@ -1139,10 +1139,9 @@ def send_appointment_invite(appointment_id):
     # Update state to Invited
     appointments_db.update_state(appointment_id, 'Invited')
 
-    # In production, send SMS here
-    if config.DEBUG_SMS:
-        print(f"[DEBUG SMS] To: {member.phone}")
-        print(f"[DEBUG SMS] Message: {message}")
+    # Send SMS
+    from utils.sms_handler import send_sms_intent
+    send_sms_intent(member.phone, message)
 
     return jsonify({'success': True, 'message': message})
 
@@ -1202,13 +1201,14 @@ def send_appointment_reminder(appointment_id):
         conductor=format_conductor_for_message(appointment.conductor)
     )
 
-    # Update state to Reminded
-    appointments_db.update_state(appointment_id, 'Reminded')
+    # Update state to Reminded only if not already reminded
+    # This allows sending multiple reminders
+    if appointment.state != 'Reminded':
+        appointments_db.update_state(appointment_id, 'Reminded')
 
-    # In production, send SMS here
-    if config.DEBUG_SMS:
-        print(f"[DEBUG SMS] To: {member.phone}")
-        print(f"[DEBUG SMS] Message: {message}")
+    # Send SMS
+    from utils.sms_handler import send_sms_intent
+    send_sms_intent(member.phone, message)
 
     return jsonify({'success': True, 'message': message})
 
