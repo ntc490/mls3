@@ -49,19 +49,32 @@ def index():
     """Homepage with calendar view"""
     from collections import defaultdict
 
-    # Get all upcoming items (from today onwards)
+    # Get events for current week (today through next Sunday)
     today = date.today()
+    next_sunday = get_next_sunday(today)
 
-    # Get prayer assignments
+    # If today is Sunday and it's before noon, include today
+    if today.weekday() == 6:  # Sunday is 6
+        from datetime import datetime as dt
+        if dt.now().hour < 12:
+            week_start = today
+        else:
+            # After noon on Sunday, show next week
+            week_start = today + timedelta(days=1)
+            next_sunday = get_next_sunday(week_start)
+    else:
+        week_start = today
+
+    # Get prayer assignments for current week
     upcoming_assignments = [
         a for a in assignments_db.assignments
-        if a.date_obj >= today
+        if week_start <= a.date_obj <= next_sunday
     ]
 
-    # Get appointments (including completed, filtered by date)
+    # Get appointments for current week (including completed)
     upcoming_appointments = [
         a for a in appointments_db.appointments
-        if a.date_obj >= today
+        if week_start <= a.date_obj <= next_sunday
     ]
 
     # Group calendar items by date
