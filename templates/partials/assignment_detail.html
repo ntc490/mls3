@@ -53,14 +53,15 @@
         {% elif assignment.state == 'Invited' %}
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Accepted')">Accept</button>
             <button class="btn btn-danger" onclick="confirmDecline({{ assignment.assignment_id }})">Decline</button>
-            <button class="btn btn-secondary" onclick="updateState({{ assignment.assignment_id }}, 'Draft')" title="Go back to Draft to change or resend">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>
         {% elif assignment.state == 'Accepted' %}
             <button class="btn btn-primary" onclick="sendReminder({{ assignment.assignment_id }})">Remind</button>
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Completed')">Complete</button>
-            <button class="btn btn-danger" onclick="updateState({{ assignment.assignment_id }}, 'Draft')">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>
         {% elif assignment.state == 'Reminded' %}
+            <button class="btn btn-primary" onclick="sendReminder({{ assignment.assignment_id }})">Remind</button>
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Completed')">Complete</button>
-            <button class="btn btn-danger" onclick="updateState({{ assignment.assignment_id }}, 'Draft')">Cancel</button>
+            <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>
         {% endif %}
     </div>
 </div>
