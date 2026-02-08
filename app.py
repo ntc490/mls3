@@ -108,7 +108,7 @@ def index():
             'member_name': member_name,
             'member_phone': member_phone,
             'appointment_type': appointment.appointment_type,
-            'time': appointment.time,
+            'time': appointment.time_local(config.HOME_TIMEZONE),
             'conductor': appointment.conductor,
             'state': appointment.state,
             'date_obj': appointment.date_obj
@@ -199,7 +199,7 @@ def events():
             'member_name': member_name,
             'member_phone': member_phone,
             'appointment_type': appointment.appointment_type,
-            'time': appointment.time,
+            'time': appointment.time_local(config.HOME_TIMEZONE),
             'conductor': appointment.conductor,
             'state': appointment.state,
             'date_obj': appointment.date_obj

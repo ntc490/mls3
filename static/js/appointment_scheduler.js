@@ -10,6 +10,13 @@ let appointmentId = null;
 let isEditMode = false;
 
 /**
+ * Get browser's current timezone
+ */
+function getBrowserTimezone() {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/**
  * Initialize the appointment scheduler page
  */
 async function initAppointmentScheduler() {
@@ -834,7 +841,8 @@ async function saveAppointment(initialState) {
                     date: date,
                     time: time,
                     duration_minutes: parseInt(duration),
-                    conductor: selectedConductor
+                    conductor: selectedConductor,
+                    timezone: getBrowserTimezone()
                 })
             });
 
@@ -870,7 +878,8 @@ async function saveAppointment(initialState) {
                     date: date,
                     time: time,
                     duration_minutes: parseInt(duration),
-                    conductor: selectedConductor
+                    conductor: selectedConductor,
+                    timezone: getBrowserTimezone()
                 })
             });
 

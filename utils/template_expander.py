@@ -194,7 +194,8 @@ class SmartTemplateExpander:
                 context['prayer_type'] = appointment.prayer_type.lower()
             elif hasattr(appointment, 'appointment_type'):
                 context['appointment_type'] = appointment.appointment_type
-                context['time'] = appointment.datetime_obj.strftime('%I:%M %p')
+                # Use local timezone for time display (HOME_TIMEZONE for SMS messages)
+                context['time'] = appointment.time_local(config.HOME_TIMEZONE)
                 context['conductor'] = appointment.conductor
 
         # Add extra variables
