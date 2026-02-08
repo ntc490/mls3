@@ -124,9 +124,9 @@ def index():
         })
 
     # Convert to sorted list of (date, items) tuples
-    # Sort items within each date by time (appointments have time, prayers don't)
+    # Sort items within each date by time in reverse (latest first, prayers go first)
     for date_str, items in items_by_date.items():
-        items.sort(key=lambda x: x.get('time', '23:59'))  # Prayers go last
+        items.sort(key=lambda x: x.get('time', '00:00'), reverse=True)  # Prayers go first
 
     calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
 
@@ -214,9 +214,9 @@ def events():
             'date_obj': appointment.date_obj
         })
 
-    # Sort items within each date
+    # Sort items within each date in reverse (latest first, prayers go first)
     for date_str, items in items_by_date.items():
-        items.sort(key=lambda x: x.get('time', '23:59'))
+        items.sort(key=lambda x: x.get('time', '00:00'), reverse=True)
 
     # Convert to sorted list
     calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
