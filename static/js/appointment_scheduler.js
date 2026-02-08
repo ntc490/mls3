@@ -28,6 +28,11 @@ async function initAppointmentScheduler() {
     // Determine mode
     isEditMode = !!appointmentId;
 
+    // Check if we came from events page (via referrer)
+    if (document.referrer && document.referrer.includes('/events')) {
+        document.getElementById('backToEventsBtn').style.display = 'inline-block';
+    }
+
     // Set up member autocomplete
     setupMemberAutocomplete();
 
@@ -459,6 +464,11 @@ function setupEventListeners() {
         if (selectedMemberId) {
             openMemberModal(selectedMemberId);
         }
+    });
+
+    // Navigation buttons
+    document.getElementById('backToEventsBtn').addEventListener('click', () => {
+        window.location.href = '/events';
     });
 
     // Action buttons

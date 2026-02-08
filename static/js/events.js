@@ -128,5 +128,13 @@ function addDays(date, days) {
     return result;
 }
 
+// Force reload when navigating back to this page (prevents stale cached data)
+window.addEventListener('pageshow', function(event) {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+        // Page was loaded from cache (back/forward button)
+        window.location.reload();
+    }
+});
+
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', initEventsPage);

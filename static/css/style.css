@@ -1523,12 +1523,18 @@ input:checked + .slider:before {
     margin-bottom: 2rem;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
 }
 
 .scheduler-header h1 {
     margin-bottom: 0;
     flex: 0 0 auto;
+}
+
+.scheduler-header-buttons {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .member-name {
