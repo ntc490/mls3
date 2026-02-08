@@ -63,15 +63,22 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
     Returns:
         True if intent was launched successfully, False otherwise
     """
-    # Debug mode - skip actual SMS sending
+    # Print debug output if enabled
     if config.DEBUG_SMS:
         print("\n" + "="*60)
-        print("DEBUG SMS MODE - SMS not actually sent")
+        print("SMS DEBUG OUTPUT")
         print("="*60)
         print(f"To: {phone_number}")
         print(f"Message: {message}")
         print(f"Length: {len(message)} characters")
+        if config.DISABLE_SMS:
+            print("Status: SMS DISABLED - not actually sent")
+        else:
+            print("Status: Sending via Tasker...")
         print("="*60 + "\n")
+
+    # Skip actual SMS sending if disabled (for desktop testing)
+    if config.DISABLE_SMS:
         return True
 
     try:

@@ -22,6 +22,15 @@ templates = MessageTemplates()
 appointment_types_db = AppointmentTypesDatabase()
 appointments_db = AppointmentDatabase()
 
+# Print debug mode status on startup
+print(f"\n{'='*60}")
+print(f"MLS3 Starting Up")
+print(f"{'='*60}")
+print(f"DEBUG_SMS: {config.DEBUG_SMS} (print debug messages)")
+print(f"DISABLE_SMS: {config.DISABLE_SMS} (skip actual SMS sending)")
+print(f"Data directory: {config.DATA_DIR}")
+print(f"{'='*60}\n")
+
 
 def get_next_sunday(from_date: date = None) -> date:
     """Get the next Sunday from a given date (or today)"""
@@ -1113,8 +1122,6 @@ def update_appointment(appointment_id):
 @app.route('/api/appointments/<int:appointment_id>/invite', methods=['POST'])
 def send_appointment_invite(appointment_id):
     """Send appointment invitation to member"""
-    print(f"[DEBUG] send_appointment_invite called for appointment_id={appointment_id}")
-
     appointment = appointments_db.get_by_id(appointment_id)
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
@@ -1123,7 +1130,6 @@ def send_appointment_invite(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    print(f"[DEBUG] Member: {member.display_name}, Phone: {member.phone}")
 
     # Get message template
     template = templates.get_template('appointments', f'{appointment.appointment_type}_invite')
