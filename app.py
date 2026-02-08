@@ -687,7 +687,7 @@ def api_get_member(member_id):
             'appointment_id': appointment.appointment_id,
             'date': appointment.date,
             'date_obj': appointment.date_obj,
-            'time': appointment.time,
+            'time': appointment.time_local(config.HOME_TIMEZONE),  # Localized time for display
             'appointment_type': appointment.appointment_type,
             'conductor': appointment.conductor,
             'state': appointment.state,
@@ -1173,13 +1173,13 @@ def get_appointment_reminder_message(appointment_id):
     if not template:
         template = templates.get_template('appointments', 'default_reminder')
 
-    # Format the message
-    appt_datetime = appointment.datetime_obj
+    # Format the message with localized time
+    appt_datetime_local = appointment.datetime_local(config.HOME_TIMEZONE)
     message = template.format(
         member_name=member.display_name,
         appointment_type=appointment.appointment_type,
-        date=appt_datetime.strftime(config.DISPLAY_DATE_FORMAT),
-        time=appt_datetime.strftime('%I:%M %p'),
+        date=appt_datetime_local.strftime(config.DISPLAY_DATE_FORMAT),
+        time=appt_datetime_local.strftime('%I:%M %p'),
         conductor=format_conductor_for_message(appointment.conductor)
     )
 
@@ -1269,13 +1269,17 @@ def get_appointment(appointment_id):
 
     member = members_db.get_by_id(appointment.member_id)
 
+    # Get localized time for editing (convert from UTC to local 24-hour format)
+    local_dt = appointment.datetime_local(config.HOME_TIMEZONE)
+    local_time_24h = local_dt.strftime('%H:%M')
+
     return jsonify({
         'appointment_id': appointment.appointment_id,
         'member_id': appointment.member_id,
         'member_name': member.full_name if member else "Unknown",
         'appointment_type': appointment.appointment_type,
         'date': appointment.date,
-        'time': appointment.time,
+        'time': local_time_24h,  # Send localized time in 24-hour format for time input
         'duration_minutes': appointment.duration_minutes,
         'conductor': appointment.conductor,
         'state': appointment.state,
