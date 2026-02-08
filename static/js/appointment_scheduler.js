@@ -276,10 +276,16 @@ async function loadAppointmentForEdit(apptId) {
 
         const appt = await response.json();
 
-        // Set member name in search field
+        // Set member name in search field (read-only in edit mode)
         document.getElementById('memberSearch').value = appt.member_name;
         document.getElementById('selectedMemberId').value = appt.member_id;
-        document.getElementById('clearMemberBtn').style.display = 'block';
+        document.getElementById('clearMemberBtn').style.display = 'none';
+
+        // Make member field read-only in edit mode
+        const memberSearch = document.getElementById('memberSearch');
+        memberSearch.disabled = true;
+        memberSearch.style.backgroundColor = '#f5f5f5';
+        memberSearch.style.cursor = 'not-allowed';
 
         // Populate form fields
         document.getElementById('appointmentType').value = appt.appointment_type;
@@ -292,6 +298,11 @@ async function loadAppointmentForEdit(apptId) {
 
         // Update button visibility based on state
         updateButtonsForState(appt.state);
+
+        // Show "New Appointment" button in edit mode (except for completed)
+        if (appt.state !== 'Completed') {
+            document.getElementById('newApptBtn').style.display = 'inline-block';
+        }
 
         // Make form read-only if completed
         if (appt.state === 'Completed') {
@@ -437,6 +448,7 @@ function setupEventListeners() {
     document.getElementById('acceptedBtn').addEventListener('click', markAccepted);
     document.getElementById('reminderBtn').addEventListener('click', sendReminder);
     document.getElementById('completeBtn').addEventListener('click', markComplete);
+    document.getElementById('newApptBtn').addEventListener('click', resetToNewAppointment);
     document.getElementById('deleteBtn').addEventListener('click', deleteAppointment);
 
     // Form validation - enable/disable save and invite buttons
@@ -617,7 +629,10 @@ async function suggestTime() {
  * Handle appointment type change
  */
 function onAppointmentTypeChange(event) {
-    const selectedOption = event.target.selectedOptions[0];
+    // Get the select element - either from event or directly
+    const selectElement = event ? event.target : document.getElementById('appointmentType');
+    const selectedOption = selectElement.selectedOptions[0];
+
     if (!selectedOption || !selectedOption.value) {
         return;
     }
@@ -897,6 +912,77 @@ async function deleteAppointment() {
         console.error('Error deleting appointment:', error);
         alert('Failed to delete appointment: ' + error.message);
     }
+}
+
+/**
+ * Reset form to create a new appointment
+ * Keeps the current member and appointment type, but resets other fields to defaults
+ */
+function resetToNewAppointment() {
+    // Get current member and appointment type
+    const currentMemberId = document.getElementById('selectedMemberId').value;
+    const currentMemberName = document.getElementById('memberSearch').value;
+    const currentAppointmentType = document.getElementById('appointmentType').value;
+
+    // Switch to create mode
+    isEditMode = false;
+    appointmentId = null;
+
+    // Update page title
+    document.getElementById('pageTitle').textContent = 'Schedule Appointment';
+
+    // Re-enable member field
+    const memberSearch = document.getElementById('memberSearch');
+    memberSearch.disabled = false;
+    memberSearch.style.backgroundColor = '';
+    memberSearch.style.cursor = '';
+
+    // Keep member and appointment type
+    document.getElementById('selectedMemberId').value = currentMemberId;
+    document.getElementById('memberSearch').value = currentMemberName;
+    document.getElementById('appointmentType').value = currentAppointmentType;
+
+    // Show clear button for member
+    if (currentMemberId) {
+        document.getElementById('clearMemberBtn').style.display = 'block';
+    }
+
+    // Reset date to next Sunday
+    const nextSunday = getNextSunday();
+    document.getElementById('appointmentDate').value = nextSunday;
+
+    // Reset time to 11:00 AM
+    document.getElementById('appointmentTime').value = '11:00';
+
+    // Reset duration and conductor to defaults (will be auto-filled by appointment type if applicable)
+    if (currentAppointmentType) {
+        // Trigger appointment type change to auto-fill duration and conductor
+        onAppointmentTypeChange();
+    } else {
+        document.getElementById('duration').value = '';
+        selectedConductor = null;
+        document.getElementById('conductorBishop').classList.remove('active');
+        document.getElementById('conductorCounselor').classList.remove('active');
+    }
+
+    // Reset button visibility
+    document.getElementById('saveBtn').style.display = 'inline-block';
+    document.getElementById('sendInviteBtn').style.display = 'inline-block';
+    document.getElementById('acceptedBtn').style.display = 'none';
+    document.getElementById('reminderBtn').style.display = 'none';
+    document.getElementById('completeBtn').style.display = 'none';
+    document.getElementById('newApptBtn').style.display = 'none';
+    document.getElementById('deleteBtn').style.display = 'none';
+
+    // Load appointments for the new date
+    loadAppointmentsForDate(nextSunday);
+
+    // Validate form
+    validateForm();
+
+    // Remove URL parameters
+    const newUrl = window.location.pathname;
+    window.history.pushState({}, '', newUrl);
 }
 
 // Initialize when DOM is loaded
