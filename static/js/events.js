@@ -29,7 +29,21 @@ function initEventsPage() {
         document.getElementById('dateTo').value = formatDate(thirtyDaysLater);
     }
 
+    // Restore scroll position if returning from another page
+    const savedScrollPos = sessionStorage.getItem('eventsScrollPos');
+    if (savedScrollPos) {
+        window.scrollTo(0, parseInt(savedScrollPos));
+        sessionStorage.removeItem('eventsScrollPos');
+    }
+
     setupEventListeners();
+}
+
+/**
+ * Save scroll position before navigating away
+ */
+function saveScrollPosition() {
+    sessionStorage.setItem('eventsScrollPos', window.scrollY.toString());
 }
 
 /**

@@ -31,6 +31,8 @@ async function initAppointmentScheduler() {
     // Check if we came from events page (via referrer)
     if (document.referrer && document.referrer.includes('/events')) {
         document.getElementById('backToEventsBtn').style.display = 'inline-block';
+        // Save the referrer URL so we can return to the exact same page with filters
+        sessionStorage.setItem('eventsReturnUrl', document.referrer);
     }
 
     // Set up member autocomplete
@@ -468,7 +470,14 @@ function setupEventListeners() {
 
     // Navigation buttons
     document.getElementById('backToEventsBtn').addEventListener('click', () => {
-        window.location.href = '/events';
+        // Return to the exact events page URL (with filters) that we came from
+        const returnUrl = sessionStorage.getItem('eventsReturnUrl');
+        if (returnUrl) {
+            window.location.href = returnUrl;
+            sessionStorage.removeItem('eventsReturnUrl');
+        } else {
+            window.location.href = '/events';
+        }
     });
 
     // Action buttons
