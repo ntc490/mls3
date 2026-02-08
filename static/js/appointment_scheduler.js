@@ -8,6 +8,7 @@ let selectedConductor = null;
 let memberId = null;
 let appointmentId = null;
 let isEditMode = false;
+let isDirty = false; // Track if appointment details have been modified
 
 /**
  * Get browser's current timezone
@@ -458,10 +459,21 @@ async function loadAppointmentTypes() {
 }
 
 /**
+ * Mark form as dirty (appointment details have been modified)
+ */
+function markDirty() {
+    if (isEditMode && !isDirty) {
+        isDirty = true;
+        document.getElementById('updateBtn').style.display = 'inline-block';
+    }
+}
+
+/**
  * Update button visibility based on appointment state
  */
 function updateButtonsForState(state) {
     const saveBtn = document.getElementById('saveBtn');
+    const updateBtn = document.getElementById('updateBtn');
     const sendInviteBtn = document.getElementById('sendInviteBtn');
     const acceptedBtn = document.getElementById('acceptedBtn');
     const reminderBtn = document.getElementById('reminderBtn');
@@ -470,6 +482,7 @@ function updateButtonsForState(state) {
 
     // Hide all state-specific buttons first
     saveBtn.style.display = 'none';
+    updateBtn.style.display = 'none';
     sendInviteBtn.style.display = 'none';
     acceptedBtn.style.display = 'none';
     reminderBtn.style.display = 'none';
@@ -502,6 +515,11 @@ function updateButtonsForState(state) {
             // No action buttons for completed/cancelled
             break;
     }
+
+    // Show update button if form is dirty
+    if (isDirty && isEditMode) {
+        updateBtn.style.display = 'inline-block';
+    }
 }
 
 /**
@@ -512,9 +530,10 @@ function setupEventListeners() {
     const typeSelect = document.getElementById('appointmentType');
     typeSelect.addEventListener('change', onAppointmentTypeChange);
 
-    // Date change - reload appointments for that date
+    // Date change - reload appointments for that date and mark as dirty
     const dateInput = document.getElementById('appointmentDate');
     dateInput.addEventListener('change', onDateChange);
+    dateInput.addEventListener('change', markDirty);
 
     // Conductor buttons
     document.getElementById('conductorBishop').addEventListener('click', () => selectConductor('Bishop'));
@@ -547,12 +566,17 @@ function setupEventListeners() {
 
     // Action buttons
     document.getElementById('saveBtn').addEventListener('click', saveDraft);
+    document.getElementById('updateBtn').addEventListener('click', updateAppointment);
     document.getElementById('sendInviteBtn').addEventListener('click', sendInvite);
     document.getElementById('acceptedBtn').addEventListener('click', markAccepted);
     document.getElementById('reminderBtn').addEventListener('click', sendReminder);
     document.getElementById('completeBtn').addEventListener('click', markComplete);
     document.getElementById('newApptBtn').addEventListener('click', resetToNewAppointment);
     document.getElementById('deleteBtn').addEventListener('click', deleteAppointment);
+
+    // Mark as dirty when time or duration changes
+    document.getElementById('appointmentTime').addEventListener('input', markDirty);
+    document.getElementById('duration').addEventListener('input', markDirty);
 
     // Form validation - enable/disable save and invite buttons
     document.getElementById('memberSearch').addEventListener('input', validateForm);
@@ -791,6 +815,54 @@ function selectConductor(conductor) {
  */
 async function saveDraft() {
     await saveAppointment('Draft');
+}
+
+/**
+ * Update appointment details (date/time/duration) without changing state
+ */
+async function updateAppointment() {
+    if (!appointmentId) return;
+
+    // Get form values
+    const appointmentType = document.getElementById('appointmentType').value;
+    const date = document.getElementById('appointmentDate').value;
+    const time = document.getElementById('appointmentTime').value;
+    const duration = document.getElementById('duration').value;
+
+    // Validate
+    if (!appointmentType || !date || !time || !duration || !selectedConductor) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/appointments/${appointmentId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                appointment_type: appointmentType,
+                date: date,
+                time: time,
+                duration_minutes: parseInt(duration),
+                conductor: selectedConductor,
+                timezone: getBrowserTimezone()
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update appointment');
+        }
+
+        // Clear dirty flag and reload
+        isDirty = false;
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error updating appointment:', error);
+        alert('Failed to update appointment: ' + error.message);
+    }
 }
 
 /**
