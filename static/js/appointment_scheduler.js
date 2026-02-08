@@ -136,6 +136,9 @@ function setupMemberAutocomplete() {
         clearBtn.style.display = 'none';
         resultsDiv.classList.remove('show');
         searchInput.focus();
+
+        // Validate form to update button states
+        validateForm();
     });
 
     // Close results when clicking outside
@@ -225,6 +228,9 @@ function selectMember(id, name) {
 
     // Update memberId variable
     memberId = id;
+
+    // Validate form to update button states
+    validateForm();
 }
 
 /**
@@ -249,6 +255,9 @@ async function loadMemberById(id) {
 
         // Update the global memberId variable
         memberId = id;
+
+        // Validate form to update button states
+        validateForm();
 
     } catch (error) {
         console.error('Error loading member:', error);
@@ -429,6 +438,47 @@ function setupEventListeners() {
     document.getElementById('reminderBtn').addEventListener('click', sendReminder);
     document.getElementById('completeBtn').addEventListener('click', markComplete);
     document.getElementById('deleteBtn').addEventListener('click', deleteAppointment);
+
+    // Form validation - enable/disable save and invite buttons
+    document.getElementById('memberSearch').addEventListener('input', validateForm);
+    document.getElementById('appointmentType').addEventListener('change', validateForm);
+    document.getElementById('appointmentDate').addEventListener('change', validateForm);
+    document.getElementById('appointmentTime').addEventListener('change', validateForm);
+    document.getElementById('duration').addEventListener('input', validateForm);
+
+    // Initial validation
+    validateForm();
+}
+
+/**
+ * Validate form and enable/disable save and invite buttons
+ */
+function validateForm() {
+    const selectedMemberId = document.getElementById('selectedMemberId').value;
+    const appointmentType = document.getElementById('appointmentType').value;
+    const date = document.getElementById('appointmentDate').value;
+    const time = document.getElementById('appointmentTime').value;
+    const duration = document.getElementById('duration').value;
+
+    // Check if all required fields are filled
+    const isValid = selectedMemberId &&
+                    appointmentType &&
+                    date &&
+                    time &&
+                    duration &&
+                    parseInt(duration) >= 5 &&
+                    selectedConductor;
+
+    // Enable/disable buttons
+    const saveBtn = document.getElementById('saveBtn');
+    const sendInviteBtn = document.getElementById('sendInviteBtn');
+
+    if (saveBtn) {
+        saveBtn.disabled = !isValid;
+    }
+    if (sendInviteBtn) {
+        sendInviteBtn.disabled = !isValid;
+    }
 }
 
 /**
@@ -599,6 +649,9 @@ function selectConductor(conductor) {
         bishopBtn.classList.remove('active');
         counselorBtn.classList.add('active');
     }
+
+    // Validate form to update button states
+    validateForm();
 }
 
 /**
