@@ -28,19 +28,31 @@ async function initAppointmentScheduler() {
     // Determine mode
     isEditMode = !!appointmentId;
 
-    // Check if we came from events page or homepage (via referrer)
-    if (document.referrer) {
+    // Check if we have a saved return URL or came from events/homepage (via referrer)
+    let returnUrl = sessionStorage.getItem('returnUrl');
+    let returnLabel = sessionStorage.getItem('returnLabel');
+
+    // If no saved return info, check referrer
+    if (!returnUrl && document.referrer) {
         if (document.referrer.includes('/events')) {
-            document.getElementById('backToEventsBtn').style.display = 'inline-block';
-            // Save the referrer URL so we can return to the exact same page with filters
-            sessionStorage.setItem('returnUrl', document.referrer);
+            returnUrl = document.referrer;
+            returnLabel = 'Events';
+            sessionStorage.setItem('returnUrl', returnUrl);
+            sessionStorage.setItem('returnLabel', returnLabel);
         } else if (document.referrer.endsWith('/') || document.referrer.includes('/?')) {
             // Homepage (root path)
-            const backBtn = document.getElementById('backToEventsBtn');
-            backBtn.textContent = '← Back to Home';
-            backBtn.style.display = 'inline-block';
-            sessionStorage.setItem('returnUrl', document.referrer);
+            returnUrl = document.referrer;
+            returnLabel = 'Home';
+            sessionStorage.setItem('returnUrl', returnUrl);
+            sessionStorage.setItem('returnLabel', returnLabel);
         }
+    }
+
+    // Show back button if we have return info
+    if (returnUrl && returnLabel) {
+        const backBtn = document.getElementById('backToEventsBtn');
+        backBtn.textContent = `← Back to ${returnLabel}`;
+        backBtn.style.display = 'inline-block';
     }
 
     // Set up member autocomplete
@@ -482,7 +494,9 @@ function setupEventListeners() {
         const returnUrl = sessionStorage.getItem('returnUrl');
         if (returnUrl) {
             window.location.href = returnUrl;
+            // Clear both return URL and label
             sessionStorage.removeItem('returnUrl');
+            sessionStorage.removeItem('returnLabel');
         } else {
             window.location.href = '/';
         }

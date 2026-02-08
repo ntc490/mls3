@@ -117,29 +117,36 @@
     // Store target date in sessionStorage so it persists when navigating to other pages
     sessionStorage.setItem('prayer_scheduler_target_date', targetSunday);
 
-    // Check if we came from events page or homepage and show back button
-    if (document.referrer) {
+    // Check if we have a saved return URL or came from events/homepage (via referrer)
+    let prayerReturnUrl = sessionStorage.getItem('prayerReturnUrl');
+    let prayerReturnLabel = sessionStorage.getItem('prayerReturnLabel');
+
+    // If no saved return info, check referrer
+    if (!prayerReturnUrl && document.referrer) {
         if (document.referrer.includes('/events')) {
-            const backBtn = document.getElementById('backBtn');
-            backBtn.textContent = '← Back to Events';
-            backBtn.style.display = 'inline-block';
-            sessionStorage.setItem('prayerReturnUrl', document.referrer);
-            backBtn.addEventListener('click', () => {
-                const returnUrl = sessionStorage.getItem('prayerReturnUrl');
-                window.location.href = returnUrl || '/events';
-                sessionStorage.removeItem('prayerReturnUrl');
-            });
+            prayerReturnUrl = document.referrer;
+            prayerReturnLabel = 'Events';
+            sessionStorage.setItem('prayerReturnUrl', prayerReturnUrl);
+            sessionStorage.setItem('prayerReturnLabel', prayerReturnLabel);
         } else if (document.referrer.endsWith('/') || document.referrer.includes('/?')) {
-            const backBtn = document.getElementById('backBtn');
-            backBtn.textContent = '← Back to Home';
-            backBtn.style.display = 'inline-block';
-            sessionStorage.setItem('prayerReturnUrl', document.referrer);
-            backBtn.addEventListener('click', () => {
-                const returnUrl = sessionStorage.getItem('prayerReturnUrl');
-                window.location.href = returnUrl || '/';
-                sessionStorage.removeItem('prayerReturnUrl');
-            });
+            prayerReturnUrl = document.referrer;
+            prayerReturnLabel = 'Home';
+            sessionStorage.setItem('prayerReturnUrl', prayerReturnUrl);
+            sessionStorage.setItem('prayerReturnLabel', prayerReturnLabel);
         }
+    }
+
+    // Show back button if we have return info
+    if (prayerReturnUrl && prayerReturnLabel) {
+        const backBtn = document.getElementById('backBtn');
+        backBtn.textContent = `← Back to ${prayerReturnLabel}`;
+        backBtn.style.display = 'inline-block';
+        backBtn.addEventListener('click', () => {
+            const returnUrl = sessionStorage.getItem('prayerReturnUrl');
+            window.location.href = returnUrl || '/';
+            sessionStorage.removeItem('prayerReturnUrl');
+            sessionStorage.removeItem('prayerReturnLabel');
+        });
     }
 
     let currentAssignment = null;
