@@ -458,6 +458,9 @@ function setupEventListeners() {
     document.getElementById('appointmentTime').addEventListener('change', validateForm);
     document.getElementById('duration').addEventListener('input', validateForm);
 
+    // Toggle appointments list
+    document.getElementById('toggleAppointmentsBtn').addEventListener('click', toggleAppointmentsList);
+
     // Initial validation
     validateForm();
 }
@@ -491,6 +494,17 @@ function validateForm() {
     if (sendInviteBtn) {
         sendInviteBtn.disabled = !isValid;
     }
+}
+
+/**
+ * Toggle appointments list visibility
+ */
+function toggleAppointmentsList() {
+    const appointmentsList = document.getElementById('appointmentsList');
+    const toggleBtn = document.getElementById('toggleAppointmentsBtn');
+
+    appointmentsList.classList.toggle('collapsed');
+    toggleBtn.classList.toggle('collapsed');
 }
 
 /**

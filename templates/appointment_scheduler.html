@@ -73,7 +73,10 @@
         </div>
 
         <div class="existing-appointments">
-            <h3>Scheduled for <span id="selectedDateDisplay"></span></h3>
+            <div class="appointments-header">
+                <h3>Scheduled for <span id="selectedDateDisplay"></span></h3>
+                <button id="toggleAppointmentsBtn" class="btn-icon" title="Toggle appointments list">▼</button>
+            </div>
             <div id="appointmentsList" class="appointments-list">
                 <p class="text-muted">Select a date to see scheduled appointments</p>
             </div>

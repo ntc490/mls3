@@ -1549,16 +1549,47 @@ input:checked + .slider:before {
     top: 1rem;
 }
 
-.existing-appointments h3 {
-    margin-top: 0;
+.appointments-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     margin-bottom: 1rem;
+}
+
+.appointments-header h3 {
+    margin: 0;
     font-size: 1.1rem;
     color: var(--text-dark);
+}
+
+.appointments-header .btn-icon {
+    background: none;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.appointments-header .btn-icon:hover {
+    color: var(--text-dark);
+}
+
+.appointments-header .btn-icon.collapsed {
+    transform: rotate(-90deg);
 }
 
 .appointments-list {
     max-height: 500px;
     overflow-y: auto;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+.appointments-list.collapsed {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
 }
 
 .conductor-group {
