@@ -381,6 +381,7 @@ class MessageTemplates:
     def __init__(self, yaml_path: Path = None):
         self.yaml_path = yaml_path or config.MESSAGE_TEMPLATES_YAML
         self.templates = {}
+        self.pleasantries = {}
         self.load()
 
     def load(self):
@@ -390,16 +391,42 @@ class MessageTemplates:
             return
 
         with open(self.yaml_path, 'r', encoding='utf-8') as f:
-            self.templates = yaml.safe_load(f)
+            data = yaml.safe_load(f)
+
+            # Extract pleasantries section
+            self.pleasantries = data.get('pleasantries', {})
+
+            # Load templates (exclude pleasantries)
+            self.templates = {k: v for k, v in data.items() if k != 'pleasantries'}
 
     def get_template(self, activity: str, template_name: str) -> str:
         """Get a specific template"""
         return self.templates.get(activity, {}).get(template_name, "")
 
     def expand_template(self, activity: str, template_name: str, **kwargs) -> str:
-        """Get template and expand variables"""
+        """Get template and expand variables (LEGACY - simple expansion only)"""
         template = self.get_template(activity, template_name)
         return template.format(**kwargs)
+
+    def expand_smart(self, activity: str, template_name: str, member, appointment=None, **kwargs) -> str:
+        """
+        Get template and expand with smart variables.
+
+        Args:
+            activity: Template category (prayer, appointments, adhoc)
+            template_name: Template name within category
+            member: Member object
+            appointment: Optional appointment/assignment object
+            **kwargs: Additional simple variables
+
+        Returns:
+            Fully expanded message string
+        """
+        from utils.template_expander import SmartTemplateExpander
+
+        template = self.get_template(activity, template_name)
+        expander = SmartTemplateExpander(self)
+        return expander.expand(template, member, appointment, **kwargs)
 
 
 class AppointmentTypesDatabase:

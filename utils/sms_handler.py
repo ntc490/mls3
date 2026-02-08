@@ -6,49 +6,36 @@ Generates SMS messages from templates and sends them via Tasker.
 from datetime import date
 from typing import Optional
 
-from models import Member, PrayerAssignment, MessageTemplates
+from models import Member, MessageTemplates
 import config
 
 
-def expand_prayer_template(
-    template_name: str,
-    member: Member,
-    assignment: PrayerAssignment,
-    templates: MessageTemplates
-) -> str:
+def expand_and_send(activity: str, template_name: str, member: Member,
+                    templates: MessageTemplates, appointment=None, **kwargs) -> bool:
     """
-    Expand an SMS template with member and assignment data.
+    Generic function to expand template with smart variables and send SMS.
 
     Args:
-        template_name: Name of template (e.g., 'invite', 'reminder')
+        activity: Template category (prayer, appointments, adhoc)
+        template_name: Template name within category (invite, reminder, etc.)
         member: Member object
-        assignment: PrayerAssignment object
-        templates: MessageTemplates object
+        templates: MessageTemplates instance
+        appointment: Optional appointment/assignment object
+        **kwargs: Additional variables (e.g., conductor="Bishop")
 
     Returns:
-        Expanded message text
+        True if SMS was successfully queued, False otherwise
     """
-    # Parse assignment date
-    assignment_date = assignment.date_obj
+    # Check for phone number
+    if not member.phone or member.phone.strip() == '':
+        print(f"ERROR: Cannot send SMS - {member.full_name} has no phone number")
+        return False
 
-    # Format date for display
-    date_str = assignment_date.strftime(config.DISPLAY_DATE_FORMAT)
+    # Expand template with smart variables
+    message = templates.expand_smart(activity, template_name, member, appointment, **kwargs)
 
-    # Prayer type in lowercase for natural reading
-    prayer_type_lower = assignment.prayer_type.lower()
-
-    # Expand template
-    message = templates.expand_template(
-        'prayer',
-        template_name,
-        first_name=member.display_name,  # Use display_name (AKA or first word of first_name)
-        last_name=member.last_name,
-        date=date_str,
-        prayer_type=prayer_type_lower,
-        day_of_week='Sunday'  # For prayers, always Sunday
-    )
-
-    return message
+    # Send via Tasker
+    return send_sms_intent(member.phone, message)
 
 
 def send_sms_intent(phone_number: str, message: str) -> bool:
@@ -124,63 +111,3 @@ def preview_sms(phone_number: str, message: str) -> dict:
         'message_length': len(message),
         'estimated_parts': (len(message) // 160) + 1
     }
-
-
-def send_prayer_invitation(
-    member: Member,
-    assignment: PrayerAssignment,
-    templates: MessageTemplates
-) -> bool:
-    """
-    Send prayer invitation SMS.
-
-    Args:
-        member: Member to invite
-        assignment: Prayer assignment
-        templates: Message templates
-
-    Returns:
-        True if SMS intent launched successfully
-    """
-    message = expand_prayer_template('invite', member, assignment, templates)
-    return send_sms_intent(member.phone, message)
-
-
-def send_prayer_reminder(
-    member: Member,
-    assignment: PrayerAssignment,
-    templates: MessageTemplates
-) -> bool:
-    """
-    Send prayer reminder SMS.
-
-    Args:
-        member: Member to remind
-        assignment: Prayer assignment
-        templates: Message templates
-
-    Returns:
-        True if SMS intent launched successfully
-    """
-    message = expand_prayer_template('reminder', member, assignment, templates)
-    return send_sms_intent(member.phone, message)
-
-
-def send_thank_you(
-    member: Member,
-    assignment: PrayerAssignment,
-    templates: MessageTemplates
-) -> bool:
-    """
-    Send thank you SMS after acceptance.
-
-    Args:
-        member: Member who accepted
-        assignment: Prayer assignment
-        templates: Message templates
-
-    Returns:
-        True if SMS intent launched successfully
-    """
-    message = expand_prayer_template('thank_you', member, assignment, templates)
-    return send_sms_intent(member.phone, message)

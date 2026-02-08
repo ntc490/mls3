@@ -537,7 +537,7 @@ def api_delete_assignment(assignment_id):
 @app.route('/api/assignments/<int:assignment_id>/invite', methods=['POST'])
 def api_send_invitation(assignment_id):
     """Send invitation SMS and update state to Invited"""
-    from utils.sms_handler import send_prayer_invitation
+    from utils.sms_handler import expand_and_send
 
     assignment = assignments_db.get_by_id(assignment_id)
     if not assignment:
@@ -553,12 +553,8 @@ def api_send_invitation(assignment_id):
     # Update state to Invited (do this first, before attempting to send SMS)
     assignments_db.update_state(assignment_id, 'Invited')
 
-    # Check if member has phone number
-    if not member.phone or member.phone.strip() == '':
-        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
-
-    # Send SMS
-    success = send_prayer_invitation(member, assignment, templates)
+    # Send SMS using smart template expansion
+    success = expand_and_send('prayer', 'invite', member, templates, assignment)
 
     if success:
         return jsonify({'success': True, 'message': 'SMS sent'})
@@ -607,7 +603,7 @@ def api_get_reminder_message(assignment_id):
 @app.route('/api/assignments/<int:assignment_id>/remind', methods=['POST'])
 def api_send_reminder(assignment_id):
     """Send reminder SMS and update state to Reminded"""
-    from utils.sms_handler import send_prayer_reminder
+    from utils.sms_handler import expand_and_send
 
     assignment = assignments_db.get_by_id(assignment_id)
     if not assignment:
@@ -620,8 +616,8 @@ def api_send_reminder(assignment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    # Send SMS
-    success = send_prayer_reminder(member, assignment, templates)
+    # Send SMS using smart template expansion
+    success = expand_and_send('prayer', 'reminder', member, templates, assignment)
 
     if success:
         # Update state to Reminded
@@ -1127,6 +1123,8 @@ def update_appointment(appointment_id):
 @app.route('/api/appointments/<int:appointment_id>/invite', methods=['POST'])
 def send_appointment_invite(appointment_id):
     """Send appointment invitation to member"""
+    from utils.sms_handler import expand_and_send
+
     appointment = appointments_db.get_by_id(appointment_id)
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
@@ -1135,36 +1133,33 @@ def send_appointment_invite(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    # Get message template
-    template = templates.get_template('appointments', f'{appointment.appointment_type}_invite')
-    if not template:
-        template = templates.get_template('appointments', 'default_invite')
-
-    if not template:
-        return jsonify({'error': f'Message template not found for {appointment.appointment_type}. Check message_templates.yaml'}), 500
-
-    # Format the message
-    appt_datetime = appointment.datetime_obj
-    message = template.format(
-        member_name=member.display_name,
-        appointment_type=appointment.appointment_type,
-        date=appt_datetime.strftime(config.DISPLAY_DATE_FORMAT),
-        time=appt_datetime.strftime('%I:%M %p'),
-        conductor=format_conductor_for_message(appointment.conductor)
-    )
-
     # Update state to Invited (do this first, before attempting to send SMS)
     appointments_db.update_state(appointment_id, 'Invited')
 
-    # Check if member has phone number
-    if not member.phone or member.phone.strip() == '':
-        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
+    # Determine template name (try specific type, fallback to default)
+    template_name = f'{appointment.appointment_type}_invite'
+    if not templates.get_template('appointments', template_name):
+        template_name = 'default_invite'
 
-    # Send SMS
-    from utils.sms_handler import send_sms_intent
-    send_sms_intent(member.phone, message)
+    # Send SMS using smart template expansion
+    success = expand_and_send(
+        'appointments',
+        template_name,
+        member,
+        templates,
+        appointment,
+        conductor=format_conductor_for_message(appointment.conductor)
+    )
 
-    return jsonify({'success': True, 'message': message})
+    if success:
+        return jsonify({'success': True, 'message': 'SMS sent'})
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Failed to send SMS',
+            'phone': member.phone,
+            'member': member.full_name
+        }), 500
 
 
 @app.route('/api/appointments/<int:appointment_id>/reminder-message', methods=['GET'])
@@ -1199,6 +1194,8 @@ def get_appointment_reminder_message(appointment_id):
 @app.route('/api/appointments/<int:appointment_id>/remind', methods=['POST'])
 def send_appointment_reminder(appointment_id):
     """Send appointment reminder to member"""
+    from utils.sms_handler import expand_and_send
+
     appointment = appointments_db.get_by_id(appointment_id)
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
@@ -1207,38 +1204,34 @@ def send_appointment_reminder(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    # Check if member has phone number
-    if not member.phone or member.phone.strip() == '':
-        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
+    # Determine template name (try specific type, fallback to default)
+    template_name = f'{appointment.appointment_type}_reminder'
+    if not templates.get_template('appointments', template_name):
+        template_name = 'default_reminder'
 
-    # Get message template
-    template = templates.get_template('appointments', f'{appointment.appointment_type}_reminder')
-    if not template:
-        template = templates.get_template('appointments', 'default_reminder')
-
-    if not template:
-        return jsonify({'error': f'Message template not found for {appointment.appointment_type}. Check message_templates.yaml'}), 500
-
-    # Format the message
-    appt_datetime = appointment.datetime_obj
-    message = template.format(
-        member_name=member.display_name,
-        appointment_type=appointment.appointment_type,
-        date=appt_datetime.strftime(config.DISPLAY_DATE_FORMAT),
-        time=appt_datetime.strftime('%I:%M %p'),
+    # Send SMS using smart template expansion
+    success = expand_and_send(
+        'appointments',
+        template_name,
+        member,
+        templates,
+        appointment,
         conductor=format_conductor_for_message(appointment.conductor)
     )
 
-    # Update state to Reminded only if not already reminded
-    # This allows sending multiple reminders
-    if appointment.state != 'Reminded':
-        appointments_db.update_state(appointment_id, 'Reminded')
-
-    # Send SMS
-    from utils.sms_handler import send_sms_intent
-    send_sms_intent(member.phone, message)
-
-    return jsonify({'success': True, 'message': message})
+    if success:
+        # Update state to Reminded only if not already reminded
+        # This allows sending multiple reminders
+        if appointment.state != 'Reminded':
+            appointments_db.update_state(appointment_id, 'Reminded')
+        return jsonify({'success': True, 'message': 'SMS sent'})
+    else:
+        return jsonify({
+            'success': False,
+            'error': 'Failed to send SMS',
+            'phone': member.phone,
+            'member': member.full_name
+        }), 500
 
 
 @app.route('/api/appointments/<int:appointment_id>/state', methods=['POST'])
