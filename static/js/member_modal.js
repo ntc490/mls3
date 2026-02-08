@@ -602,9 +602,23 @@ async function createPrayerAssignment() {
 }
 
 /**
- * Send text message - opens SMS composer
+ * Send text message to member (direct SMS)
  */
 function sendTextMessage() {
+    if (!currentMemberPhone) {
+        alert('No phone number on file for this member');
+        return;
+    }
+
+    // Open SMS app using Android intent
+    const smsUrl = `sms:${currentMemberPhone}`;
+    window.location.href = smsUrl;
+}
+
+/**
+ * Open SMS composer (template-based messaging)
+ */
+function openSmsComposer() {
     if (!currentMemberId) return;
 
     // Redirect to SMS composer
@@ -663,10 +677,16 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleDontAskEl.addEventListener('change', toggleDontAsk);
     }
 
-    // Send text button
+    // Send text button (direct SMS)
     const sendTextBtn = document.getElementById('sendTextBtn');
     if (sendTextBtn) {
         sendTextBtn.addEventListener('click', sendTextMessage);
+    }
+
+    // SMS+ button (composer)
+    const sendComposerBtn = document.getElementById('sendComposerBtn');
+    if (sendComposerBtn) {
+        sendComposerBtn.addEventListener('click', openSmsComposer);
     }
 
     // Appointment button
