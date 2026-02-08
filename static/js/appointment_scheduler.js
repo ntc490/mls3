@@ -34,15 +34,27 @@ async function initAppointmentScheduler() {
 
     // If no saved return info, check referrer
     if (!returnUrl && document.referrer) {
+        console.log('Appointment scheduler - document.referrer:', document.referrer);
+
         if (document.referrer.includes('/events')) {
             returnUrl = document.referrer;
             returnLabel = 'Events';
             sessionStorage.setItem('returnUrl', returnUrl);
             sessionStorage.setItem('returnLabel', returnLabel);
-        } else if (document.referrer.endsWith('/') || document.referrer.includes('/?')) {
-            // Homepage (root path)
+        } else if (document.referrer.includes('/prayer-scheduler')) {
+            // Don't show back button from prayer scheduler
+        } else if (document.referrer.includes('/appointment-scheduler')) {
+            // Don't show back button from appointment scheduler (page reload)
+        } else if (document.referrer) {
+            // Any other referrer (likely homepage or other page) - show back button
             returnUrl = document.referrer;
-            returnLabel = 'Home';
+            // Detect if it's the homepage
+            const url = new URL(document.referrer);
+            if (url.pathname === '/' || url.pathname === '') {
+                returnLabel = 'Home';
+            } else {
+                returnLabel = 'Previous Page';
+            }
             sessionStorage.setItem('returnUrl', returnUrl);
             sessionStorage.setItem('returnLabel', returnLabel);
         }

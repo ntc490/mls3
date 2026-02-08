@@ -123,14 +123,27 @@
 
     // If no saved return info, check referrer
     if (!prayerReturnUrl && document.referrer) {
+        console.log('Prayer scheduler - document.referrer:', document.referrer);
+
         if (document.referrer.includes('/events')) {
             prayerReturnUrl = document.referrer;
             prayerReturnLabel = 'Events';
             sessionStorage.setItem('prayerReturnUrl', prayerReturnUrl);
             sessionStorage.setItem('prayerReturnLabel', prayerReturnLabel);
-        } else if (document.referrer.endsWith('/') || document.referrer.includes('/?')) {
+        } else if (document.referrer.includes('/prayer-scheduler')) {
+            // Don't show back button from prayer scheduler (page reload/navigation)
+        } else if (document.referrer.includes('/appointment-scheduler')) {
+            // Don't show back button from appointment scheduler
+        } else if (document.referrer) {
+            // Any other referrer (likely homepage or other page) - show back button
             prayerReturnUrl = document.referrer;
-            prayerReturnLabel = 'Home';
+            // Detect if it's the homepage
+            const url = new URL(document.referrer);
+            if (url.pathname === '/' || url.pathname === '') {
+                prayerReturnLabel = 'Home';
+            } else {
+                prayerReturnLabel = 'Previous Page';
+            }
             sessionStorage.setItem('prayerReturnUrl', prayerReturnUrl);
             sessionStorage.setItem('prayerReturnLabel', prayerReturnLabel);
         }
