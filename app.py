@@ -92,7 +92,7 @@ def index():
     # Add prayer assignments
     for assignment in upcoming_assignments:
         member = members_db.get_by_id(assignment.member_id)
-        member_name = member.display_name if member else "Unknown"
+        member_name = member.display_name_with_last if member else "Unknown"
         member_phone = member.phone if member else ""
 
         items_by_date[assignment.date].append({
@@ -108,7 +108,7 @@ def index():
     # Add appointments
     for appointment in upcoming_appointments:
         member = members_db.get_by_id(appointment.member_id)
-        member_name = member.display_name if member else "Unknown"
+        member_name = member.display_name_with_last if member else "Unknown"
         member_phone = member.phone if member else ""
 
         items_by_date[appointment.date].append({
@@ -183,7 +183,7 @@ def events():
     # Add prayer assignments
     for assignment in filtered_assignments:
         member = members_db.get_by_id(assignment.member_id)
-        member_name = member.display_name if member else "Unknown"
+        member_name = member.display_name_with_last if member else "Unknown"
         member_phone = member.phone if member else ""
 
         items_by_date[assignment.date].append({
@@ -199,7 +199,7 @@ def events():
     # Add appointments
     for appointment in filtered_appointments:
         member = members_db.get_by_id(appointment.member_id)
-        member_name = member.display_name if member else "Unknown"
+        member_name = member.display_name_with_last if member else "Unknown"
         member_phone = member.phone if member else ""
 
         items_by_date[appointment.date].append({

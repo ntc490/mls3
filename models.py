@@ -44,6 +44,12 @@ class Member:
         return name.split()[0] if name else ""
 
     @property
+    def display_name_with_last(self):
+        """Returns first word of first name/AKA plus last name (for event lists)"""
+        first = self.display_name
+        return f"{first} {self.last_name}" if first else self.last_name
+
+    @property
     def flags_list(self) -> List[str]:
         """Returns list of flags set for this member"""
         if not self.flag:
