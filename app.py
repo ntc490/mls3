@@ -1130,11 +1130,17 @@ def send_appointment_invite(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
+    # Check if member has phone number
+    if not member.phone or member.phone.strip() == '':
+        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
 
     # Get message template
     template = templates.get_template('appointments', f'{appointment.appointment_type}_invite')
     if not template:
         template = templates.get_template('appointments', 'default_invite')
+
+    if not template:
+        return jsonify({'error': f'Message template not found for {appointment.appointment_type}. Check message_templates.yaml'}), 500
 
     # Format the message
     appt_datetime = appointment.datetime_obj
@@ -1196,10 +1202,17 @@ def send_appointment_reminder(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
+    # Check if member has phone number
+    if not member.phone or member.phone.strip() == '':
+        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
+
     # Get message template
     template = templates.get_template('appointments', f'{appointment.appointment_type}_reminder')
     if not template:
         template = templates.get_template('appointments', 'default_reminder')
+
+    if not template:
+        return jsonify({'error': f'Message template not found for {appointment.appointment_type}. Check message_templates.yaml'}), 500
 
     # Format the message
     appt_datetime = appointment.datetime_obj
