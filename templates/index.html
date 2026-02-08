@@ -29,7 +29,7 @@
                         <div class="calendar-item calendar-item-prayer">
                             <div class="calendar-item-info">
                                 <span class="calendar-item-text">
-                                    🙏 <a href="{{ url_for('prayer_scheduler') }}?date={{ date_str }}" class="event-link">{{ item.member_name }}</a> - {{ item.prayer_type }}
+                                    🙏 <a href="{{ url_for('prayer_scheduler') }}?date={{ date_str }}" class="event-link" onclick="saveScrollPosition()">{{ item.member_name }}</a> - {{ item.prayer_type }}
                                 </span>
                                 <span class="calendar-item-state state-{{ item.state.lower() }}">{{ item.state }}</span>
                             </div>
@@ -46,7 +46,7 @@
                         <div class="calendar-item calendar-item-appointment">
                             <div class="calendar-item-info">
                                 <span class="calendar-item-text">
-                                    📅 <a href="{{ url_for('appointment_scheduler') }}?appointment_id={{ item.appointment_id }}" class="event-link">{{ item.time }} - {{ item.member_name }}</a> - {{ item.appointment_type }} ({{ item.conductor }})
+                                    📅 <a href="{{ url_for('appointment_scheduler') }}?appointment_id={{ item.appointment_id }}" class="event-link" onclick="saveScrollPosition()">{{ item.time }} - {{ item.member_name }}</a> - {{ item.appointment_type }} ({{ item.conductor }})
                                 </span>
                                 <span class="calendar-item-state state-{{ item.state.lower() }}">{{ item.state }}</span>
                             </div>
@@ -74,65 +74,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
-function openSMS(phone) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-    // Open SMS app using Android intent
-    const smsUrl = `sms:${phone}`;
-    window.location.href = smsUrl;
-}
-
-async function openReminderSMS(assignmentId, phone, date, prayerType) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-
-    try {
-        // Fetch the reminder message
-        const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
-
-        if (!response.ok) {
-            throw new Error('Failed to get reminder message');
-        }
-
-        const result = await response.json();
-
-        // Open SMS app with pre-filled message
-        const smsUrl = `sms:${phone}?body=${encodeURIComponent(result.message)}`;
-        window.location.href = smsUrl;
-
-    } catch (error) {
-        console.error('Error opening reminder SMS:', error);
-        alert('Failed to open reminder SMS');
-    }
-}
-
-async function openAppointmentReminderSMS(appointmentId, phone) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-
-    try {
-        // Send reminder via API (which handles SMS)
-        const response = await fetch(`/api/appointments/${appointmentId}/remind`, {
-            method: 'POST'
-        });
-
-        if (!response.ok) {
-            throw new Error('Failed to send reminder');
-        }
-
-        const result = await response.json();
-
-    } catch (error) {
-        console.error('Error sending reminder:', error);
-        alert('Failed to send reminder');
-    }
-}
-</script>
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
 {% endblock %}

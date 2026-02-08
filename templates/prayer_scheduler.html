@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="container">
-    <h1>Prayer Scheduler</h1>
+    <div class="scheduler-header">
+        <h1>Prayer Scheduler</h1>
+        <button id="backBtn" class="btn btn-secondary btn-sm" style="display: none;"></button>
+    </div>
 
     <div class="date-navigation">
         <a href="?date={{ prev_sunday.strftime('%Y-%m-%d') }}" class="btn btn-secondary">← Previous</a>
@@ -113,6 +116,31 @@
 
     // Store target date in sessionStorage so it persists when navigating to other pages
     sessionStorage.setItem('prayer_scheduler_target_date', targetSunday);
+
+    // Check if we came from events page or homepage and show back button
+    if (document.referrer) {
+        if (document.referrer.includes('/events')) {
+            const backBtn = document.getElementById('backBtn');
+            backBtn.textContent = '← Back to Events';
+            backBtn.style.display = 'inline-block';
+            sessionStorage.setItem('prayerReturnUrl', document.referrer);
+            backBtn.addEventListener('click', () => {
+                const returnUrl = sessionStorage.getItem('prayerReturnUrl');
+                window.location.href = returnUrl || '/events';
+                sessionStorage.removeItem('prayerReturnUrl');
+            });
+        } else if (document.referrer.endsWith('/') || document.referrer.includes('/?')) {
+            const backBtn = document.getElementById('backBtn');
+            backBtn.textContent = '← Back to Home';
+            backBtn.style.display = 'inline-block';
+            sessionStorage.setItem('prayerReturnUrl', document.referrer);
+            backBtn.addEventListener('click', () => {
+                const returnUrl = sessionStorage.getItem('prayerReturnUrl');
+                window.location.href = returnUrl || '/';
+                sessionStorage.removeItem('prayerReturnUrl');
+            });
+        }
+    }
 
     let currentAssignment = null;
     let currentField = null;

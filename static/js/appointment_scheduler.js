@@ -28,11 +28,19 @@ async function initAppointmentScheduler() {
     // Determine mode
     isEditMode = !!appointmentId;
 
-    // Check if we came from events page (via referrer)
-    if (document.referrer && document.referrer.includes('/events')) {
-        document.getElementById('backToEventsBtn').style.display = 'inline-block';
-        // Save the referrer URL so we can return to the exact same page with filters
-        sessionStorage.setItem('eventsReturnUrl', document.referrer);
+    // Check if we came from events page or homepage (via referrer)
+    if (document.referrer) {
+        if (document.referrer.includes('/events')) {
+            document.getElementById('backToEventsBtn').style.display = 'inline-block';
+            // Save the referrer URL so we can return to the exact same page with filters
+            sessionStorage.setItem('returnUrl', document.referrer);
+        } else if (document.referrer.endsWith('/') || document.referrer.includes('/?')) {
+            // Homepage (root path)
+            const backBtn = document.getElementById('backToEventsBtn');
+            backBtn.textContent = '← Back to Home';
+            backBtn.style.display = 'inline-block';
+            sessionStorage.setItem('returnUrl', document.referrer);
+        }
     }
 
     // Set up member autocomplete
@@ -470,13 +478,13 @@ function setupEventListeners() {
 
     // Navigation buttons
     document.getElementById('backToEventsBtn').addEventListener('click', () => {
-        // Return to the exact events page URL (with filters) that we came from
-        const returnUrl = sessionStorage.getItem('eventsReturnUrl');
+        // Return to the page we came from (events or homepage)
+        const returnUrl = sessionStorage.getItem('returnUrl');
         if (returnUrl) {
             window.location.href = returnUrl;
-            sessionStorage.removeItem('eventsReturnUrl');
+            sessionStorage.removeItem('returnUrl');
         } else {
-            window.location.href = '/events';
+            window.location.href = '/';
         }
     });
 
