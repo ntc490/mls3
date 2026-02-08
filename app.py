@@ -62,17 +62,8 @@ def index():
     today = date.today()
     next_sunday = get_next_sunday(today)
 
-    # If today is Sunday and it's before noon, include today
-    if today.weekday() == 6:  # Sunday is 6
-        from datetime import datetime as dt
-        if dt.now().hour < 12:
-            week_start = today
-        else:
-            # After noon on Sunday, show next week
-            week_start = today + timedelta(days=1)
-            next_sunday = get_next_sunday(week_start)
-    else:
-        week_start = today
+    # Always start from today (Sunday events visible all day Sunday)
+    week_start = today
 
     # Get prayer assignments for current week
     upcoming_assignments = [
