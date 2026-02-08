@@ -49,37 +49,6 @@
             {% endif %}
         </div>
     </div>
-
-    <!-- Active Queue -->
-    {% if active_queue and active_queue|length > 0 %}
-    <div class="active-queue">
-        <h2>Active Queue</h2>
-        <p class="queue-description">Future assignments and assignments in progress</p>
-
-        <div class="queue-list">
-            {% for queue_item in active_queue %}
-            {% set member = members_db.get_by_id(queue_item.member_id) if queue_item.member_id and queue_item.member_id > 0 else None %}
-            <div class="queue-item" onclick="window.location.href='#'">
-                <div class="queue-item-header">
-                    <span class="queue-date">{{ queue_item.date | format_date }}</span>
-                    <span class="queue-type">{{ queue_item.prayer_type }}</span>
-                    <span class="state-badge state-{{ queue_item.state|lower }}">{{ queue_item.state }}</span>
-                </div>
-                <div class="queue-item-body">
-                    {% if member %}
-                        <strong>{{ member.full_name }}</strong>
-                        {% if member.phone %}
-                        <span class="text-muted">{{ member.phone }}</span>
-                        {% endif %}
-                    {% else %}
-                        <span class="text-muted">No member assigned yet</span>
-                    {% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
 </div>
 
 <!-- Member Selection Modal -->

@@ -301,19 +301,6 @@ def prayer_scheduler():
     slot1 = sorted_assignments[0] if len(sorted_assignments) > 0 else None
     slot2 = sorted_assignments[1] if len(sorted_assignments) > 1 else None
 
-    # Get all active assignments for other dates (the queue)
-    all_active = assignments_db.get_active_assignments()
-    target_sunday_str = target_sunday.strftime(config.DATE_FORMAT)
-
-    # Filter to only future assignments not for target Sunday
-    active_queue = [
-        a for a in all_active
-        if a.date != target_sunday_str and a.state != 'Completed'
-    ]
-
-    # Sort by date
-    active_queue.sort(key=lambda a: a.date)
-
     # Calculate prev/next Sunday for navigation
     prev_sunday = target_sunday - timedelta(days=7)
     next_sunday_nav = target_sunday + timedelta(days=7)
@@ -324,7 +311,6 @@ def prayer_scheduler():
         next_sunday=get_next_sunday(),  # For "Create Assignment" default
         slot1=slot1,
         slot2=slot2,
-        active_queue=active_queue,
         members_db=members_db,
         prev_sunday=prev_sunday,
         next_sunday_nav=next_sunday_nav
