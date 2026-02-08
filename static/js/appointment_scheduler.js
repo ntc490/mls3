@@ -382,6 +382,7 @@ function updateButtonsForState(state) {
         case 'Draft':
             saveBtn.style.display = 'inline-block';
             sendInviteBtn.style.display = 'inline-block';
+            acceptedBtn.style.display = 'inline-block';
             break;
         case 'Invited':
             acceptedBtn.style.display = 'inline-block';
@@ -392,6 +393,7 @@ function updateButtonsForState(state) {
             completeBtn.style.display = 'inline-block';
             break;
         case 'Reminded':
+            reminderBtn.style.display = 'inline-block';
             completeBtn.style.display = 'inline-block';
             break;
         case 'Completed':
