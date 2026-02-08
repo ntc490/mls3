@@ -550,12 +550,17 @@ def api_send_invitation(assignment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
+    # Update state to Invited (do this first, before attempting to send SMS)
+    assignments_db.update_state(assignment_id, 'Invited')
+
+    # Check if member has phone number
+    if not member.phone or member.phone.strip() == '':
+        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
+
     # Send SMS
     success = send_prayer_invitation(member, assignment, templates)
 
     if success:
-        # Update state to Invited
-        assignments_db.update_state(assignment_id, 'Invited')
         return jsonify({'success': True, 'message': 'SMS sent'})
     else:
         return jsonify({
@@ -1130,10 +1135,6 @@ def send_appointment_invite(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    # Check if member has phone number
-    if not member.phone or member.phone.strip() == '':
-        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
-
     # Get message template
     template = templates.get_template('appointments', f'{appointment.appointment_type}_invite')
     if not template:
@@ -1152,8 +1153,12 @@ def send_appointment_invite(appointment_id):
         conductor=format_conductor_for_message(appointment.conductor)
     )
 
-    # Update state to Invited
+    # Update state to Invited (do this first, before attempting to send SMS)
     appointments_db.update_state(appointment_id, 'Invited')
+
+    # Check if member has phone number
+    if not member.phone or member.phone.strip() == '':
+        return jsonify({'error': f'{member.full_name} has no phone number on file'}), 400
 
     # Send SMS
     from utils.sms_handler import send_sms_intent

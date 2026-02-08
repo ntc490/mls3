@@ -475,11 +475,14 @@
                 location.reload();
             } else {
                 // Show error with phone number for manual fallback
+                // State has already been updated to Invited on the server
                 if (result.phone && result.member) {
                     alert(`Failed to send SMS.\n\nPlease manually text ${result.member} at ${result.phone}`);
                 } else {
                     alert('Failed to send invitation: ' + (result.error || 'Unknown error'));
                 }
+                // Reload to show updated state
+                location.reload();
             }
         } catch (error) {
             console.error('Error sending invitation:', error);

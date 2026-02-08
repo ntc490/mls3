@@ -767,7 +767,8 @@ async function saveAppointment(initialState) {
                 });
 
                 if (!inviteResponse.ok) {
-                    throw new Error('Appointment updated but failed to send invite');
+                    const errorData = await inviteResponse.json();
+                    alert(errorData.error || 'Failed to send invite');
                 }
             }
 
@@ -805,7 +806,8 @@ async function saveAppointment(initialState) {
                 });
 
                 if (!inviteResponse.ok) {
-                    throw new Error('Appointment created but failed to send invite');
+                    const errorData = await inviteResponse.json();
+                    alert(errorData.error || 'Failed to send invite');
                 }
             }
 
