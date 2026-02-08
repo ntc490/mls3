@@ -123,15 +123,12 @@
 
     // If we have URL but no label (old data), clear it
     if (prayerReturnUrl && !prayerReturnLabel) {
-        console.log('Found old sessionStorage data without label - clearing');
         sessionStorage.removeItem('prayerReturnUrl');
         prayerReturnUrl = null;
     }
 
     // If no saved return info, check referrer
     if (!prayerReturnUrl && document.referrer) {
-        console.log('Prayer scheduler - document.referrer:', document.referrer);
-
         if (document.referrer.includes('/events')) {
             prayerReturnUrl = document.referrer;
             prayerReturnLabel = 'Events';

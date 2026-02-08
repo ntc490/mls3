@@ -33,71 +33,46 @@ async function initAppointmentScheduler() {
     let returnUrl = sessionStorage.getItem('returnUrl');
     let returnLabel = sessionStorage.getItem('returnLabel');
 
-    console.log('=== BACK BUTTON DEBUG ===');
-    console.log('Saved returnUrl:', returnUrl);
-    console.log('Saved returnLabel:', returnLabel);
-    console.log('document.referrer:', document.referrer);
-
     // If we have URL but no label (old data), clear it
     if (returnUrl && !returnLabel) {
-        console.log('Found old sessionStorage data without label - clearing');
         sessionStorage.removeItem('returnUrl');
         returnUrl = null;
     }
 
     // If no saved return info, check referrer
     if (!returnUrl && document.referrer) {
-        console.log('No saved return info, checking referrer...');
-
         if (document.referrer.includes('/events')) {
-            console.log('Detected: Events page');
             returnUrl = document.referrer;
             returnLabel = 'Events';
             sessionStorage.setItem('returnUrl', returnUrl);
             sessionStorage.setItem('returnLabel', returnLabel);
         } else if (document.referrer.includes('/prayer-scheduler')) {
-            console.log('Detected: Prayer scheduler (skipping)');
             // Don't show back button from prayer scheduler
         } else if (document.referrer.includes('/appointment-scheduler')) {
-            console.log('Detected: Appointment scheduler (skipping)');
             // Don't show back button from appointment scheduler (page reload)
         } else if (document.referrer) {
-            console.log('Detected: Other page');
             // Any other referrer (likely homepage or other page) - show back button
             returnUrl = document.referrer;
             // Detect if it's the homepage
             const url = new URL(document.referrer);
-            console.log('URL pathname:', url.pathname);
             if (url.pathname === '/' || url.pathname === '') {
                 returnLabel = 'Home';
             } else {
                 returnLabel = 'Previous Page';
             }
-            console.log('Setting returnLabel to:', returnLabel);
             sessionStorage.setItem('returnUrl', returnUrl);
             sessionStorage.setItem('returnLabel', returnLabel);
         }
     }
 
-    console.log('Final returnUrl:', returnUrl);
-    console.log('Final returnLabel:', returnLabel);
-
     // Show back button if we have return info
     if (returnUrl && returnLabel) {
-        console.log('Showing back button');
         const backBtn = document.getElementById('backToEventsBtn');
-        console.log('Back button element:', backBtn);
         if (backBtn) {
             backBtn.textContent = `← Back to ${returnLabel}`;
             backBtn.style.display = 'inline-block';
-            console.log('Back button should now be visible');
-        } else {
-            console.error('ERROR: backToEventsBtn element not found!');
         }
-    } else {
-        console.log('Not showing back button - missing returnUrl or returnLabel');
     }
-    console.log('=== END DEBUG ===');
 
     // Set up member autocomplete
     setupMemberAutocomplete();
