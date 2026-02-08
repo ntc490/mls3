@@ -29,6 +29,7 @@ APPOINTMENTS_CSV = DATA_DIR / 'appointments.csv'
 NEXT_CANDIDATE_COUNT = 3  # Number of next-up candidates to show per gender
 DATE_FORMAT = '%Y-%m-%d'  # ISO format for CSV storage
 DISPLAY_DATE_FORMAT = '%B %d, %Y'  # "February 9, 2026" for display
+HOME_TIMEZONE = 'America/Denver'  # US Mountain Time - used for migrating legacy appointment times
 
 # SMS Configuration
 # Set MLS3_DEBUG_SMS=true to print debug messages when sending SMS

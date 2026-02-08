@@ -121,8 +121,7 @@ class Appointment:
     appointment_id: int
     member_id: int
     appointment_type: str
-    date: str
-    time: str
+    datetime_utc: str  # ISO 8601 UTC format: "2026-02-08T18:00:00Z"
     duration_minutes: int
     conductor: str  # Bishop or Counselor
     state: str  # Draft, Invited, Reminded, Completed, Cancelled
@@ -131,15 +130,65 @@ class Appointment:
     completed_date: Optional[str] = None
 
     @property
+    def datetime_obj_utc(self) -> datetime:
+        """Returns appointment datetime as timezone-aware UTC datetime"""
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
+
+        # Parse ISO 8601 UTC format
+        dt = datetime.strptime(self.datetime_utc, '%Y-%m-%dT%H:%M:%SZ')
+        return dt.replace(tzinfo=ZoneInfo('UTC'))
+
+    def datetime_local(self, timezone: str) -> datetime:
+        """
+        Returns appointment datetime in specified timezone
+
+        Args:
+            timezone: IANA timezone string (e.g., 'America/Denver', 'America/New_York')
+        """
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
+
+        utc_dt = self.datetime_obj_utc
+        local_tz = ZoneInfo(timezone)
+        return utc_dt.astimezone(local_tz)
+
+    def time_local(self, timezone: str) -> str:
+        """
+        Returns time string in 12-hour format for specified timezone
+
+        Args:
+            timezone: IANA timezone string (e.g., 'America/Denver')
+
+        Returns:
+            Time string like "11:00 AM"
+        """
+        local_dt = self.datetime_local(timezone)
+        return local_dt.strftime('%I:%M %p')
+
+    @property
     def date_obj(self) -> date:
-        """Returns date as a date object"""
-        return datetime.strptime(self.date, config.DATE_FORMAT).date()
+        """Returns date as a date object (in UTC)"""
+        return self.datetime_obj_utc.date()
+
+    @property
+    def date(self) -> str:
+        """Returns date string (for backward compatibility)"""
+        return self.date_obj.strftime(config.DATE_FORMAT)
+
+    @property
+    def time(self) -> str:
+        """Returns time string in 24-hour format (for backward compatibility) - UTC time"""
+        return self.datetime_obj_utc.strftime('%H:%M')
 
     @property
     def datetime_obj(self) -> datetime:
-        """Returns combined date and time as datetime object"""
-        datetime_str = f"{self.date} {self.time}"
-        return datetime.strptime(datetime_str, f"{config.DATE_FORMAT} %H:%M")
+        """Returns datetime object (for backward compatibility) - timezone-naive UTC"""
+        return self.datetime_obj_utc.replace(tzinfo=None)
 
 
 class MemberDatabase:
@@ -487,8 +536,7 @@ class AppointmentDatabase:
                     appointment_id=int(row['appointment_id']),
                     member_id=int(row['member_id']),
                     appointment_type=row['appointment_type'],
-                    date=row['date'],
-                    time=row['time'],
+                    datetime_utc=row['datetime_utc'],
                     duration_minutes=int(row['duration_minutes']),
                     conductor=row['conductor'],
                     state=row['state'],
@@ -504,7 +552,7 @@ class AppointmentDatabase:
 
         with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
             fieldnames = [
-                'appointment_id', 'member_id', 'appointment_type', 'date', 'time',
+                'appointment_id', 'member_id', 'appointment_type', 'datetime_utc',
                 'duration_minutes', 'conductor', 'state', 'created_date',
                 'last_updated', 'completed_date'
             ]
@@ -543,16 +591,49 @@ class AppointmentDatabase:
         date: date,
         time: str,
         duration_minutes: int,
-        conductor: str
+        conductor: str,
+        timezone: str = None
     ) -> Appointment:
-        """Create a new appointment"""
+        """
+        Create a new appointment
+
+        Args:
+            member_id: Member ID
+            appointment_type: Type of appointment
+            date: Date object
+            time: Time string in 24-hour format (e.g., "11:00")
+            duration_minutes: Duration in minutes
+            conductor: Conductor name
+            timezone: IANA timezone string (e.g., 'America/Denver'). If None, uses HOME_TIMEZONE.
+        """
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
+
+        # Use provided timezone or fall back to HOME_TIMEZONE
+        if timezone is None:
+            timezone = config.HOME_TIMEZONE
+
+        # Create datetime in local timezone
+        datetime_str = f"{date.strftime(config.DATE_FORMAT)} {time}"
+        local_dt = datetime.strptime(datetime_str, f"{config.DATE_FORMAT} %H:%M")
+        local_tz = ZoneInfo(timezone)
+        local_dt = local_dt.replace(tzinfo=local_tz)
+
+        # Convert to UTC
+        utc_tz = ZoneInfo('UTC')
+        utc_dt = local_dt.astimezone(utc_tz)
+
+        # Format as ISO 8601 with Z suffix
+        datetime_utc_str = utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
         now = datetime.now().strftime(config.DATE_FORMAT)
         appointment = Appointment(
             appointment_id=self.get_next_id(),
             member_id=member_id,
             appointment_type=appointment_type,
-            date=date.strftime(config.DATE_FORMAT),
-            time=time,
+            datetime_utc=datetime_utc_str,
             duration_minutes=duration_minutes,
             conductor=conductor,
             state="Draft",
@@ -582,17 +663,55 @@ class AppointmentDatabase:
         date: Optional[date] = None,
         time: Optional[str] = None,
         duration_minutes: Optional[int] = None,
-        conductor: Optional[str] = None
+        conductor: Optional[str] = None,
+        timezone: Optional[str] = None
     ):
-        """Update appointment details"""
+        """Update appointment details
+
+        Args:
+            appointment_id: ID of appointment to update
+            appointment_type: Optional new appointment type
+            date: Optional new date
+            time: Optional new time (24-hour format)
+            duration_minutes: Optional new duration
+            conductor: Optional new conductor
+            timezone: Timezone for date/time interpretation. If None, uses HOME_TIMEZONE.
+        """
+        try:
+            from zoneinfo import ZoneInfo
+        except ImportError:
+            from backports.zoneinfo import ZoneInfo
+
         appointment = self.get_by_id(appointment_id)
         if appointment:
+            # If date or time is being updated, we need to rebuild datetime_utc
+            if date is not None or time is not None:
+                # Get current values if not updating
+                if date is None:
+                    date = appointment.date_obj
+                if time is None:
+                    # Extract time from current datetime_utc
+                    time = appointment.time
+
+                # Use provided timezone or fall back to HOME_TIMEZONE
+                if timezone is None:
+                    timezone = config.HOME_TIMEZONE
+
+                # Create datetime in local timezone
+                datetime_str = f"{date.strftime(config.DATE_FORMAT)} {time}"
+                local_dt = datetime.strptime(datetime_str, f"{config.DATE_FORMAT} %H:%M")
+                local_tz = ZoneInfo(timezone)
+                local_dt = local_dt.replace(tzinfo=local_tz)
+
+                # Convert to UTC
+                utc_tz = ZoneInfo('UTC')
+                utc_dt = local_dt.astimezone(utc_tz)
+
+                # Update datetime_utc
+                appointment.datetime_utc = utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+
             if appointment_type is not None:
                 appointment.appointment_type = appointment_type
-            if date is not None:
-                appointment.date = date.strftime(config.DATE_FORMAT)
-            if time is not None:
-                appointment.time = time
             if duration_minutes is not None:
                 appointment.duration_minutes = duration_minutes
             if conductor is not None:
