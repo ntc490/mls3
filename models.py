@@ -190,6 +190,11 @@ class Appointment:
         """Returns datetime object (for backward compatibility) - timezone-naive UTC"""
         return self.datetime_obj_utc.replace(tzinfo=None)
 
+    def date_local(self, timezone: str) -> str:
+        """Returns date string in local timezone (YYYY-MM-DD format)"""
+        local_dt = self.datetime_local(timezone)
+        return local_dt.strftime(config.DATE_FORMAT)
+
 
 class MemberDatabase:
     """Manages member data from CSV"""
@@ -686,21 +691,23 @@ class AppointmentDatabase:
         if appointment:
             # If date or time is being updated, we need to rebuild datetime_utc
             if date is not None or time is not None:
-                # Get current values if not updating
-                if date is None:
-                    date = appointment.date_obj
-                if time is None:
-                    # Extract time from current datetime_utc
-                    time = appointment.time
-
                 # Use provided timezone or fall back to HOME_TIMEZONE
                 if timezone is None:
                     timezone = config.HOME_TIMEZONE
 
+                local_tz = ZoneInfo(timezone)
+
+                # Get current values if not updating
+                if date is None:
+                    date = appointment.date_obj
+                if time is None:
+                    # Extract LOCAL time from current datetime (not UTC time!)
+                    current_local = appointment.datetime_local(timezone)
+                    time = current_local.strftime('%H:%M')
+
                 # Create datetime in local timezone
                 datetime_str = f"{date.strftime(config.DATE_FORMAT)} {time}"
                 local_dt = datetime.strptime(datetime_str, f"{config.DATE_FORMAT} %H:%M")
-                local_tz = ZoneInfo(timezone)
                 local_dt = local_dt.replace(tzinfo=local_tz)
 
                 # Convert to UTC

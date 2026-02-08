@@ -84,9 +84,10 @@ def index():
     ]
 
     # Get appointments for current week (including completed)
+    # Filter by local date, not UTC date
     upcoming_appointments = [
         a for a in appointments_db.appointments
-        if week_start <= a.date_obj <= target_sunday
+        if week_start <= a.datetime_local(config.HOME_TIMEZONE).date() <= target_sunday
     ]
 
     # Group calendar items by date
@@ -114,22 +115,25 @@ def index():
         member_name = member.display_name_with_last if member else "Unknown"
         member_phone = member.phone if member else ""
 
-        items_by_date[appointment.date].append({
+        local_date = appointment.date_local(config.HOME_TIMEZONE)
+        local_dt = appointment.datetime_local(config.HOME_TIMEZONE)
+        items_by_date[local_date].append({
             'type': 'appointment',
             'appointment_id': appointment.appointment_id,
             'member_name': member_name,
             'member_phone': member_phone,
             'appointment_type': appointment.appointment_type,
             'time': appointment.time_local(config.HOME_TIMEZONE),
+            'time_24h': local_dt.strftime('%H:%M'),  # For sorting
             'conductor': appointment.conductor,
             'state': appointment.state,
-            'date_obj': appointment.date_obj
+            'date_obj': local_dt.date()
         })
 
     # Convert to sorted list of (date, items) tuples
     # Sort items within each date by time in reverse (latest first, prayers go first)
     for date_str, items in items_by_date.items():
-        items.sort(key=lambda x: x.get('time', '00:00'), reverse=True)  # Prayers go first
+        items.sort(key=lambda x: x.get('time_24h', '00:00'), reverse=True)  # Prayers go first (have 00:00)
 
     calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
 
@@ -175,9 +179,10 @@ def events():
     ]
 
     # Get appointments in range (including completed)
+    # Filter by local date, not UTC date
     filtered_appointments = [
         a for a in appointments_db.appointments
-        if date_from <= a.date_obj <= date_to
+        if date_from <= a.datetime_local(config.HOME_TIMEZONE).date() <= date_to
     ]
 
     # Group calendar items by date
@@ -205,21 +210,24 @@ def events():
         member_name = member.display_name_with_last if member else "Unknown"
         member_phone = member.phone if member else ""
 
-        items_by_date[appointment.date].append({
+        local_date = appointment.date_local(config.HOME_TIMEZONE)
+        local_dt = appointment.datetime_local(config.HOME_TIMEZONE)
+        items_by_date[local_date].append({
             'type': 'appointment',
             'appointment_id': appointment.appointment_id,
             'member_name': member_name,
             'member_phone': member_phone,
             'appointment_type': appointment.appointment_type,
             'time': appointment.time_local(config.HOME_TIMEZONE),
+            'time_24h': local_dt.strftime('%H:%M'),  # For sorting
             'conductor': appointment.conductor,
             'state': appointment.state,
-            'date_obj': appointment.date_obj
+            'date_obj': local_dt.date()
         })
 
     # Sort items within each date in reverse (latest first, prayers go first)
     for date_str, items in items_by_date.items():
-        items.sort(key=lambda x: x.get('time', '00:00'), reverse=True)
+        items.sort(key=lambda x: x.get('time_24h', '00:00'), reverse=True)  # Prayers go first (have 00:00)
 
     # Convert to sorted list in reverse chronological order (newest first)
     calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date(), reverse=True)
@@ -682,16 +690,18 @@ def api_get_member(member_id):
         if a.member_id == member_id
     ]
     for appointment in member_appointments:
+        local_date = appointment.date_local(config.HOME_TIMEZONE)
+        local_dt = appointment.datetime_local(config.HOME_TIMEZONE)
         event_history.append({
             'type': 'appointment',
             'appointment_id': appointment.appointment_id,
-            'date': appointment.date,
-            'date_obj': appointment.date_obj,
+            'date': local_date,
+            'date_obj': local_dt.date(),
             'time': appointment.time_local(config.HOME_TIMEZONE),  # Localized time for display
             'appointment_type': appointment.appointment_type,
             'conductor': appointment.conductor,
             'state': appointment.state,
-            'formatted_date': datetime.strptime(appointment.date, config.DATE_FORMAT).strftime(config.DISPLAY_DATE_FORMAT)
+            'formatted_date': local_dt.strftime(config.DISPLAY_DATE_FORMAT)
         })
 
     # Sort event history by date descending (most recent first)
@@ -937,10 +947,10 @@ def get_appointments():
     date_filter = request.args.get('date')
 
     if date_filter:
-        # Filter by specific date
+        # Filter by specific date (using local date)
         appointments_list = [
             appt for appt in appointments_db.appointments
-            if appt.date == date_filter and appt.state not in ['Completed', 'Cancelled']
+            if appt.date_local(config.HOME_TIMEZONE) == date_filter and appt.state not in ['Completed', 'Cancelled']
         ]
     else:
         # Get all appointments
@@ -949,13 +959,15 @@ def get_appointments():
     result = []
     for appt in appointments_list:
         member = members_db.get_by_id(appt.member_id)
+        local_dt = appt.datetime_local(config.HOME_TIMEZONE)
         result.append({
             'appointment_id': appt.appointment_id,
             'member_id': appt.member_id,
             'member_name': member.full_name if member else "Unknown",
             'appointment_type': appt.appointment_type,
-            'date': appt.date,
-            'time': appt.time,
+            'date': appt.date_local(config.HOME_TIMEZONE),  # Use local date
+            'time': appt.time_local(config.HOME_TIMEZONE),  # Localized time for display (12-hour format)
+            'time_24h': local_dt.strftime('%H:%M'),  # 24-hour format for sorting
             'duration_minutes': appt.duration_minutes,
             'conductor': appt.conductor,
             'state': appt.state,
@@ -976,10 +988,10 @@ def suggest_appointment_time():
     if not date_str or not conductor:
         return jsonify({'error': 'Missing date or conductor parameter'}), 400
 
-    # Get all appointments for this date and conductor
+    # Get all appointments for this date and conductor (using local date)
     existing_appointments = [
         appt for appt in appointments_db.appointments
-        if appt.date == date_str
+        if appt.date_local(config.HOME_TIMEZONE) == date_str
         and appt.conductor == conductor
         and appt.state not in ['Completed', 'Cancelled']
     ]
@@ -1269,8 +1281,9 @@ def get_appointment(appointment_id):
 
     member = members_db.get_by_id(appointment.member_id)
 
-    # Get localized time for editing (convert from UTC to local 24-hour format)
+    # Get localized date and time for editing (convert from UTC to local timezone)
     local_dt = appointment.datetime_local(config.HOME_TIMEZONE)
+    local_date = local_dt.strftime(config.DATE_FORMAT)  # Get LOCAL date, not UTC date
     local_time_24h = local_dt.strftime('%H:%M')
 
     return jsonify({
@@ -1278,7 +1291,7 @@ def get_appointment(appointment_id):
         'member_id': appointment.member_id,
         'member_name': member.full_name if member else "Unknown",
         'appointment_type': appointment.appointment_type,
-        'date': appointment.date,
+        'date': local_date,  # Use local date instead of UTC date
         'time': local_time_24h,  # Send localized time in 24-hour format for time input
         'duration_minutes': appointment.duration_minutes,
         'conductor': appointment.conductor,

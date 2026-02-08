@@ -469,7 +469,8 @@ function updateButtonsForState(state) {
     // Show appropriate buttons based on state
     switch (state) {
         case 'Draft':
-            saveBtn.style.display = 'inline-block';
+            // In edit mode, only show Update button when dirty (not Save button)
+            // Save button is only for creating new appointments
             sendInviteBtn.style.display = 'inline-block';
             acceptedBtn.style.display = 'inline-block';
             break;
@@ -491,7 +492,7 @@ function updateButtonsForState(state) {
             break;
     }
 
-    // Show update button if form is dirty
+    // Show update button if form is dirty (only in edit mode)
     if (isDirty && isEditMode) {
         updateBtn.style.display = 'inline-block';
     }
@@ -672,7 +673,7 @@ function displayAppointments(appointments, date) {
 
     if (bishopAppts.length > 0) {
         html += '<div class="conductor-group"><h4>Bishop</h4>';
-        bishopAppts.sort((a, b) => a.time.localeCompare(b.time));
+        bishopAppts.sort((a, b) => a.time_24h.localeCompare(b.time_24h));
         bishopAppts.forEach(appt => {
             html += `
                 <div class="appt-item">
@@ -687,7 +688,7 @@ function displayAppointments(appointments, date) {
 
     if (counselorAppts.length > 0) {
         html += '<div class="conductor-group"><h4>Counselor</h4>';
-        counselorAppts.sort((a, b) => a.time.localeCompare(b.time));
+        counselorAppts.sort((a, b) => a.time_24h.localeCompare(b.time_24h));
         counselorAppts.forEach(appt => {
             html += `
                 <div class="appt-item">
@@ -817,20 +818,22 @@ async function updateAppointment() {
         return;
     }
 
+    const payload = {
+        appointment_type: appointmentType,
+        date: date,
+        time: time,
+        duration_minutes: parseInt(duration),
+        conductor: selectedConductor,
+        timezone: getBrowserTimezone()
+    };
+
     try {
         const response = await fetch(`/api/appointments/${appointmentId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                appointment_type: appointmentType,
-                date: date,
-                time: time,
-                duration_minutes: parseInt(duration),
-                conductor: selectedConductor,
-                timezone: getBrowserTimezone()
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
