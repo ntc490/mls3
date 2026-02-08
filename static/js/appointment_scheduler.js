@@ -141,6 +141,7 @@ function setupMemberAutocomplete() {
         searchInput.value = '';
         hiddenInput.value = '';
         clearBtn.style.display = 'none';
+        document.getElementById('memberInfoBtn').style.display = 'none';
         resultsDiv.classList.remove('show');
         searchInput.focus();
 
@@ -231,6 +232,7 @@ function selectMember(id, name) {
     document.getElementById('memberSearch').value = name;
     document.getElementById('selectedMemberId').value = id;
     document.getElementById('clearMemberBtn').style.display = 'block';
+    document.getElementById('memberInfoBtn').style.display = 'inline-block';
     document.getElementById('memberResults').classList.remove('show');
 
     // Update memberId variable
@@ -257,6 +259,7 @@ async function loadMemberById(id) {
         document.getElementById('memberSearch').value = member.name;
         document.getElementById('selectedMemberId').value = id;
         document.getElementById('clearMemberBtn').style.display = 'block';
+        document.getElementById('memberInfoBtn').style.display = 'inline-block';
 
         console.log('Member field populated:', document.getElementById('memberSearch').value);
 
@@ -287,6 +290,7 @@ async function loadAppointmentForEdit(apptId) {
         document.getElementById('memberSearch').value = appt.member_name;
         document.getElementById('selectedMemberId').value = appt.member_id;
         document.getElementById('clearMemberBtn').style.display = 'none';
+        document.getElementById('memberInfoBtn').style.display = 'inline-block';
 
         // Make member field read-only in edit mode
         const memberSearch = document.getElementById('memberSearch');
@@ -448,6 +452,14 @@ function setupEventListeners() {
 
     // Suggest time button
     document.getElementById('suggestTimeBtn').addEventListener('click', suggestTime);
+
+    // Member info button
+    document.getElementById('memberInfoBtn').addEventListener('click', function() {
+        const selectedMemberId = document.getElementById('selectedMemberId').value;
+        if (selectedMemberId) {
+            openMemberModal(selectedMemberId);
+        }
+    });
 
     // Action buttons
     document.getElementById('saveBtn').addEventListener('click', saveDraft);
