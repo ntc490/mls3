@@ -959,6 +959,16 @@ input:checked + .slider:before {
     border-radius: 6px;
 }
 
+.event-history-item.clickable {
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+.event-history-item.clickable:hover {
+    background: #e0e7ef;
+    transform: translateX(2px);
+}
+
 .event-history-item .event-icon {
     font-size: 1.25rem;
     flex-shrink: 0;

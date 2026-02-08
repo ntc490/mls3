@@ -670,6 +670,7 @@ def api_get_member(member_id):
     for assignment in all_member_assignments:
         event_history.append({
             'type': 'prayer',
+            'assignment_id': assignment.assignment_id,
             'date': assignment.date,
             'date_obj': assignment.date_obj,
             'prayer_type': assignment.prayer_type,
@@ -685,6 +686,7 @@ def api_get_member(member_id):
     for appointment in member_appointments:
         event_history.append({
             'type': 'appointment',
+            'appointment_id': appointment.appointment_id,
             'date': appointment.date,
             'date_obj': appointment.date_obj,
             'time': appointment.time,

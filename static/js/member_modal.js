@@ -147,7 +147,7 @@ function loadEventHistory(history) {
 
         if (event.type === 'prayer') {
             html += `
-                <li class="event-history-item event-prayer">
+                <li class="event-history-item event-prayer clickable" onclick="navigateToPrayer('${event.date}')">
                     <span class="event-icon">🙏</span>
                     <span class="event-details">
                         <span class="event-date">${event.formatted_date}</span>
@@ -158,7 +158,7 @@ function loadEventHistory(history) {
             `;
         } else if (event.type === 'appointment') {
             html += `
-                <li class="event-history-item event-appointment">
+                <li class="event-history-item event-appointment clickable" onclick="navigateToAppointment(${event.appointment_id})">
                     <span class="event-icon">📅</span>
                     <span class="event-details">
                         <span class="event-date">${event.formatted_date} ${event.time}</span>
@@ -172,6 +172,20 @@ function loadEventHistory(history) {
     html += '</ul>';
 
     listDiv.innerHTML = html;
+}
+
+/**
+ * Navigate to prayer scheduler with specific date
+ */
+function navigateToPrayer(date) {
+    window.location.href = `/prayer-scheduler?date=${date}`;
+}
+
+/**
+ * Navigate to appointment scheduler with specific appointment loaded
+ */
+function navigateToAppointment(appointmentId) {
+    window.location.href = `/appointment-scheduler?appointment_id=${appointmentId}`;
 }
 
 /**
