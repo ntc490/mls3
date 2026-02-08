@@ -1469,13 +1469,13 @@ input:checked + .slider:before {
 
 .calendar-item-state {
     display: inline-block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    width: fit-content;
+    letter-spacing: 0.3px;
+    margin-left: 0.5rem;
 }
 
 /* State-specific colors */
@@ -1510,12 +1510,20 @@ input:checked + .slider:before {
     align-items: center;
 }
 
-.calendar-item-appointment {
-    border-left: 4px solid #0d6efd;
+/* Appointment color coding - Bishop = dark orange, Counselor = teal */
+.calendar-item-appointment.calendar-item-bishop {
+    background-color: #fff4e6;
+    border-left: 4px solid #d97706;
+}
+
+.calendar-item-appointment.calendar-item-counselor {
+    background-color: #e6f7f7;
+    border-left: 4px solid #14b8a6;
 }
 
 .calendar-item-prayer {
     border-left: 4px solid #198754;
+    background-color: #f0f9f4;
 }
 
 /* Appointment Scheduler Styles */
