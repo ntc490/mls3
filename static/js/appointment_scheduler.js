@@ -634,7 +634,6 @@ async function markAccepted() {
             throw new Error('Failed to update appointment');
         }
 
-        alert('Appointment marked as accepted');
         window.location.reload();
 
     } catch (error) {
@@ -658,7 +657,6 @@ async function sendReminder() {
             throw new Error('Failed to send reminder');
         }
 
-        alert('Reminder sent and appointment marked as reminded');
         window.location.reload();
 
     } catch (error) {
@@ -688,7 +686,6 @@ async function markComplete() {
             throw new Error('Failed to complete appointment');
         }
 
-        alert('Appointment marked as complete');
         window.location.reload();
 
     } catch (error) {
