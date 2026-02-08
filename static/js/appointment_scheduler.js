@@ -529,6 +529,7 @@ function setupEventListeners() {
     // Appointment type change - auto-fill duration and conductor
     const typeSelect = document.getElementById('appointmentType');
     typeSelect.addEventListener('change', onAppointmentTypeChange);
+    typeSelect.addEventListener('change', markDirty);
 
     // Date change - reload appointments for that date and mark as dirty
     const dateInput = document.getElementById('appointmentDate');
@@ -536,8 +537,14 @@ function setupEventListeners() {
     dateInput.addEventListener('change', markDirty);
 
     // Conductor buttons
-    document.getElementById('conductorBishop').addEventListener('click', () => selectConductor('Bishop'));
-    document.getElementById('conductorCounselor').addEventListener('click', () => selectConductor('Counselor'));
+    document.getElementById('conductorBishop').addEventListener('click', () => {
+        selectConductor('Bishop');
+        markDirty();
+    });
+    document.getElementById('conductorCounselor').addEventListener('click', () => {
+        selectConductor('Counselor');
+        markDirty();
+    });
 
     // Suggest time button
     document.getElementById('suggestTimeBtn').addEventListener('click', suggestTime);
