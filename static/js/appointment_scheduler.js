@@ -770,12 +770,6 @@ async function saveAppointment(initialState) {
                 if (!inviteResponse.ok) {
                     throw new Error('Appointment updated but failed to send invite');
                 }
-
-                alert('Appointment updated and invitation sent!');
-            } else if (initialState === 'Draft') {
-                alert('Appointment saved as draft');
-            } else {
-                alert('Appointment updated');
             }
 
             // For updates, just reload the current page
@@ -814,10 +808,6 @@ async function saveAppointment(initialState) {
                 if (!inviteResponse.ok) {
                     throw new Error('Appointment created but failed to send invite');
                 }
-
-                alert('Appointment created and invitation sent!');
-            } else {
-                alert('Appointment saved as draft');
             }
 
             // Redirect to edit mode for the new appointment
@@ -847,7 +837,6 @@ async function deleteAppointment() {
             throw new Error('Failed to delete appointment');
         }
 
-        alert('Appointment deleted');
         window.location.href = '/';
 
     } catch (error) {

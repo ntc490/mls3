@@ -1113,6 +1113,8 @@ def update_appointment(appointment_id):
 @app.route('/api/appointments/<int:appointment_id>/invite', methods=['POST'])
 def send_appointment_invite(appointment_id):
     """Send appointment invitation to member"""
+    print(f"[DEBUG] send_appointment_invite called for appointment_id={appointment_id}")
+
     appointment = appointments_db.get_by_id(appointment_id)
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
@@ -1120,6 +1122,8 @@ def send_appointment_invite(appointment_id):
     member = members_db.get_by_id(appointment.member_id)
     if not member:
         return jsonify({'error': 'Member not found'}), 404
+
+    print(f"[DEBUG] Member: {member.display_name}, Phone: {member.phone}")
 
     # Get message template
     template = templates.get_template('appointments', f'{appointment.appointment_type}_invite')
