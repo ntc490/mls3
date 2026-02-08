@@ -80,6 +80,10 @@ function applyQuickFilter(range) {
     let fromDate, toDate;
 
     switch (range) {
+        case 'today':
+            fromDate = formatDate(today);
+            toDate = formatDate(today);
+            break;
         case 'upcoming':
             fromDate = formatDate(today);
             toDate = formatDate(addDays(today, 30));
