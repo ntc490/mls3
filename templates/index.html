@@ -20,27 +20,46 @@
         <h2>Events</h2>
 
         {% if calendar_items %}
-            {% for date_str, assignments in calendar_items %}
+            {% for date_str, items in calendar_items %}
             <div class="calendar-date-group">
                 <h3 class="calendar-date-header">{{ date_str | format_date }}</h3>
                 <div class="calendar-items-list">
-                    {% for assignment in assignments %}
-                    <div class="calendar-item calendar-item-prayer">
-                        <div class="calendar-item-info">
-                            <span class="calendar-item-text">
-                                🙏 <a href="{{ url_for('prayer_scheduler') }}?date={{ date_str }}" class="event-link">{{ assignment.member_name }}</a> - {{ assignment.prayer_type }}
-                            </span>
-                            <span class="calendar-item-state state-{{ assignment.state.lower() }}">{{ assignment.state }}</span>
+                    {% for item in items %}
+                        {% if item.type == 'prayer' %}
+                        <div class="calendar-item calendar-item-prayer">
+                            <div class="calendar-item-info">
+                                <span class="calendar-item-text">
+                                    🙏 <a href="{{ url_for('prayer_scheduler') }}?date={{ date_str }}" class="event-link">{{ item.member_name }}</a> - {{ item.prayer_type }}
+                                </span>
+                                <span class="calendar-item-state state-{{ item.state.lower() }}">{{ item.state }}</span>
+                            </div>
+                            <div class="calendar-item-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ item.member_phone }}')">
+                                    SMS
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="openReminderSMS({{ item.assignment_id }}, '{{ item.member_phone }}', '{{ date_str }}', '{{ item.prayer_type }}')">
+                                    Reminder
+                                </button>
+                            </div>
                         </div>
-                        <div class="calendar-item-actions">
-                            <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ assignment.member_phone }}')">
-                                SMS
-                            </button>
-                            <button class="btn btn-sm btn-secondary" onclick="openReminderSMS({{ assignment.assignment_id }}, '{{ assignment.member_phone }}', '{{ date_str }}', '{{ assignment.prayer_type }}')">
-                                Reminder
-                            </button>
+                        {% elif item.type == 'appointment' %}
+                        <div class="calendar-item calendar-item-appointment">
+                            <div class="calendar-item-info">
+                                <span class="calendar-item-text">
+                                    📅 <a href="{{ url_for('appointment_scheduler') }}?appointment_id={{ item.appointment_id }}" class="event-link">{{ item.time }} - {{ item.member_name }}</a> - {{ item.appointment_type }} ({{ item.conductor }})
+                                </span>
+                                <span class="calendar-item-state state-{{ item.state.lower() }}">{{ item.state }}</span>
+                            </div>
+                            <div class="calendar-item-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ item.member_phone }}')">
+                                    SMS
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="openAppointmentReminderSMS({{ item.appointment_id }}, '{{ item.member_phone }}')">
+                                    Reminder
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -73,6 +92,32 @@ async function openReminderSMS(assignmentId, phone, date, prayerType) {
     try {
         // Fetch the reminder message
         const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
+
+        if (!response.ok) {
+            throw new Error('Failed to get reminder message');
+        }
+
+        const result = await response.json();
+
+        // Open SMS app with pre-filled message
+        const smsUrl = `sms:${phone}?body=${encodeURIComponent(result.message)}`;
+        window.location.href = smsUrl;
+
+    } catch (error) {
+        console.error('Error opening reminder SMS:', error);
+        alert('Failed to open reminder SMS');
+    }
+}
+
+async function openAppointmentReminderSMS(appointmentId, phone) {
+    if (!phone) {
+        alert('No phone number on file for this member');
+        return;
+    }
+
+    try {
+        // Fetch the reminder message
+        const response = await fetch(`/api/appointments/${appointmentId}/reminder-message`);
 
         if (!response.ok) {
             throw new Error('Failed to get reminder message');

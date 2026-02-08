@@ -6,7 +6,10 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for
 from datetime import datetime, date, timedelta
 
 import config
-from models import MemberDatabase, PrayerAssignmentDatabase, MessageTemplates
+from models import (
+    MemberDatabase, PrayerAssignmentDatabase, MessageTemplates,
+    AppointmentTypesDatabase, AppointmentDatabase
+)
 
 
 app = Flask(__name__)
@@ -16,6 +19,8 @@ app.config['SECRET_KEY'] = config.SECRET_KEY
 members_db = MemberDatabase()
 assignments_db = PrayerAssignmentDatabase()
 templates = MessageTemplates()
+appointment_types_db = AppointmentTypesDatabase()
+appointments_db = AppointmentDatabase()
 
 
 def get_next_sunday(from_date: date = None) -> date:
@@ -29,30 +34,47 @@ def get_next_sunday(from_date: date = None) -> date:
     return from_date + timedelta(days=days_ahead)
 
 
+def format_conductor_for_message(conductor: str) -> str:
+    """Format conductor name for message templates"""
+    if conductor == "Bishop":
+        return "Bishop"
+    elif conductor == "Counselor":
+        return "a counselor"
+    else:
+        return conductor  # Fallback
+
+
 @app.route('/')
 def index():
     """Homepage with calendar view"""
     from collections import defaultdict
 
-    # Get all upcoming assignments (from today onwards)
+    # Get all upcoming items (from today onwards)
     today = date.today()
+
+    # Get prayer assignments
     upcoming_assignments = [
         a for a in assignments_db.assignments
         if a.date_obj >= today
     ]
 
-    # Sort by date
-    upcoming_assignments.sort(key=lambda a: a.date_obj)
+    # Get appointments (including completed, filtered by date)
+    upcoming_appointments = [
+        a for a in appointments_db.appointments
+        if a.date_obj >= today
+    ]
 
-    # Group assignments by date
-    assignments_by_date = defaultdict(list)
+    # Group calendar items by date
+    items_by_date = defaultdict(list)
+
+    # Add prayer assignments
     for assignment in upcoming_assignments:
-        # Get member name and phone
         member = members_db.get_by_id(assignment.member_id)
         member_name = member.full_name if member else "Unknown"
         member_phone = member.phone if member else ""
 
-        assignments_by_date[assignment.date].append({
+        items_by_date[assignment.date].append({
+            'type': 'prayer',
             'assignment_id': assignment.assignment_id,
             'member_name': member_name,
             'member_phone': member_phone,
@@ -61,8 +83,30 @@ def index():
             'date_obj': assignment.date_obj
         })
 
-    # Convert to sorted list of (date, assignments) tuples
-    calendar_items = sorted(assignments_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
+    # Add appointments
+    for appointment in upcoming_appointments:
+        member = members_db.get_by_id(appointment.member_id)
+        member_name = member.full_name if member else "Unknown"
+        member_phone = member.phone if member else ""
+
+        items_by_date[appointment.date].append({
+            'type': 'appointment',
+            'appointment_id': appointment.appointment_id,
+            'member_name': member_name,
+            'member_phone': member_phone,
+            'appointment_type': appointment.appointment_type,
+            'time': appointment.time,
+            'conductor': appointment.conductor,
+            'state': appointment.state,
+            'date_obj': appointment.date_obj
+        })
+
+    # Convert to sorted list of (date, items) tuples
+    # Sort items within each date by time (appointments have time, prayers don't)
+    for date_str, items in items_by_date.items():
+        items.sort(key=lambda x: x.get('time', '23:59'))  # Prayers go last
+
+    calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
 
     return render_template(
         'index.html',
@@ -70,6 +114,92 @@ def index():
         next_sunday=get_next_sunday(),
         calendar_items=calendar_items
     )
+
+
+@app.route('/events')
+def events():
+    """Events page with date filtering"""
+    from collections import defaultdict
+
+    # Get date range from query params
+    date_from_str = request.args.get('from')
+    date_to_str = request.args.get('to')
+
+    # Default to next 30 days if no params
+    today = date.today()
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, config.DATE_FORMAT).date()
+        except ValueError:
+            date_from = today
+    else:
+        date_from = today
+
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, config.DATE_FORMAT).date()
+        except ValueError:
+            date_to = today + timedelta(days=30)
+    else:
+        date_to = today + timedelta(days=30)
+
+    # Get prayer assignments in range
+    filtered_assignments = [
+        a for a in assignments_db.assignments
+        if date_from <= a.date_obj <= date_to
+    ]
+
+    # Get appointments in range (including completed)
+    filtered_appointments = [
+        a for a in appointments_db.appointments
+        if date_from <= a.date_obj <= date_to
+    ]
+
+    # Group calendar items by date
+    items_by_date = defaultdict(list)
+
+    # Add prayer assignments
+    for assignment in filtered_assignments:
+        member = members_db.get_by_id(assignment.member_id)
+        member_name = member.full_name if member else "Unknown"
+        member_phone = member.phone if member else ""
+
+        items_by_date[assignment.date].append({
+            'type': 'prayer',
+            'assignment_id': assignment.assignment_id,
+            'member_name': member_name,
+            'member_phone': member_phone,
+            'prayer_type': assignment.prayer_type,
+            'state': assignment.state,
+            'date_obj': assignment.date_obj
+        })
+
+    # Add appointments
+    for appointment in filtered_appointments:
+        member = members_db.get_by_id(appointment.member_id)
+        member_name = member.full_name if member else "Unknown"
+        member_phone = member.phone if member else ""
+
+        items_by_date[appointment.date].append({
+            'type': 'appointment',
+            'appointment_id': appointment.appointment_id,
+            'member_name': member_name,
+            'member_phone': member_phone,
+            'appointment_type': appointment.appointment_type,
+            'time': appointment.time,
+            'conductor': appointment.conductor,
+            'state': appointment.state,
+            'date_obj': appointment.date_obj
+        })
+
+    # Sort items within each date
+    for date_str, items in items_by_date.items():
+        items.sort(key=lambda x: x.get('time', '23:59'))
+
+    # Convert to sorted list
+    calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
+
+    return render_template('events.html', calendar_items=calendar_items)
 
 
 @app.route('/members')
@@ -515,6 +645,44 @@ def api_get_member(member_id):
         for a in member_assignments
     ]
 
+    # Get event history (prayers and appointments combined)
+    event_history = []
+
+    # Add all prayer assignments (not just completed)
+    all_member_assignments = [
+        a for a in assignments_db.assignments
+        if a.member_id == member_id
+    ]
+    for assignment in all_member_assignments:
+        event_history.append({
+            'type': 'prayer',
+            'date': assignment.date,
+            'date_obj': assignment.date_obj,
+            'prayer_type': assignment.prayer_type,
+            'state': assignment.state,
+            'formatted_date': datetime.strptime(assignment.date, config.DATE_FORMAT).strftime(config.DISPLAY_DATE_FORMAT)
+        })
+
+    # Add all appointments for this member (including completed)
+    member_appointments = [
+        a for a in appointments_db.appointments
+        if a.member_id == member_id
+    ]
+    for appointment in member_appointments:
+        event_history.append({
+            'type': 'appointment',
+            'date': appointment.date,
+            'date_obj': appointment.date_obj,
+            'time': appointment.time,
+            'appointment_type': appointment.appointment_type,
+            'conductor': appointment.conductor,
+            'state': appointment.state,
+            'formatted_date': datetime.strptime(appointment.date, config.DATE_FORMAT).strftime(config.DISPLAY_DATE_FORMAT)
+        })
+
+    # Sort event history by date descending (most recent first)
+    event_history.sort(key=lambda e: e['date_obj'], reverse=True)
+
     return jsonify({
         'id': member.member_id,
         'name': member.full_name,
@@ -532,7 +700,8 @@ def api_get_member(member_id):
         'skip_until': member.skip_until,
         'flag': member.flag,
         'aka': member.aka,
-        'prayer_history': prayer_history
+        'prayer_history': prayer_history,
+        'event_history': event_history
     })
 
 
@@ -724,6 +893,366 @@ def api_create_member_assignment(member_id):
         'assignment_id': assignment.assignment_id,
         'date': assignment.date,
         'prayer_type': assignment.prayer_type
+    })
+
+
+@app.route('/appointment-scheduler')
+def appointment_scheduler():
+    """Appointment scheduler page"""
+    # Can be accessed with member_id, appointment_id, or standalone
+    return render_template('appointment_scheduler.html')
+
+
+@app.route('/api/appointment-types')
+def get_appointment_types():
+    """Get all appointment types"""
+    types_list = [
+        {
+            'name': t.name,
+            'default_duration': t.default_duration,
+            'default_conductor': t.default_conductor
+        }
+        for t in appointment_types_db.get_all()
+    ]
+    return jsonify({'appointment_types': types_list})
+
+
+@app.route('/api/appointments')
+def get_appointments():
+    """Get all appointments, optionally filtered by date"""
+    date_filter = request.args.get('date')
+
+    if date_filter:
+        # Filter by specific date
+        appointments_list = [
+            appt for appt in appointments_db.appointments
+            if appt.date == date_filter and appt.state not in ['Completed', 'Cancelled']
+        ]
+    else:
+        # Get all appointments
+        appointments_list = appointments_db.appointments
+
+    result = []
+    for appt in appointments_list:
+        member = members_db.get_by_id(appt.member_id)
+        result.append({
+            'appointment_id': appt.appointment_id,
+            'member_id': appt.member_id,
+            'member_name': member.full_name if member else "Unknown",
+            'appointment_type': appt.appointment_type,
+            'date': appt.date,
+            'time': appt.time,
+            'duration_minutes': appt.duration_minutes,
+            'conductor': appt.conductor,
+            'state': appt.state,
+            'created_date': appt.created_date,
+            'last_updated': appt.last_updated,
+            'completed_date': appt.completed_date
+        })
+    return jsonify({'appointments': result})
+
+
+@app.route('/api/appointments/suggest-time')
+def suggest_appointment_time():
+    """Suggest next available appointment time for a given date and conductor"""
+    date_str = request.args.get('date')
+    conductor = request.args.get('conductor')
+    duration = int(request.args.get('duration', 15))
+
+    if not date_str or not conductor:
+        return jsonify({'error': 'Missing date or conductor parameter'}), 400
+
+    # Get all appointments for this date and conductor
+    existing_appointments = [
+        appt for appt in appointments_db.appointments
+        if appt.date == date_str
+        and appt.conductor == conductor
+        and appt.state not in ['Completed', 'Cancelled']
+    ]
+
+    # Define scheduling window (11:00 AM - 12:00 PM)
+    start_hour = 11
+    start_minute = 0
+    end_hour = 12
+    end_minute = 0
+
+    # Convert to minutes from midnight for easier math
+    window_start = start_hour * 60 + start_minute  # 660 minutes (11:00 AM)
+    window_end = end_hour * 60 + end_minute  # 720 minutes (12:00 PM)
+
+    # Create list of occupied time slots
+    occupied_slots = []
+    for appt in existing_appointments:
+        time_parts = appt.time.split(':')
+        appt_start = int(time_parts[0]) * 60 + int(time_parts[1])
+        appt_end = appt_start + appt.duration_minutes
+        occupied_slots.append((appt_start, appt_end))
+
+    # Sort occupied slots by start time
+    occupied_slots.sort()
+
+    # Find first available slot
+    current_time = window_start
+    suggested_time = None
+
+    while current_time + duration <= window_end:
+        # Check if this slot conflicts with any existing appointment
+        proposed_end = current_time + duration
+        conflicts = False
+
+        for occupied_start, occupied_end in occupied_slots:
+            # Check for overlap
+            if not (proposed_end <= occupied_start or current_time >= occupied_end):
+                conflicts = True
+                # Jump to end of this occupied slot
+                current_time = occupied_end
+                break
+
+        if not conflicts:
+            # Found an available slot
+            hours = current_time // 60
+            minutes = current_time % 60
+            suggested_time = f"{hours:02d}:{minutes:02d}"
+            break
+
+        if conflicts:
+            continue
+
+        # Move to next 5-minute increment
+        current_time += 5
+
+    if suggested_time:
+        return jsonify({
+            'suggested_time': suggested_time,
+            'available': True
+        })
+    else:
+        return jsonify({
+            'suggested_time': None,
+            'available': False,
+            'message': 'No available slots in the 11:00 AM - 12:00 PM window'
+        })
+
+
+@app.route('/api/appointments/create', methods=['POST'])
+def create_appointment():
+    """Create a new appointment"""
+    data = request.json
+    member_id = data.get('member_id')
+    appointment_type = data.get('appointment_type')
+    date_str = data.get('date')
+    time_str = data.get('time')
+    duration_minutes = data.get('duration_minutes')
+    conductor = data.get('conductor')
+
+    if not all([member_id, appointment_type, date_str, time_str, duration_minutes, conductor]):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    try:
+        appt_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+
+    appointment = appointments_db.create_appointment(
+        member_id=member_id,
+        appointment_type=appointment_type,
+        date=appt_date,
+        time=time_str,
+        duration_minutes=int(duration_minutes),
+        conductor=conductor
+    )
+
+    return jsonify({
+        'success': True,
+        'appointment_id': appointment.appointment_id
+    })
+
+
+@app.route('/api/appointments/<int:appointment_id>', methods=['POST'])
+def update_appointment(appointment_id):
+    """Update an existing appointment"""
+    data = request.json
+    appointment_type = data.get('appointment_type')
+    date_str = data.get('date')
+    time_str = data.get('time')
+    duration_minutes = data.get('duration_minutes')
+    conductor = data.get('conductor')
+
+    appt_date = None
+    if date_str:
+        try:
+            appt_date = datetime.strptime(date_str, config.DATE_FORMAT).date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+
+    appointments_db.update_appointment(
+        appointment_id=appointment_id,
+        appointment_type=appointment_type,
+        date=appt_date,
+        time=time_str,
+        duration_minutes=int(duration_minutes) if duration_minutes is not None else None,
+        conductor=conductor
+    )
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/appointments/<int:appointment_id>/invite', methods=['POST'])
+def send_appointment_invite(appointment_id):
+    """Send appointment invitation to member"""
+    appointment = appointments_db.get_by_id(appointment_id)
+    if not appointment:
+        return jsonify({'error': 'Appointment not found'}), 404
+
+    member = members_db.get_by_id(appointment.member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Get message template
+    template = templates.get_template('appointments', f'{appointment.appointment_type}_invite')
+    if not template:
+        template = templates.get_template('appointments', 'default_invite')
+
+    # Format the message
+    appt_datetime = appointment.datetime_obj
+    message = template.format(
+        member_name=member.display_name,
+        appointment_type=appointment.appointment_type,
+        date=appt_datetime.strftime(config.DISPLAY_DATE_FORMAT),
+        time=appt_datetime.strftime('%I:%M %p'),
+        conductor=format_conductor_for_message(appointment.conductor)
+    )
+
+    # Update state to Invited
+    appointments_db.update_state(appointment_id, 'Invited')
+
+    # In production, send SMS here
+    if config.DEBUG_SMS:
+        print(f"[DEBUG SMS] To: {member.phone}")
+        print(f"[DEBUG SMS] Message: {message}")
+
+    return jsonify({'success': True, 'message': message})
+
+
+@app.route('/api/appointments/<int:appointment_id>/reminder-message', methods=['GET'])
+def get_appointment_reminder_message(appointment_id):
+    """Get reminder message for an appointment"""
+    appointment = appointments_db.get_by_id(appointment_id)
+    if not appointment:
+        return jsonify({'error': 'Appointment not found'}), 404
+
+    member = members_db.get_by_id(appointment.member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Get message template
+    template = templates.get_template('appointments', f'{appointment.appointment_type}_reminder')
+    if not template:
+        template = templates.get_template('appointments', 'default_reminder')
+
+    # Format the message
+    appt_datetime = appointment.datetime_obj
+    message = template.format(
+        member_name=member.display_name,
+        appointment_type=appointment.appointment_type,
+        date=appt_datetime.strftime(config.DISPLAY_DATE_FORMAT),
+        time=appt_datetime.strftime('%I:%M %p'),
+        conductor=format_conductor_for_message(appointment.conductor)
+    )
+
+    return jsonify({'message': message})
+
+
+@app.route('/api/appointments/<int:appointment_id>/remind', methods=['POST'])
+def send_appointment_reminder(appointment_id):
+    """Send appointment reminder to member"""
+    appointment = appointments_db.get_by_id(appointment_id)
+    if not appointment:
+        return jsonify({'error': 'Appointment not found'}), 404
+
+    member = members_db.get_by_id(appointment.member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Get message template
+    template = templates.get_template('appointments', f'{appointment.appointment_type}_reminder')
+    if not template:
+        template = templates.get_template('appointments', 'default_reminder')
+
+    # Format the message
+    appt_datetime = appointment.datetime_obj
+    message = template.format(
+        member_name=member.display_name,
+        appointment_type=appointment.appointment_type,
+        date=appt_datetime.strftime(config.DISPLAY_DATE_FORMAT),
+        time=appt_datetime.strftime('%I:%M %p'),
+        conductor=format_conductor_for_message(appointment.conductor)
+    )
+
+    # Update state to Reminded
+    appointments_db.update_state(appointment_id, 'Reminded')
+
+    # In production, send SMS here
+    if config.DEBUG_SMS:
+        print(f"[DEBUG SMS] To: {member.phone}")
+        print(f"[DEBUG SMS] Message: {message}")
+
+    return jsonify({'success': True, 'message': message})
+
+
+@app.route('/api/appointments/<int:appointment_id>/state', methods=['POST'])
+def update_appointment_state(appointment_id):
+    """Update appointment state"""
+    data = request.json
+    new_state = data.get('state')
+
+    if not new_state:
+        return jsonify({'error': 'State is required'}), 400
+
+    valid_states = ['Draft', 'Invited', 'Accepted', 'Reminded', 'Completed', 'Cancelled']
+    if new_state not in valid_states:
+        return jsonify({'error': f'Invalid state. Must be one of: {", ".join(valid_states)}'}), 400
+
+    appointments_db.update_state(appointment_id, new_state)
+    return jsonify({'success': True})
+
+
+@app.route('/api/appointments/<int:appointment_id>/delete', methods=['POST'])
+def delete_appointment(appointment_id):
+    """Delete an appointment"""
+    appointment = appointments_db.get_by_id(appointment_id)
+    if not appointment:
+        return jsonify({'error': 'Appointment not found'}), 404
+
+    # Remove from list and save
+    appointments_db.appointments = [a for a in appointments_db.appointments if a.appointment_id != appointment_id]
+    appointments_db.save()
+
+    return jsonify({'success': True})
+
+
+@app.route('/api/appointments/<int:appointment_id>', methods=['GET'])
+def get_appointment(appointment_id):
+    """Get a single appointment by ID"""
+    appointment = appointments_db.get_by_id(appointment_id)
+    if not appointment:
+        return jsonify({'error': 'Appointment not found'}), 404
+
+    member = members_db.get_by_id(appointment.member_id)
+
+    return jsonify({
+        'appointment_id': appointment.appointment_id,
+        'member_id': appointment.member_id,
+        'member_name': member.full_name if member else "Unknown",
+        'appointment_type': appointment.appointment_type,
+        'date': appointment.date,
+        'time': appointment.time,
+        'duration_minutes': appointment.duration_minutes,
+        'conductor': appointment.conductor,
+        'state': appointment.state,
+        'created_date': appointment.created_date,
+        'last_updated': appointment.last_updated,
+        'completed_date': appointment.completed_date
     })
 
 

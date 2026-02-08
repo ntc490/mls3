@@ -78,6 +78,9 @@ async function openMemberModal(memberId, date = null) {
         // Load prayer history
         loadPrayerHistory(member.prayer_history);
 
+        // Load event history
+        loadEventHistory(member.event_history);
+
     } catch (error) {
         console.error('Error loading member:', error);
         alert('Failed to load member information');
@@ -120,6 +123,51 @@ function loadPrayerHistory(history) {
                 <span class="prayer-date">${prayer.formatted_date}</span>
             </li>
         `;
+    });
+    html += '</ul>';
+
+    listDiv.innerHTML = html;
+}
+
+/**
+ * Load and display event history (prayers and appointments)
+ */
+function loadEventHistory(history) {
+    const listDiv = document.getElementById('eventHistoryList');
+
+    if (!history || history.length === 0) {
+        listDiv.innerHTML = '<p class="text-muted">No history yet</p>';
+        return;
+    }
+
+    // Build HTML for event history
+    let html = '<ul class="event-history-items">';
+    history.forEach(event => {
+        const stateClass = `state-${event.state.toLowerCase()}`;
+
+        if (event.type === 'prayer') {
+            html += `
+                <li class="event-history-item event-prayer">
+                    <span class="event-icon">🙏</span>
+                    <span class="event-details">
+                        <span class="event-date">${event.formatted_date}</span>
+                        <span class="event-desc">${event.prayer_type}</span>
+                    </span>
+                    <span class="event-state ${stateClass}">${event.state}</span>
+                </li>
+            `;
+        } else if (event.type === 'appointment') {
+            html += `
+                <li class="event-history-item event-appointment">
+                    <span class="event-icon">📅</span>
+                    <span class="event-details">
+                        <span class="event-date">${event.formatted_date} ${event.time}</span>
+                        <span class="event-desc">${event.appointment_type} (${event.conductor})</span>
+                    </span>
+                    <span class="event-state ${stateClass}">${event.state}</span>
+                </li>
+            `;
+        }
     });
     html += '</ul>';
 
@@ -568,6 +616,19 @@ function sendTextMessage() {
 }
 
 /**
+ * Open appointment scheduler for the current member
+ */
+function openAppointmentScheduler() {
+    if (!currentMemberId) {
+        alert('No member selected');
+        return;
+    }
+
+    // Navigate to appointment scheduler page with member ID
+    window.location.href = `/appointment-scheduler?member_id=${currentMemberId}`;
+}
+
+/**
  * Show a toast notification (simple implementation)
  */
 function showToast(message) {
@@ -610,6 +671,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendTextBtn = document.getElementById('sendTextBtn');
     if (sendTextBtn) {
         sendTextBtn.addEventListener('click', sendTextMessage);
+    }
+
+    // Appointment button
+    const apptBtn = document.getElementById('apptBtn');
+    if (apptBtn) {
+        apptBtn.addEventListener('click', openAppointmentScheduler);
     }
 
     // Pray button - goes directly to prayer scheduler

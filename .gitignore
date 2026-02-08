@@ -38,6 +38,7 @@ instance/
 
 # Production Data (NEVER COMMIT)
 data/members.csv
+data/appointments.csv
 data/prayer_assignments.csv
 data/backups/
 

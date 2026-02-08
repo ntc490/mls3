@@ -2,3 +2,49 @@ prayer:
   invite: "Hi {first_name}, would you be willing to say a prayer in sacrament meeting on {date}? Please let me know if opening or closing works better for you."
   reminder: "Hi {first_name}, just a reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting today. Thank you!"
   thank_you: "Thanks {first_name} for agreeing to say the {prayer_type} prayer on {date}!"
+
+appointments:
+  default_invite: "Hi {member_name}, would you be available to meet with {conductor} on {date} at {time}? Please let us know if this works for you."
+  default_reminder: "Hi {member_name}, reminder: You have a {appointment_type} appointment with {conductor} today at {time}. See you then!"
+
+  Set apart_invite: "Hi {member_name}, could you meet with {conductor} to be set apart on {date} at {time}? Please arrive a few minutes early if this works for you."
+  Set apart_reminder: "Hi {member_name}, reminder: You will be set apart today at {time} with {conductor}. See you then!"
+
+  Temple recommend_invite: "Hi {member_name}, could you meet with {conductor} for a temple recommend interview on {date} at {time}? Please let us know if this time works."
+  Temple recommend_reminder: "Hi {member_name}, reminder: Temple recommend interview today at {time} with {conductor}."
+
+  Calling_invite: "Hi {member_name}, would you be available to meet with {conductor} on {date} at {time}? Please let us know if this works for you."
+  Calling_reminder: "Hi {member_name}, reminder: Meeting with {conductor} today at {time}."
+
+  Ordination_invite: "Hi {member_name}, could you meet with {conductor} to be ordained on {date} at {time}? Please confirm if this works."
+  Ordination_reminder: "Hi {member_name}, reminder: Ordination today at {time} with {conductor}."
+
+  Family_invite: "Hi {member_name}, would {date} at {time} work for a family visit with {conductor}? Please let us know if this time is good for your family."
+  Family_reminder: "Hi {member_name}, reminder: Family visit today at {time} with {conductor}. Looking forward to visiting with you!"
+
+  Ecclesiastical endorsement_invite: "Hi {member_name}, could you meet with Bishop for an ecclesiastical endorsement interview on {date} at {time}? Please confirm if this works."
+  Ecclesiastical endorsement_reminder: "Hi {member_name}, reminder: Ecclesiastical endorsement interview today at {time} with Bishop."
+
+  Mission interview_invite: "Hi {member_name}, could you meet with Bishop for a mission interview on {date} at {time}? Please arrive a few minutes early if this works for you."
+  Mission interview_reminder: "Hi {member_name}, reminder: Mission interview today at {time} with Bishop. See you then!"
+
+  Patriarchal blessing_invite: "Hi {member_name}, could you meet with Bishop for a patriarchal blessing interview on {date} at {time}? Please let us know if this works."
+  Patriarchal blessing_reminder: "Hi {member_name}, reminder: Patriarchal blessing interview today at {time} with Bishop."
+
+  Baptismal_invite: "Hi {member_name}, could you meet with Bishop for a baptismal interview on {date} at {time}? Please confirm if this works."
+  Baptismal_reminder: "Hi {member_name}, reminder: Baptismal interview today at {time} with Bishop."
+
+  Annual youth_invite: "Hi {member_name}, could you meet with Bishop for your annual youth interview on {date} at {time}? Please let us know if this works."
+  Annual youth_reminder: "Hi {member_name}, reminder: Annual youth interview today at {time} with Bishop."
+
+  Semi-annual youth_invite: "Hi {member_name}, would you be available to meet with Bishop on {date} at {time}? Please confirm if this works."
+  Semi-annual youth_reminder: "Hi {member_name}, reminder: Youth interview today at {time} with Bishop."
+
+  Endowment_invite: "Hi {member_name}, could you meet with Bishop for an endowment interview on {date} at {time}? Please arrive a few minutes early if this works for you."
+  Endowment_reminder: "Hi {member_name}, reminder: Endowment interview today at {time} with Bishop."
+
+  General_invite: "Hi {member_name}, would you be available to meet with {conductor} on {date} at {time}? Please let us know if this works for you."
+  General_reminder: "Hi {member_name}, reminder: Appointment with {conductor} today at {time}."
+
+  Living Ordinance_invite: "Hi {member_name}, could you meet with Bishop for a living ordinance interview on {date} at {time}? Please confirm if this works."
+  Living Ordinance_reminder: "Hi {member_name}, reminder: Living ordinance interview today at {time} with Bishop."

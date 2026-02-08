@@ -1,0 +1,56 @@
+appointment_types:
+  - name: "Set apart"
+    default_duration: 10
+    default_conductor: "Counselor"
+
+  - name: "Temple recommend"
+    default_duration: 10
+    default_conductor: "Counselor"
+
+  - name: "Calling"
+    default_duration: 10
+    default_conductor: "Counselor"
+
+  - name: "Ordination"
+    default_duration: 10
+    default_conductor: "Counselor"
+
+  - name: "Family"
+    default_duration: 30
+    default_conductor: "Counselor"
+
+  - name: "Ecclesiastical endorsement"
+    default_duration: 15
+    default_conductor: "Bishop"
+
+  - name: "Mission interview"
+    default_duration: 15
+    default_conductor: "Bishop"
+
+  - name: "Patriarchal blessing"
+    default_duration: 15
+    default_conductor: "Bishop"
+
+  - name: "Baptismal"
+    default_duration: 15
+    default_conductor: "Bishop"
+
+  - name: "Annual youth"
+    default_duration: 10
+    default_conductor: "Bishop"
+
+  - name: "Semi-annual youth"
+    default_duration: 10
+    default_conductor: "Bishop"
+
+  - name: "Endowment"
+    default_duration: 20
+    default_conductor: "Bishop"
+
+  - name: "General"
+    default_duration: 20
+    default_conductor: "Bishop"
+
+  - name: "Living Ordinance"
+    default_duration: 20
+    default_conductor: "Bishop"

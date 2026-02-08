@@ -99,6 +99,41 @@ class PrayerAssignment:
         return datetime.strptime(self.date, config.DATE_FORMAT).date()
 
 
+@dataclass
+class AppointmentType:
+    """Represents an appointment type configuration"""
+    name: str
+    default_duration: int
+    default_conductor: str
+
+
+@dataclass
+class Appointment:
+    """Represents an appointment"""
+    appointment_id: int
+    member_id: int
+    appointment_type: str
+    date: str
+    time: str
+    duration_minutes: int
+    conductor: str  # Bishop or Counselor
+    state: str  # Draft, Invited, Reminded, Completed, Cancelled
+    created_date: str
+    last_updated: str
+    completed_date: Optional[str] = None
+
+    @property
+    def date_obj(self) -> date:
+        """Returns date as a date object"""
+        return datetime.strptime(self.date, config.DATE_FORMAT).date()
+
+    @property
+    def datetime_obj(self) -> datetime:
+        """Returns combined date and time as datetime object"""
+        datetime_str = f"{self.date} {self.time}"
+        return datetime.strptime(datetime_str, f"{config.DATE_FORMAT} %H:%M")
+
+
 class MemberDatabase:
     """Manages member data from CSV"""
 
@@ -357,3 +392,176 @@ class MessageTemplates:
         """Get template and expand variables"""
         template = self.get_template(activity, template_name)
         return template.format(**kwargs)
+
+
+class AppointmentTypesDatabase:
+    """Manages appointment types from YAML"""
+
+    def __init__(self, yaml_path: Path = None):
+        self.yaml_path = yaml_path or config.APPOINTMENT_TYPES_YAML
+        self.types: List[AppointmentType] = []
+        self.load()
+
+    def load(self):
+        """Load appointment types from YAML file"""
+        if not self.yaml_path.exists():
+            print(f"Warning: Appointment types YAML not found at {self.yaml_path}")
+            return
+
+        with open(self.yaml_path, 'r', encoding='utf-8') as f:
+            data = yaml.safe_load(f)
+            for item in data.get('appointment_types', []):
+                self.types.append(AppointmentType(
+                    name=item['name'],
+                    default_duration=item['default_duration'],
+                    default_conductor=item['default_conductor']
+                ))
+
+    def get_all(self) -> List[AppointmentType]:
+        """Get all appointment types"""
+        return self.types
+
+    def get_by_name(self, name: str) -> Optional[AppointmentType]:
+        """Get appointment type by name"""
+        for t in self.types:
+            if t.name == name:
+                return t
+        return None
+
+
+class AppointmentDatabase:
+    """Manages appointment data from CSV"""
+
+    def __init__(self, csv_path: Path = None):
+        self.csv_path = csv_path or config.APPOINTMENTS_CSV
+        self.appointments: List[Appointment] = []
+        self.load()
+
+    def load(self):
+        """Load appointments from CSV file"""
+        self.appointments = []
+
+        if not self.csv_path.exists():
+            print(f"Warning: Appointments CSV not found at {self.csv_path}")
+            return
+
+        with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                appointment = Appointment(
+                    appointment_id=int(row['appointment_id']),
+                    member_id=int(row['member_id']),
+                    appointment_type=row['appointment_type'],
+                    date=row['date'],
+                    time=row['time'],
+                    duration_minutes=int(row['duration_minutes']),
+                    conductor=row['conductor'],
+                    state=row['state'],
+                    created_date=row['created_date'],
+                    last_updated=row['last_updated'],
+                    completed_date=row['completed_date'] if row['completed_date'] else None
+                )
+                self.appointments.append(appointment)
+
+    def save(self):
+        """Save appointments to CSV file"""
+        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
+            fieldnames = [
+                'appointment_id', 'member_id', 'appointment_type', 'date', 'time',
+                'duration_minutes', 'conductor', 'state', 'created_date',
+                'last_updated', 'completed_date'
+            ]
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for appointment in self.appointments:
+                row = asdict(appointment)
+                writer.writerow(row)
+
+    def get_by_id(self, appointment_id: int) -> Optional[Appointment]:
+        """Get appointment by ID"""
+        for appointment in self.appointments:
+            if appointment.appointment_id == appointment_id:
+                return appointment
+        return None
+
+    def get_next_id(self) -> int:
+        """Get next available appointment ID"""
+        if not self.appointments:
+            return 1
+        return max(a.appointment_id for a in self.appointments) + 1
+
+    def get_active_appointments(self) -> List[Appointment]:
+        """Get all non-completed/non-cancelled appointments"""
+        return [a for a in self.appointments if a.state not in ['Completed', 'Cancelled']]
+
+    def get_appointments_for_member(self, member_id: int) -> List[Appointment]:
+        """Get all appointments for a specific member"""
+        return [a for a in self.appointments if a.member_id == member_id]
+
+    def create_appointment(
+        self,
+        member_id: int,
+        appointment_type: str,
+        date: date,
+        time: str,
+        duration_minutes: int,
+        conductor: str
+    ) -> Appointment:
+        """Create a new appointment"""
+        now = datetime.now().strftime(config.DATE_FORMAT)
+        appointment = Appointment(
+            appointment_id=self.get_next_id(),
+            member_id=member_id,
+            appointment_type=appointment_type,
+            date=date.strftime(config.DATE_FORMAT),
+            time=time,
+            duration_minutes=duration_minutes,
+            conductor=conductor,
+            state="Draft",
+            created_date=now,
+            last_updated=now
+        )
+        self.appointments.append(appointment)
+        self.save()
+        return appointment
+
+    def update_state(self, appointment_id: int, new_state: str):
+        """Update appointment state"""
+        appointment = self.get_by_id(appointment_id)
+        if appointment:
+            appointment.state = new_state
+            appointment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
+
+            if new_state == "Completed":
+                appointment.completed_date = datetime.now().strftime(config.DATE_FORMAT)
+
+            self.save()
+
+    def update_appointment(
+        self,
+        appointment_id: int,
+        appointment_type: Optional[str] = None,
+        date: Optional[date] = None,
+        time: Optional[str] = None,
+        duration_minutes: Optional[int] = None,
+        conductor: Optional[str] = None
+    ):
+        """Update appointment details"""
+        appointment = self.get_by_id(appointment_id)
+        if appointment:
+            if appointment_type is not None:
+                appointment.appointment_type = appointment_type
+            if date is not None:
+                appointment.date = date.strftime(config.DATE_FORMAT)
+            if time is not None:
+                appointment.time = time
+            if duration_minutes is not None:
+                appointment.duration_minutes = duration_minutes
+            if conductor is not None:
+                appointment.conductor = conductor
+
+            appointment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
+            self.save()

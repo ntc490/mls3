@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}MLS3 - Schedule Appointment{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="scheduler-header">
+        <h1 id="pageTitle">Schedule Appointment</h1>
+    </div>
+
+    <div class="scheduler-layout">
+        <div class="appointment-form">
+            <div class="form-group">
+                <label for="memberSearch">Member</label>
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="memberSearch" class="form-input" placeholder="Search for member..." autocomplete="off">
+                    <button type="button" id="clearMemberBtn" class="clear-btn" style="display: none;">&times;</button>
+                    <input type="hidden" id="selectedMemberId">
+                    <div id="memberResults" class="autocomplete-results"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="appointmentType">Appointment Type</label>
+                <select id="appointmentType" class="form-select">
+                    <option value="">Select type...</option>
+                </select>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="appointmentDate">Date</label>
+                    <input type="date" id="appointmentDate" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="appointmentTime">Time</label>
+                    <div class="time-input-group">
+                        <input type="time" id="appointmentTime" class="form-input">
+                        <button id="suggestTimeBtn" class="btn btn-sm btn-secondary" title="Suggest next available time">
+                            💡
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="duration">Duration (minutes)</label>
+                <input type="number" id="duration" class="form-input" min="5" max="120" step="5">
+            </div>
+
+            <div class="form-group">
+                <label>Conductor</label>
+                <div class="conductor-toggle">
+                    <button id="conductorBishop" class="conductor-btn" data-conductor="Bishop">
+                        Bishop
+                    </button>
+                    <button id="conductorCounselor" class="conductor-btn" data-conductor="Counselor">
+                        Counselor
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button id="saveBtn" class="btn btn-secondary">Save</button>
+                <button id="sendInviteBtn" class="btn btn-primary">Send Invite</button>
+                <button id="acceptedBtn" class="btn btn-success" style="display: none;">Mark Accepted</button>
+                <button id="reminderBtn" class="btn btn-secondary" style="display: none;">Send Reminder</button>
+                <button id="completeBtn" class="btn btn-success" style="display: none;">Mark Complete</button>
+                <button id="deleteBtn" class="btn btn-danger" style="display: none;">Delete</button>
+            </div>
+        </div>
+
+        <div class="existing-appointments">
+            <h3>Scheduled for <span id="selectedDateDisplay"></span></h3>
+            <div id="appointmentsList" class="appointments-list">
+                <p class="text-muted">Select a date to see scheduled appointments</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/appointment_scheduler.js') }}"></script>
+{% endblock %}

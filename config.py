@@ -22,6 +22,8 @@ PORT = int(os.getenv('FLASK_PORT', '5000'))
 MEMBERS_CSV = DATA_DIR / 'members.csv'
 PRAYER_ASSIGNMENTS_CSV = DATA_DIR / 'prayer_assignments.csv'
 MESSAGE_TEMPLATES_YAML = DATA_DIR / 'message_templates.yaml'
+APPOINTMENT_TYPES_YAML = DATA_DIR / 'appointment_types.yaml'
+APPOINTMENTS_CSV = DATA_DIR / 'appointments.csv'
 
 # Application settings
 NEXT_CANDIDATE_COUNT = 3  # Number of next-up candidates to show per gender

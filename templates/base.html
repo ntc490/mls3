@@ -13,6 +13,8 @@
             <ul>
                 <li><a href="{{ url_for('index') }}">Home</a></li>
                 <li><a href="{{ url_for('prayer_scheduler') }}">Prayer Scheduler</a></li>
+                <li><a href="{{ url_for('appointment_scheduler') }}">Appointments</a></li>
+                <li><a href="{{ url_for('events') }}">Events</a></li>
                 <li><a href="{{ url_for('members_list') }}">Members</a></li>
             </ul>
         </nav>
@@ -63,6 +65,7 @@
 
                 <div class="member-actions-section">
                     <button id="sendTextBtn" class="btn btn-secondary">SMS</button>
+                    <button id="apptBtn" class="btn btn-primary">Appt</button>
                     <button id="prayBtn" class="btn btn-primary">Pray</button>
                 </div>
 
@@ -100,6 +103,13 @@
                 <div class="prayer-history-section">
                     <h3>Prayer History</h3>
                     <div id="prayerHistoryList" class="prayer-history-list">
+                        <p class="text-muted">Loading...</p>
+                    </div>
+                </div>
+
+                <div class="event-history-section">
+                    <h3>History</h3>
+                    <div id="eventHistoryList" class="event-history-list">
                         <p class="text-muted">Loading...</p>
                     </div>
                 </div>
