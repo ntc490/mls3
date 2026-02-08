@@ -41,7 +41,7 @@ def expand_prayer_template(
     message = templates.expand_template(
         'prayer',
         template_name,
-        first_name=member.first_name,
+        first_name=member.display_name,  # Use display_name (AKA or first word of first_name)
         last_name=member.last_name,
         date=date_str,
         prayer_type=prayer_type_lower,
