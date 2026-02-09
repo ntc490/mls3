@@ -10,6 +10,9 @@ from models import (
     MemberDatabase, PrayerAssignmentDatabase, MessageTemplates,
     AppointmentTypesDatabase, AppointmentDatabase
 )
+from utils.google_calendar import (
+    get_calendar_service, CalendarSync, is_calendar_enabled, is_online
+)
 
 
 app = Flask(__name__)
@@ -28,8 +31,52 @@ print(f"MLS3 Starting Up")
 print(f"{'='*60}")
 print(f"DEBUG_SMS: {config.DEBUG_SMS} (print debug messages)")
 print(f"DISABLE_SMS: {config.DISABLE_SMS} (skip actual SMS sending)")
+print(f"GOOGLE_CALENDAR: {config.GOOGLE_CALENDAR_ENABLED} (sync to Google Calendar)")
 print(f"Data directory: {config.DATA_DIR}")
 print(f"{'='*60}\n")
+
+
+def sync_appointment_to_calendar(appointment, old_conductor=None):
+    """
+    Sync appointment to Google Calendar if enabled.
+    Handles errors gracefully and logs issues.
+
+    Args:
+        appointment: Appointment object to sync
+        old_conductor: Previous conductor value if changed (for moving between calendars)
+
+    Returns:
+        True if sync successful or disabled, False if sync failed
+    """
+    if not is_calendar_enabled():
+        return True  # Calendar disabled, no sync needed
+
+    if not is_online():
+        print("Warning: Offline, skipping calendar sync")
+        return False
+
+    try:
+        service = get_calendar_service()
+        sync = CalendarSync(service)
+        member = members_db.get_by_id(appointment.member_id)
+
+        if not member:
+            print(f"Warning: Member {appointment.member_id} not found, skipping calendar sync")
+            return False
+
+        # Sync appointment (creates or updates, handles conductor changes)
+        event_id = sync.sync_appointment(appointment, member, old_conductor)
+
+        # Store event ID (could be new or updated)
+        if event_id and event_id != appointment.google_event_id:
+            appointment.google_event_id = event_id
+            appointments_db.save()
+
+        return True
+
+    except Exception as e:
+        print(f"Error syncing appointment to calendar: {e}")
+        return False
 
 
 def get_next_sunday(from_date: date = None) -> date:
@@ -1090,6 +1137,9 @@ def create_appointment():
         timezone=timezone
     )
 
+    # Sync to Google Calendar
+    sync_appointment_to_calendar(appointment)
+
     return jsonify({
         'success': True,
         'appointment_id': appointment.appointment_id
@@ -1107,6 +1157,10 @@ def update_appointment(appointment_id):
     conductor = data.get('conductor')
     timezone = data.get('timezone')  # Browser's detected timezone
 
+    # Get old appointment to check if conductor changed
+    old_appointment = appointments_db.get_by_id(appointment_id)
+    old_conductor = old_appointment.conductor if old_appointment else None
+
     appt_date = None
     if date_str:
         try:
@@ -1123,6 +1177,11 @@ def update_appointment(appointment_id):
         conductor=conductor,
         timezone=timezone
     )
+
+    # Sync updated appointment to Google Calendar
+    appointment = appointments_db.get_by_id(appointment_id)
+    if appointment:
+        sync_appointment_to_calendar(appointment, old_conductor)
 
     return jsonify({'success': True})
 
@@ -1255,6 +1314,12 @@ def update_appointment_state(appointment_id):
         return jsonify({'error': f'Invalid state. Must be one of: {", ".join(valid_states)}'}), 400
 
     appointments_db.update_state(appointment_id, new_state)
+
+    # Sync state change to Google Calendar (updates description with new state)
+    appointment = appointments_db.get_by_id(appointment_id)
+    if appointment:
+        sync_appointment_to_calendar(appointment)
+
     return jsonify({'success': True})
 
 
@@ -1265,11 +1330,45 @@ def delete_appointment(appointment_id):
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
 
+    # Delete from Google Calendar only if NOT completed (preserve history for completed)
+    if (appointment.google_event_id and
+        appointment.state != 'Completed' and
+        is_calendar_enabled() and
+        is_online()):
+        try:
+            service = get_calendar_service()
+            sync = CalendarSync(service)
+            sync.delete_appointment_event(appointment)
+            print(f"Deleted appointment from Google Calendar")
+        except Exception as e:
+            print(f"Warning: Could not delete from Google Calendar: {e}")
+            # Continue with MLS3 deletion even if calendar deletion fails
+    elif appointment.state == 'Completed':
+        print(f"Preserving completed appointment in Google Calendar for history")
+
     # Remove from list and save
     appointments_db.appointments = [a for a in appointments_db.appointments if a.appointment_id != appointment_id]
     appointments_db.save()
 
     return jsonify({'success': True})
+
+
+@app.route('/api/appointments/<int:appointment_id>/sync-calendar', methods=['POST'])
+def sync_appointment_calendar(appointment_id):
+    """Manually sync appointment to Google Calendar"""
+    if not is_calendar_enabled():
+        return jsonify({'error': 'Google Calendar integration not enabled'}), 400
+
+    appointment = appointments_db.get_by_id(appointment_id)
+    if not appointment:
+        return jsonify({'error': 'Appointment not found'}), 404
+
+    success = sync_appointment_to_calendar(appointment)
+
+    if success:
+        return jsonify({'success': True, 'message': 'Synced to Google Calendar'})
+    else:
+        return jsonify({'error': 'Failed to sync to calendar. Check connection.'}), 500
 
 
 @app.route('/api/appointments/<int:appointment_id>', methods=['GET'])

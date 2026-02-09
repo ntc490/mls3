@@ -453,6 +453,7 @@ function updateButtonsForState(state) {
     const acceptedBtn = document.getElementById('acceptedBtn');
     const reminderBtn = document.getElementById('reminderBtn');
     const completeBtn = document.getElementById('completeBtn');
+    const syncCalendarBtn = document.getElementById('syncCalendarBtn');
     const deleteBtn = document.getElementById('deleteBtn');
 
     // Hide all state-specific buttons first
@@ -462,6 +463,7 @@ function updateButtonsForState(state) {
     acceptedBtn.style.display = 'none';
     reminderBtn.style.display = 'none';
     completeBtn.style.display = 'none';
+    syncCalendarBtn.style.display = 'none';
 
     // Show delete button for existing appointments
     deleteBtn.style.display = 'inline-block';
@@ -473,22 +475,27 @@ function updateButtonsForState(state) {
             // Save button is only for creating new appointments
             sendInviteBtn.style.display = 'inline-block';
             acceptedBtn.style.display = 'inline-block';
+            syncCalendarBtn.style.display = 'inline-block';
             break;
         case 'Invited':
             acceptedBtn.style.display = 'inline-block';
             reminderBtn.style.display = 'inline-block';
+            syncCalendarBtn.style.display = 'inline-block';
             break;
         case 'Accepted':
             reminderBtn.style.display = 'inline-block';
             completeBtn.style.display = 'inline-block';
+            syncCalendarBtn.style.display = 'inline-block';
             break;
         case 'Reminded':
             reminderBtn.style.display = 'inline-block';
             completeBtn.style.display = 'inline-block';
+            syncCalendarBtn.style.display = 'inline-block';
             break;
         case 'Completed':
         case 'Cancelled':
-            // No action buttons for completed/cancelled
+            // Show sync button even for completed (to fix sync issues)
+            syncCalendarBtn.style.display = 'inline-block';
             break;
     }
 
@@ -554,6 +561,7 @@ function setupEventListeners() {
     document.getElementById('acceptedBtn').addEventListener('click', markAccepted);
     document.getElementById('reminderBtn').addEventListener('click', sendReminder);
     document.getElementById('completeBtn').addEventListener('click', markComplete);
+    document.getElementById('syncCalendarBtn').addEventListener('click', syncToCalendar);
     document.getElementById('newApptBtn').addEventListener('click', resetToNewAppointment);
     document.getElementById('deleteBtn').addEventListener('click', deleteAppointment);
 
@@ -935,6 +943,31 @@ async function markComplete() {
     } catch (error) {
         console.error('Error completing appointment:', error);
         alert('Failed to complete appointment: ' + error.message);
+    }
+}
+
+/**
+ * Manually sync appointment to Google Calendar
+ */
+async function syncToCalendar() {
+    if (!appointmentId) return;
+
+    try {
+        const response = await fetch(`/api/appointments/${appointmentId}/sync-calendar`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to sync to calendar');
+        }
+
+        const result = await response.json();
+        alert(result.message || 'Successfully synced to Google Calendar');
+
+    } catch (error) {
+        console.error('Error syncing to calendar:', error);
+        alert('Failed to sync to calendar: ' + error.message);
     }
 }
 

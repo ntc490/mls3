@@ -38,6 +38,8 @@ instance/
 
 # Production Data (NEVER COMMIT)
 data/members.csv
+data/credentials.json
+data/token.pickle
 data/appointments.csv
 data/prayer_assignments.csv
 data/backups/

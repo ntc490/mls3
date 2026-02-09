@@ -36,3 +36,13 @@ HOME_TIMEZONE = 'America/Denver'  # US Mountain Time - used for migrating legacy
 DEBUG_SMS = os.getenv('MLS3_DEBUG_SMS', 'false').lower() in ('true', '1', 'yes')
 # Set MLS3_DISABLE_SMS=true to skip actual SMS sending (for desktop testing)
 DISABLE_SMS = os.getenv('MLS3_DISABLE_SMS', 'false').lower() in ('true', '1', 'yes')
+
+# Google Calendar Configuration
+# Set MLS3_GOOGLE_CALENDAR=true to enable Google Calendar sync
+GOOGLE_CALENDAR_ENABLED = os.getenv('MLS3_GOOGLE_CALENDAR', 'false').lower() in ('true', '1', 'yes')
+# Google Calendar credentials and token files
+CREDENTIALS_FILE = DATA_DIR / 'credentials.json'
+TOKEN_FILE = DATA_DIR / 'token.pickle'
+# Calendar IDs for Bishop and Counselor schedules
+BISHOP_CALENDAR_ID = os.getenv('BISHOP_CALENDAR_ID', '')
+COUNSELOR_CALENDAR_ID = os.getenv('COUNSELOR_CALENDAR_ID', '')

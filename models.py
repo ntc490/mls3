@@ -128,6 +128,7 @@ class Appointment:
     created_date: str
     last_updated: str
     completed_date: Optional[str] = None
+    google_event_id: Optional[str] = None  # Google Calendar event ID for sync
 
     @property
     def datetime_obj_utc(self) -> datetime:
@@ -547,7 +548,8 @@ class AppointmentDatabase:
                     state=row['state'],
                     created_date=row['created_date'],
                     last_updated=row['last_updated'],
-                    completed_date=row['completed_date'] if row['completed_date'] else None
+                    completed_date=row['completed_date'] if row['completed_date'] else None,
+                    google_event_id=row.get('google_event_id') if row.get('google_event_id') else None
                 )
                 self.appointments.append(appointment)
 
@@ -559,7 +561,7 @@ class AppointmentDatabase:
             fieldnames = [
                 'appointment_id', 'member_id', 'appointment_type', 'datetime_utc',
                 'duration_minutes', 'conductor', 'state', 'created_date',
-                'last_updated', 'completed_date'
+                'last_updated', 'completed_date', 'google_event_id'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
