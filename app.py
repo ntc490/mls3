@@ -118,7 +118,8 @@ def index():
 
     # Show events from Monday of the target week through the target Sunday
     # Calculate Monday of the target week
-    days_since_monday = (target_sunday.weekday() + 1) % 7  # Days from Monday to Sunday
+    # Sunday is weekday 6, so we need to go back 6 days to get to Monday
+    days_since_monday = 6  # Always go back 6 days from Sunday to get to Monday
     week_start = target_sunday - timedelta(days=days_since_monday)
 
     # Only show events from today onwards (don't show past events from earlier in the week)
