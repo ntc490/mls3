@@ -2017,3 +2017,69 @@ input:checked + .slider:before {
 .composer-actions .btn {
     flex: 1;
 }
+
+/* Household Members List */
+.household-members-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.household-members-section h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    color: var(--text-dark);
+}
+
+.household-members-items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.household-member-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.household-member-item:hover {
+    background-color: #e9ecef;
+    border-color: var(--primary-color);
+    transform: translateX(2px);
+}
+
+.household-member-item:active {
+    background-color: #dee2e6;
+}
+
+.household-member-item .member-name {
+    font-weight: 500;
+    color: var(--primary-color);
+    text-decoration: underline;
+    text-decoration-style: dotted;
+}
+
+.household-member-item .member-phone {
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.household-member-item .minor-badge {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    margin-left: 0.5rem;
+    background-color: var(--warning-color);
+    color: #000;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 3px;
+    text-transform: uppercase;
+}

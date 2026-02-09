@@ -19,6 +19,12 @@ async function openMemberModal(memberId, date = null) {
     // Use provided date, or check sessionStorage for prayer scheduler target date
     targetDate = date || sessionStorage.getItem('prayer_scheduler_target_date');
 
+    // Close household modal if it's open
+    const householdModal = document.getElementById('householdModal');
+    if (householdModal && householdModal.style.display === 'flex') {
+        householdModal.style.display = 'none';
+    }
+
     // Show modal
     const modal = document.getElementById('memberInfoModal');
     modal.style.display = 'flex';
@@ -771,10 +777,10 @@ function displayHouseholdMembers(members) {
     members.forEach(member => {
         const ageText = member.age ? ` (${member.age})` : '';
         const minorBadge = member.is_minor ? ' <span class="minor-badge">minor</span>' : '';
-        const phoneText = member.phone ? ` - ${member.phone}` : '';
+        const phoneText = member.phone ? member.phone : '';
 
         html += `
-            <li class="household-member-item" onclick="openMemberModal(${member.member_id})">
+            <li class="household-member-item" onclick="openMemberModal(${member.member_id}); event.stopPropagation();">
                 <span class="member-name">${member.full_name}${ageText}${minorBadge}</span>
                 <span class="member-phone">${phoneText}</span>
             </li>
