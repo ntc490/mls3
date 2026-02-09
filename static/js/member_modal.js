@@ -55,16 +55,17 @@ async function openMemberModal(memberId, date = null) {
         }
         document.getElementById('modalBirthdayAge').textContent = birthdayAgeText;
 
-        // Show household row if member has household
-        const householdRow = document.getElementById('modalHouseholdRow');
+        // Show household link or single label under name
+        const householdLink = document.getElementById('modalHouseholdLink');
+        const singleLabel = document.getElementById('modalSingleLabel');
         if (member.household_id) {
             currentHouseholdId = member.household_id;
-            householdRow.style.display = 'flex';
-            // Fetch and display household name
-            fetchHouseholdName(member.household_id);
+            householdLink.style.display = 'block';
+            singleLabel.style.display = 'none';
         } else {
             currentHouseholdId = null;
-            householdRow.style.display = 'none';
+            householdLink.style.display = 'none';
+            singleLabel.style.display = 'block';
         }
 
         document.getElementById('modalPhone').textContent = member.phone || 'Not specified';
@@ -712,24 +713,6 @@ function showToast(message) {
             document.body.removeChild(toast);
         }, 300);
     }, 2000);
-}
-
-/**
- * Fetch and display household name
- */
-async function fetchHouseholdName(householdId) {
-    try {
-        const response = await fetch(`/api/households/${householdId}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch household');
-        }
-
-        const household = await response.json();
-        document.getElementById('modalHousehold').textContent = household.name;
-    } catch (error) {
-        console.error('Error fetching household:', error);
-        document.getElementById('modalHousehold').textContent = 'Unknown';
-    }
 }
 
 /**
