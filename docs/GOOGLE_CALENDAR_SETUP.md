@@ -79,6 +79,27 @@ echo 'export MLS3_GOOGLE_CALENDAR=true' >> ~/.bashrc
 
 ## Step 7: First-Time Authorization
 
+**Recommended Method: Use the Authorization Script**
+
+For easier setup, especially on Termux, use the dedicated authorization script:
+
+```bash
+cd ~/storage/shared/mls3
+source venv/bin/activate
+export MLS3_DATA_DIR=~/mls3-data
+python authorize_google_calendar.py
+```
+
+This will:
+1. Print a URL to your terminal
+2. You copy/paste the URL into your browser
+3. Log in to Google and authorize access
+4. Copy the authorization code from browser
+5. Paste it back into the terminal
+6. Save the token to `~/mls3-data/token.pickle`
+
+**Alternative Method: Authorize via Flask App**
+
 1. Start your Flask app:
    ```bash
    cd ~/storage/shared/mls3
@@ -94,6 +115,8 @@ echo 'export MLS3_GOOGLE_CALENDAR=true' >> ~/.bashrc
    - Save the token to `~/mls3-data/token.pickle`
 
 4. Future syncs will use the saved token automatically
+
+**Note**: The dedicated authorization script (first method) is more reliable, especially on Termux where browser redirects may not work properly.
 
 ## Step 8: Set Up Calendar IDs
 
@@ -243,3 +266,31 @@ To share the calendars with bishopric members:
 7. Click "Send"
 
 Note: Extended properties (MLS3 metadata) remain private even when shared.
+
+---
+
+## Recent Updates & Bug Fixes
+
+### February 8, 2026
+- ✅ Fixed conductor change sync (now properly moves events between calendars)
+- ✅ Fixed deletion sync (appointments deleted from MLS3 now delete from calendar)
+- ✅ Smart deletion implemented (completed appointments preserved in calendar as history)
+- ✅ Calendar event colors improved for better contrast:
+  - Bishop: Peachy background (#f5d5cc) with orange border
+  - Counselor: Lavender-blue background (#d4ddf2) with blue border
+- ✅ Added safety verification (only deletes MLS3-created events)
+- ✅ Improved timezone handling (proper UTC storage, local display)
+- ✅ Added authorize_google_calendar.py script for easier OAuth setup
+
+### Known Working Features
+- Create/update/delete sync works correctly
+- Conductor changes properly move events between calendars
+- Completed appointments preserved in calendar
+- State indicators show in event titles
+- Manual sync button works for troubleshooting
+- Works offline (fails gracefully, retries when online)
+- Calendar colors match MLS3 UI design
+
+---
+
+*Last Updated: February 8, 2026*

@@ -118,6 +118,198 @@ Edit the SMS messages to match your style.
 
 ---
 
+## Google Calendar Integration (Optional)
+
+MLS3 can automatically sync appointments to Google Calendar. This is optional but highly recommended for appointment management.
+
+### 1. Create Google Cloud Project
+
+1. Go to https://console.cloud.google.com/
+2. Create a new project (e.g., "MLS3 Calendar Sync")
+3. Enable the Google Calendar API:
+   - Go to "APIs & Services" → "Enable APIs and Services"
+   - Search for "Google Calendar API"
+   - Click "Enable"
+
+### 2. Create OAuth Credentials
+
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. Configure consent screen if prompted (Internal use is fine)
+4. Choose "Desktop app" as application type
+5. Name it "MLS3 Desktop Auth"
+6. Click "Create"
+7. Download the JSON file (it will be named something like `client_secret_*.json`)
+
+### 3. Copy Credentials to Termux
+
+**Option A: Using Cloud Storage**
+1. Upload the JSON file to Google Drive or Dropbox
+2. Download it on your Android phone
+3. Rename it to `credentials.json`
+4. Move it to your data directory:
+```bash
+cp ~/storage/shared/Download/credentials.json ~/mls3-data/credentials.json
+chmod 600 ~/mls3-data/credentials.json
+```
+
+**Option B: Using Termux's `termux-clipboard-set`**
+1. On your desktop, open the JSON file and copy its contents
+2. Send it to your phone via email or messaging app
+3. Copy the text on your phone
+4. In Termux:
+```bash
+termux-clipboard-get > ~/mls3-data/credentials.json
+chmod 600 ~/mls3-data/credentials.json
+```
+
+### 4. Get Calendar IDs
+
+You need the IDs for your Bishop and Counselor calendars:
+
+1. Open Google Calendar on desktop
+2. Click settings (gear icon) → Settings
+3. Find the calendar in the left sidebar
+4. Click on it, scroll to "Integrate calendar"
+5. Copy the "Calendar ID" (looks like `abc123@group.calendar.google.com`)
+6. Repeat for both Bishop and Counselor calendars
+
+**Note**: You can use your personal calendar (like `your.email@gmail.com`) or create dedicated group calendars for better organization.
+
+### 5. Install Required Dependencies
+
+Dependencies are already in `requirements.txt`, but verify they're installed:
+
+```bash
+cd ~/storage/shared/mls3
+source venv/bin/activate
+pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+```
+
+### 6. Configure Environment Variables
+
+Add these to your `~/.bashrc` for persistence:
+
+```bash
+cat >> ~/.bashrc << 'EOF'
+# MLS3 Google Calendar Integration
+export MLS3_GOOGLE_CALENDAR=true
+export BISHOP_CALENDAR_ID="your_bishop_calendar_id@group.calendar.google.com"
+export COUNSELOR_CALENDAR_ID="your_counselor_calendar_id@group.calendar.google.com"
+EOF
+
+source ~/.bashrc
+```
+
+Replace the calendar IDs with your actual IDs from step 4.
+
+### 7. Authorize MLS3 to Access Google Calendar
+
+Run the authorization script:
+
+```bash
+cd ~/storage/shared/mls3
+source venv/bin/activate
+export MLS3_DATA_DIR=~/mls3-data
+python authorize_google_calendar.py
+```
+
+This will:
+1. Print a URL to your terminal
+2. Copy the URL (long-press in Termux to select)
+3. Paste into your browser
+4. Log in to Google and authorize access
+5. Copy the authorization code
+6. Paste it back into Termux
+
+After successful authorization, you'll see:
+```
+Authentication successful!
+Token saved to: /data/data/com.termux/files/home/mls3-data/token.pickle
+```
+
+### 8. Copy Appointment Types Configuration
+
+```bash
+cp data/appointment_types.yaml ~/mls3-data/appointment_types.yaml
+```
+
+Customize appointment types if needed:
+```bash
+nano ~/mls3-data/appointment_types.yaml
+```
+
+### 9. Test Calendar Sync
+
+1. Start MLS3:
+```bash
+cd ~/storage/shared/mls3
+export MLS3_DATA_DIR=~/mls3-data
+./start.sh
+```
+
+2. You should see:
+```
+Google Calendar sync enabled
+Successfully initialized Google Calendar sync
+```
+
+3. Open MLS3 in browser: `termux-open-url http://localhost:5000`
+
+4. Create a test appointment:
+   - Go to "Appointment Scheduler"
+   - Create a simple appointment for tomorrow
+   - Select Bishop as conductor
+   - Click "Save"
+
+5. Check your Google Calendar - you should see the appointment!
+
+### 10. Verify Calendar Colors
+
+Calendar items should appear with distinct colors:
+- **Bishop appointments**: Peachy background (#f5d5cc) with orange border
+- **Counselor appointments**: Lavender-blue background (#d4ddf2) with blue border
+
+### Troubleshooting Calendar Integration
+
+**Problem**: "credentials.json not found"
+- **Solution**: Verify file exists: `ls -la ~/mls3-data/credentials.json`
+- Check file permissions: `chmod 600 ~/mls3-data/credentials.json`
+
+**Problem**: "Invalid calendar ID" or 404 errors
+- **Solution**: Double-check calendar IDs in environment variables
+- Verify you have "Make changes to events" permission on the calendars
+- Try using your personal calendar ID first to test
+
+**Problem**: OAuth authorization fails in browser
+- **Solution**: Make sure you're logged into the correct Google account
+- Try using an incognito/private browser window
+- Wait a few minutes if you just created the OAuth client (rate limiting)
+
+**Problem**: Token expired or invalid
+- **Solution**: Delete token and re-authorize:
+```bash
+rm ~/mls3-data/token.pickle
+python authorize_google_calendar.py
+```
+
+**Problem**: Events created in wrong calendar
+- **Solution**: Check that BISHOP_CALENDAR_ID and COUNSELOR_CALENDAR_ID are set correctly
+- Print them: `echo $BISHOP_CALENDAR_ID`
+- Verify they match your Calendar IDs from Google Calendar settings
+
+**Problem**: Calendar sync works offline then stops
+- **Solution**: Calendar sync requires internet connection
+- MLS3 will work offline but calendar sync will fail gracefully
+- Events will sync when back online if you manually click "Sync" button
+
+**Problem**: Deleting appointment doesn't delete calendar event
+- **Solution**: This is intentional for completed appointments (preserves history)
+- Non-completed appointments should be deleted from calendar
+- Verify the appointment state before expecting deletion
+
+---
+
 ## Running MLS3
 
 ### Quick Start
@@ -431,18 +623,35 @@ See `mls-master-plan.md` for system architecture and design decisions.
 
 ## Next Steps After Deployment
 
+### Prayer System Testing
 1. ✅ Test creating a prayer assignment
 2. ✅ Test member selection (next-up candidates)
 3. ✅ Test SMS invite (in debug mode first!)
 4. ✅ Test state transitions (Accept, Complete, etc.)
 5. ✅ Test date changes for future weeks
-6. ✅ Import your actual member data
-7. ✅ Customize SMS message templates
-8. ✅ Set up backups
-9. ✅ Create home screen shortcut
-10. ✅ Schedule your first real prayers!
+6. ✅ Schedule your first real prayers!
+
+### Appointment System Testing
+7. ✅ Create test appointment (Temple Recommend, Youth Interview, etc.)
+8. ✅ Test member autocomplete search
+9. ✅ Test appointment state workflow (Draft → Invited → Reminded → Completed)
+10. ✅ Test switching between Bishop and Counselor
+11. ✅ Test Google Calendar sync (if enabled)
+12. ✅ Test appointment editing and deletion
+13. ✅ Verify calendar events show correct colors and states
+
+### Data Management
+14. ✅ Import your actual member data
+15. ✅ Customize SMS message templates
+16. ✅ Customize appointment types (appointment_types.yaml)
+17. ✅ Set up regular backups
+
+### Production Setup
+18. ✅ Create home screen shortcut or widget
+19. ✅ Test with your own phone number before sending to members
+20. ✅ Review TESTING.md checklist for comprehensive verification
 
 ---
 
-*Last Updated: 2026-02-06*
-*For MLS3 Version: 1.0 (Phase 1 Complete)*
+*Last Updated: 2026-02-08*
+*For MLS3 Version: 2.0 (Phases 1 & 2 Complete)*

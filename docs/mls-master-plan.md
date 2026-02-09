@@ -8,7 +8,7 @@ MLS3 (Member Leadership Scheduling System v3) is a church scheduling and communi
 - **Web Framework**: Flask (mobile-responsive web UI)
 - **Data Storage**: CSV files
 - **SMS**: Android intents via termux-api
-- **Calendar**: Google Calendar link generation (with future API integration planned)
+- **Calendar**: Google Calendar API integration with OAuth 2.0 (Phase 2 - Complete)
 - **Deployment**: Termux on Android phone
 - **Development**: Prototype on computer, deploy to phone
 
@@ -365,11 +365,178 @@ def get_next_candidates(gender, count=3):
 
 ---
 
-## Future Activities (Phase 2+)
+## Phase 2: Appointment Management (Complete - 2026-02-08)
 
-These activities are documented for future planning but not yet implemented:
+### Problem Statement
+Need to schedule appointments with members including temple recommends, youth interviews, calling interviews, and setting aparts with:
+- Flexible appointment types with configurable durations
+- Conductor assignment (Bishop vs Counselor)
+- UTC timezone support for proper datetime handling
+- State workflow similar to prayers (Draft → Invited → Accepted → Reminded → Completed)
+- Google Calendar integration with automatic sync
+- Separate calendars for Bishop and Counselor
+- Smart deletion (preserve completed appointments as history)
 
-### Interview/Meeting Types
+### Appointment Database (appointments.csv)
+Tracks all member appointments:
+- `appointment_id` - Unique identifier
+- `member_id` - Foreign key to members.csv
+- `appointment_type` - Type of appointment (from appointment_types.yaml)
+- `datetime_utc` - Appointment date/time in UTC (ISO 8601 format)
+- `duration_minutes` - Duration of appointment
+- `conductor` - "Bishop" or "Counselor"
+- `state` - Current state (Draft/Invited/Accepted/Reminded/Completed/Cancelled)
+- `google_event_id` - Calendar event ID (for sync)
+- `created_date` - When appointment was created
+- `last_updated` - Last modification timestamp
+
+### Appointment Types Configuration (appointment_types.yaml)
+Configurable appointment types with default durations:
+```yaml
+appointment_types:
+  - name: "Temple Recommend - Adult"
+    duration_minutes: 20
+  - name: "Temple Recommend - Youth"
+    duration_minutes: 15
+  - name: "Youth Interview"
+    duration_minutes: 30
+  - name: "New Calling"
+    duration_minutes: 30
+  - name: "Setting Apart"
+    duration_minutes: 15
+```
+
+### Appointment Workflow States
+
+```
+    ┌───────┐
+    │ Draft │  (member selected, type set, time set)
+    └───┬───┘
+        │
+        │ [Send Invite Button]
+        │ (sends SMS)
+        ↓
+   ┌─────────┐
+   │ Invited │  (awaiting confirmation)
+   └────┬────┘
+        │
+        ├─→ [Accept Button] ──→ (member confirmed)
+        │                       ↓
+        │                   ┌──────────┐
+        │                   │ Accepted │
+        │                   └─────┬────┘
+        │                         │
+        │                         ├─→ [Remind Button] ──→ (send reminder)
+        │                         │                        ↓
+        │                         │                   ┌──────────┐
+        │                         │                   │ Reminded │
+        │                         │                   └─────┬────┘
+        │                         │                         │
+        │                         ├─→ [Complete Button] ────┤
+        │                         │                         │
+        │                         └─→ [Delete] ──┐          │
+        │                                         │          │
+        └─→ [Delete] ──┐                         │          │
+                       │                         │          │
+                       ↓                         ↓          ↓
+                   (deleted)                 (deleted)  (completed)
+```
+
+**State Definitions:**
+1. **Draft** - Appointment created, details entered, not yet sent
+2. **Invited** - SMS invitation sent to member, awaiting confirmation
+3. **Accepted** - Member confirmed appointment
+4. **Reminded** - Reminder SMS sent before appointment
+5. **Completed** - Appointment occurred, preserved in calendar as history
+
+### Google Calendar Integration
+
+**Features Implemented:**
+- OAuth 2.0 authorization flow (`authorize_google_calendar.py`)
+- Automatic event creation on appointment save
+- Automatic event updates on appointment changes
+- Separate Bishop and Counselor calendars
+- State indicators in event titles (e.g., "[Invited]", "[Accepted]")
+- Calendar color coding:
+  - Bishop: Peachy background (#f5d5cc) with orange border (#D85236)
+  - Counselor: Lavender-blue background (#d4ddf2) with blue border (#688BDE)
+- Smart deletion:
+  - Completed appointments: Preserved in calendar (history)
+  - Non-completed appointments: Deleted from calendar when removed from MLS3
+- Safety features:
+  - Only deletes MLS3-created events (verified by extended properties)
+  - Stores `mls3_type='appointment'` in event metadata
+- Conductor changes:
+  - Deletes event from old calendar
+  - Creates new event in new calendar
+  - Preserves all appointment details
+- Manual sync button for troubleshooting
+- Graceful offline handling (continues working without internet)
+
+**Files Added:**
+- `utils/google_calendar.py` - Calendar sync implementation
+- `authorize_google_calendar.py` - OAuth setup script
+- `data/appointment_types.yaml` - Configurable appointment types
+
+**Environment Variables:**
+- `MLS3_GOOGLE_CALENDAR` - Enable/disable calendar sync
+- `BISHOP_CALENDAR_ID` - Google Calendar ID for Bishop
+- `COUNSELOR_CALENDAR_ID` - Google Calendar ID for Counselor
+
+### Timezone Handling
+
+**Implementation:**
+- All appointments stored in UTC in `appointments.csv`
+- Display in local timezone (configured in `config.py` as `HOME_TIMEZONE`)
+- Proper DST handling via pytz
+- Calendar events synced with correct timezone offset
+- Date/time editing preserves correct time across timezone conversions
+
+### Appointment UI
+
+**Features:**
+- Member autocomplete search (fuzzy matching)
+- Appointment type dropdown (populated from `appointment_types.yaml`)
+- Date picker and time picker
+- Duration field (pre-filled from appointment type defaults)
+- Conductor toggle (Bishop/Counselor)
+- State-based action buttons
+- Scheduled appointments list (sorted by time with 24-hour internal format)
+- Edit existing appointments
+- Delete appointments with confirmation
+- Manual calendar sync button
+- Events page showing combined prayer and appointment calendar
+
+### Success Criteria (Phase 2) - All Met ✅
+
+1. ✅ Can schedule appointments with configurable types
+2. ✅ System supports Bishop and Counselor conductors
+3. ✅ Can send SMS invitations and reminders
+4. ✅ State workflow tracks appointments through completion
+5. ✅ Appointments automatically sync to Google Calendar
+6. ✅ Separate calendars for Bishop and Counselor
+7. ✅ Calendar events show state indicators
+8. ✅ Completed appointments preserved in calendar
+9. ✅ Can change conductor (moves event between calendars)
+10. ✅ Timezone handling works correctly (UTC storage, local display)
+11. ✅ UI is mobile-responsive and touch-friendly
+12. ✅ Works offline (calendar sync fails gracefully)
+
+---
+
+## Future Enhancements (Phase 3+)
+
+These features are documented for future planning but not yet implemented:
+
+### Completion Tracking System (Phase 3 - Planned)
+Detailed plan documented in `docs/COMPLETION_TRACKING_PLAN.md`:
+- Conductor completion links in calendar events
+- Google Sheets integration for tracking completion status
+- Self-service clerk reporting (no MLS3 access required)
+- MLS3 polls sheet asynchronously to update appointment states
+- Security via secret tokens and expiration timestamps
+
+### Additional Interview/Meeting Types
 1. **Youth Interviews** - Regular interviews with youth (scheduled periodically)
 2. **Temple Recommend Interviews** - Based on expiration tracking from member database
 3. **Calling Interviews** - When extending new callings to members
@@ -393,14 +560,15 @@ Each activity type will likely need:
 - Notes/documentation fields
 - Duration/location fields
 
-### Future Enhancements (Post Phase 2)
-- **Google Calendar API Integration** - Direct event creation/updates (not just links)
+### Additional Future Enhancements (Phase 3+)
+- ✅ **Google Calendar API Integration** - COMPLETED in Phase 2
 - **Google Docs Integration** - Automated announcement document updates
 - **Batch Reminders** - Send reminders to multiple people at once
 - **Analytics/Reporting** - Track completion rates, response times, rotation fairness
 - **Auto-start Script** - Termux service that starts Flask on device boot
 - **Data Export Tools** - Generate reports, backup data to cloud
 - **Import/Sync Improvements** - Better church website CSV sync, conflict resolution
+- **Completion Tracking** - See COMPLETION_TRACKING_PLAN.md for detailed design
 
 ---
 
@@ -567,17 +735,36 @@ Tasks:
 - Bug fixes and refinements
 - Test: Successfully schedule prayers for multiple weeks
 
-### Phase 2+: Additional Activities
-*To be planned after Phase 1 is complete and validated*
+### Phase 2: Appointment Management - COMPLETED ✅
+*Completed 2026-02-08*
+
+**What Was Built:**
+1. ✅ Appointment data model with UTC timezone support
+2. ✅ Configurable appointment types (appointment_types.yaml)
+3. ✅ Appointment scheduler UI with member autocomplete
+4. ✅ State workflow (Draft → Invited → Accepted → Reminded → Completed)
+5. ✅ Google Calendar OAuth integration
+6. ✅ Automatic calendar sync (create/update/delete)
+7. ✅ Separate Bishop and Counselor calendars
+8. ✅ Smart deletion (preserves completed appointments)
+9. ✅ Calendar event colors and state indicators
+10. ✅ Manual sync button for troubleshooting
+11. ✅ Proper timezone handling (UTC storage, local display)
+12. ✅ Events page showing combined calendar view
+
+### Phase 3: Completion Tracking - PLANNED
+*Waiting for bishopric buy-in before implementation*
+
+**Detailed Plan:** See `docs/COMPLETION_TRACKING_PLAN.md`
 
 Approach:
-1. Pick one interview type as template (e.g., Temple Recommend Interviews)
-2. Design its specific workflow and states
-3. Create activity-specific UI (may reuse bubble pattern)
-4. Implement SMS templates for that activity
-5. Add Google Calendar integration
-6. Replicate pattern for other interview types
-7. Consider shared components and abstractions
+1. Add completion links to calendar event descriptions
+2. Create Google Sheets as completion database
+3. Deploy Google Apps Script as web endpoint
+4. Handle completion link clicks via Apps Script
+5. MLS3 polls sheet periodically for updates
+6. Clerk can generate reports directly from sheet
+7. Security via secret tokens and expiration timestamps
 
 ---
 
@@ -826,6 +1013,17 @@ Prayer scheduling system is considered successful when:
 
 ## Revision History
 
+- **2026-02-08 (v2.0)**: Phase 2 Complete - Appointment Management
+  - Added comprehensive Phase 2 section documenting appointment system
+  - Documented Google Calendar API integration with OAuth 2.0
+  - Added appointment database schema (appointments.csv)
+  - Added appointment types configuration (appointment_types.yaml)
+  - Documented timezone handling (UTC storage, local display)
+  - Documented smart deletion behavior (preserve completed appointments)
+  - Updated technology stack (Calendar: API integration complete)
+  - Moved completion tracking to Phase 3 (planned)
+  - Status: Phases 1 & 2 Complete, Phase 3 Planned
+
 - **2026-02-05 (v1.1)**: Added data management strategy
   - Documented code/data separation approach
   - Added config-based DATA_DIR with environment variable support
@@ -842,5 +1040,6 @@ Prayer scheduling system is considered successful when:
 
 ---
 
-*Document Status: Planning Phase Complete*
-*Next Step: Begin Phase 1a - Core Infrastructure*
+*Document Status: Phases 1 & 2 Complete*
+*Current Status: Production-ready for prayer scheduling and appointment management*
+*Next Phase: Phase 3 - Completion Tracking (awaiting approval)*
