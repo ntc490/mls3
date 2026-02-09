@@ -9,30 +9,56 @@
     </div>
 
     <div class="events-filters">
-        <div class="form-row">
-            <div class="form-group">
-                <label for="dateFrom">From Date</label>
-                <input type="date" id="dateFrom" class="form-input">
+        <!-- Search and Sort Controls (always visible) -->
+        <div class="form-row" style="margin-bottom: 1rem;">
+            <div class="form-group" style="flex: 1;">
+                <label for="searchText">Search</label>
+                <input type="text" id="searchText" class="form-input" placeholder="Search names and appointment types...">
             </div>
 
-            <div class="form-group">
-                <label for="dateTo">To Date</label>
-                <input type="date" id="dateTo" class="form-input">
+            <div class="form-group" style="width: auto;">
+                <label for="sortOrder">Sort Days</label>
+                <select id="sortOrder" class="form-input">
+                    <option value="desc">Newest First</option>
+                    <option value="asc">Oldest First</option>
+                </select>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="width: auto;">
                 <label>&nbsp;</label>
-                <button id="applyFilterBtn" class="btn btn-primary">Apply</button>
+                <button id="toggleDateFiltersBtn" class="btn btn-secondary">
+                    <span id="toggleIcon">▼</span> Date Filters
+                </button>
             </div>
         </div>
 
-        <div class="quick-filters">
-            <button class="btn btn-sm btn-secondary" data-range="active">Active Week</button>
-            <button class="btn btn-sm btn-secondary" data-range="today">Today</button>
-            <button class="btn btn-sm btn-secondary" data-range="upcoming">Upcoming</button>
-            <button class="btn btn-sm btn-secondary" data-range="past7">Past 7 days</button>
-            <button class="btn btn-sm btn-secondary" data-range="past30">Past 30 days</button>
-            <button class="btn btn-sm btn-secondary" data-range="all">All</button>
+        <!-- Date Filters (collapsible) -->
+        <div id="dateFiltersSection" style="display: none;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="dateFrom">From Date</label>
+                    <input type="date" id="dateFrom" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label for="dateTo">To Date</label>
+                    <input type="date" id="dateTo" class="form-input">
+                </div>
+
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button id="applyFilterBtn" class="btn btn-primary">Apply</button>
+                </div>
+            </div>
+
+            <div class="quick-filters">
+                <button class="btn btn-sm btn-secondary" data-range="active">Active Week</button>
+                <button class="btn btn-sm btn-secondary" data-range="today">Today</button>
+                <button class="btn btn-sm btn-secondary" data-range="upcoming">Upcoming</button>
+                <button class="btn btn-sm btn-secondary" data-range="past7">Past 7 days</button>
+                <button class="btn btn-sm btn-secondary" data-range="past30">Past 30 days</button>
+                <button class="btn btn-sm btn-secondary" data-range="all">All</button>
+            </div>
         </div>
     </div>
 
@@ -41,7 +67,7 @@
             {% if calendar_items %}
                 {% for date_str, items in calendar_items %}
                 <div class="calendar-date-group">
-                    <h3 class="calendar-date-header">{{ date_str | format_date }}</h3>
+                    <h3 class="calendar-date-header" data-date="{{ date_str }}">{{ date_str | format_date }}</h3>
                     <div class="calendar-items-list">
                         {% for item in items %}
                             {% if item.type == 'prayer' %}

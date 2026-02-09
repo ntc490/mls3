@@ -68,6 +68,15 @@ function setupEventListeners() {
     document.getElementById('dateTo').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') applyDateFilter();
     });
+
+    // Toggle date filters
+    document.getElementById('toggleDateFiltersBtn').addEventListener('click', toggleDateFilters);
+
+    // Search input (live filtering)
+    document.getElementById('searchText').addEventListener('input', applySearchAndSort);
+
+    // Sort order dropdown
+    document.getElementById('sortOrder').addEventListener('change', applySearchAndSort);
 }
 
 /**
@@ -181,6 +190,89 @@ window.addEventListener('pageshow', function(event) {
         window.location.reload();
     }
 });
+
+/**
+ * Toggle date filters section
+ */
+function toggleDateFilters() {
+    const section = document.getElementById('dateFiltersSection');
+    const icon = document.getElementById('toggleIcon');
+
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        icon.textContent = '▲';
+    } else {
+        section.style.display = 'none';
+        icon.textContent = '▼';
+    }
+}
+
+/**
+ * Fuzzy match function - checks if all query terms appear in the text in any order
+ */
+function fuzzyMatch(text, query) {
+    if (!query.trim()) return true;
+
+    const textLower = text.toLowerCase();
+    const queryTerms = query.toLowerCase().split(/\s+/).filter(t => t.length > 0);
+
+    // All query terms must appear in the text (in any order)
+    return queryTerms.every(term => textLower.includes(term));
+}
+
+/**
+ * Apply search and sort to events
+ */
+function applySearchAndSort() {
+    const searchText = document.getElementById('searchText').value;
+    const sortOrder = document.getElementById('sortOrder').value;
+
+    // Get all date groups
+    const dateGroups = Array.from(document.querySelectorAll('.calendar-date-group'));
+
+    // Filter and show/hide items based on search
+    dateGroups.forEach(group => {
+        const items = Array.from(group.querySelectorAll('.calendar-item'));
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            // Get item text content (name and type)
+            const itemText = item.querySelector('.calendar-item-text, .calendar-item-info')?.textContent || '';
+
+            if (fuzzyMatch(itemText, searchText)) {
+                item.style.display = '';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        // Hide date group if no visible items
+        if (visibleCount === 0) {
+            group.style.display = 'none';
+        } else {
+            group.style.display = '';
+        }
+    });
+
+    // Sort date groups
+    const container = document.getElementById('eventsContainer');
+    const sortedGroups = dateGroups.sort((a, b) => {
+        const dateA = a.querySelector('.calendar-date-header')?.dataset.date || a.querySelector('.calendar-date-header')?.textContent;
+        const dateB = b.querySelector('.calendar-date-header')?.dataset.date || b.querySelector('.calendar-date-header')?.textContent;
+
+        if (sortOrder === 'asc') {
+            return dateA < dateB ? -1 : 1;
+        } else {
+            return dateA > dateB ? -1 : 1;
+        }
+    });
+
+    // Re-append in sorted order
+    sortedGroups.forEach(group => {
+        container.appendChild(group);
+    });
+}
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', initEventsPage);
