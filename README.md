@@ -4,11 +4,30 @@ A church scheduling and communication management tool designed to run in Termux 
 
 ## Features
 
+### Prayer Scheduling
 - **Prayer Scheduling**: Schedule opening and closing prayers for sacrament meetings
 - **Fair Rotation**: Automatically tracks last prayer dates to ensure fair rotation
+- **Multi-Week Planning**: Plan multiple weeks in advance with active queue
 - **SMS Integration**: Generate SMS messages via Android intents (Termux)
+
+### Appointment Management
+- **Appointment Scheduling**: Schedule appointments with members (Temple Recommend, Youth Interviews, Callings, etc.)
+- **Configurable Types**: Fully customizable appointment types with default durations
+- **State Workflow**: Track appointments through Draft → Invited → Reminded → Completed
+- **Conductor Assignment**: Separate appointments for Bishop and Counselor
+
+### Google Calendar Integration
+- **Auto-Sync**: Appointments automatically sync to Google Calendar
+- **Separate Calendars**: Bishop and Counselor appointments in different calendars
+- **State Indicators**: Visual indicators for appointment states in calendar
+- **Smart Deletion**: Preserves completed appointments as history
+- **Manual Sync**: Optional manual sync button for troubleshooting
+
+### General Features
 - **Mobile-First UI**: Touch-friendly, responsive interface optimized for phone use
 - **CSV-Based Data**: Simple, editable data storage with no database required
+- **Timezone Support**: Proper UTC/local timezone handling for appointments
+- **Smart Templates**: Powerful template system for SMS messages
 
 ## Quick Start
 
@@ -68,6 +87,7 @@ A church scheduling and communication management tool designed to run in Termux 
    ```bash
    cp data/*.example.csv ~/mls3-data/
    cp data/message_templates.yaml ~/mls3-data/
+   cp data/appointment_types.yaml ~/mls3-data/
 
    # Rename example files
    cd ~/mls3-data
@@ -75,7 +95,17 @@ A church scheduling and communication management tool designed to run in Termux 
    mv prayer_assignments.example.csv prayer_assignments.csv
    ```
 
-7. **Run the application:**
+7. **(Optional) Set up Google Calendar integration:**
+   See **[docs/GOOGLE_CALENDAR_SETUP.md](docs/GOOGLE_CALENDAR_SETUP.md)** for complete instructions.
+
+   ```bash
+   # Enable Google Calendar
+   export MLS3_GOOGLE_CALENDAR=true
+   export BISHOP_CALENDAR_ID="your_bishop_calendar_id"
+   export COUNSELOR_CALENDAR_ID="your_counselor_calendar_id"
+   ```
+
+8. **Run the application:**
    ```bash
    cd ~/storage/shared/mls3
    source venv/bin/activate
@@ -83,7 +113,7 @@ A church scheduling and communication management tool designed to run in Termux 
    python app.py
    ```
 
-8. **Open in browser:**
+9. **Open in browser:**
    ```bash
    termux-open-url http://localhost:5000
    ```
@@ -97,11 +127,13 @@ A church scheduling and communication management tool designed to run in Termux 
 
 ### Data Files
 
-The system uses three main data files:
+The system uses five main data files:
 
 1. **members.csv** - Member database with names, phone numbers, prayer history
 2. **prayer_assignments.csv** - All prayer assignments (past, present, future)
-3. **message_templates.yaml** - Customizable SMS message templates
+3. **appointments.csv** - Appointment tracking database
+4. **message_templates.yaml** - Customizable SMS message templates
+5. **appointment_types.yaml** - Configurable appointment types with default durations
 
 ### Using Mock Data (Development)
 
@@ -178,55 +210,101 @@ cp -r ~/mls3-data ~/storage/shared/Dropbox/mls3-backup/
 
 ```
 mls3/
-├── app.py                       # Flask application entry point
-├── models.py                    # Data models (Member, PrayerAssignment)
-├── config.py                    # Configuration settings
-├── requirements.txt             # Python dependencies
-├── templates/                   # HTML templates
+├── app.py                           # Flask application entry point
+├── models.py                        # Data models (Member, PrayerAssignment, Appointment)
+├── config.py                        # Configuration settings
+├── requirements.txt                 # Python dependencies
+├── authorize_google_calendar.py     # OAuth setup for Google Calendar
+├── templates/                       # HTML templates
 │   ├── base.html
 │   ├── index.html
 │   ├── prayer_scheduler.html
-│   └── members_list.html
+│   ├── appointment_scheduler.html
+│   ├── events.html
+│   ├── members_list.html
+│   └── sms_composer.html
 ├── static/
-│   └── css/
-│       └── style.css           # Mobile-responsive styles
-├── data/                        # Mock data (committed to git)
+│   ├── css/
+│   │   └── style.css               # Mobile-responsive styles
+│   └── js/
+│       ├── appointment_scheduler.js
+│       ├── events.js
+│       └── home.js
+├── data/                            # Mock data (committed to git)
 │   ├── members.example.csv
 │   ├── prayer_assignments.example.csv
-│   └── message_templates.yaml
-└── utils/                       # Utility scripts (coming soon)
+│   ├── message_templates.yaml
+│   └── appointment_types.yaml
+├── utils/                           # Utility scripts
+│   ├── import_members.py
+│   ├── candidate_selector.py
+│   ├── sms_handler.py
+│   ├── template_expander.py
+│   └── google_calendar.py          # Google Calendar integration
+└── docs/                            # Documentation
+    ├── DEPLOYMENT.md
+    ├── TESTING.md
+    ├── GOOGLE_CALENDAR_SETUP.md
+    └── mls-master-plan.md
 ```
 
 ## Configuration
 
 Edit `config.py` or use environment variables:
 
+### General Settings
 - `MLS3_DATA_DIR` - Path to data directory (default: `./data`)
 - `FLASK_DEBUG` - Enable debug mode (default: `True`)
 - `FLASK_HOST` - Host address (default: `127.0.0.1`)
 - `FLASK_PORT` - Port number (default: `5000`)
 - `SECRET_KEY` - Flask secret key (change in production)
 
+### SMS Settings
+- `MLS3_DEBUG_SMS` - Debug mode (prints SMS instead of sending, default: `false`)
+- `MLS3_DISABLE_SMS` - Disable SMS completely (default: `false`)
+
+### Google Calendar Settings
+- `MLS3_GOOGLE_CALENDAR` - Enable Google Calendar sync (default: `false`)
+- `BISHOP_CALENDAR_ID` - Google Calendar ID for Bishop appointments
+- `COUNSELOR_CALENDAR_ID` - Google Calendar ID for Counselor appointments
+
 ## Current Status
 
-### ✅ Phase 1 Complete - Prayer Scheduling System Ready for Production!
+### ✅ Phase 1 Complete - Prayer Scheduling System
+- ✅ Core Infrastructure
+- ✅ Member Database & Import
+- ✅ Prayer Scheduler UI
+- ✅ Candidate Selection Algorithm
+- ✅ SMS Integration
+- ✅ State Management & Workflow
+- ✅ Active Queue & Multi-Week Support
+- ✅ Mobile Optimization & Polish
+- ✅ Documentation & Deployment
 
-**Completed Features:**
-- ✅ Phase 1a: Core Infrastructure
-- ✅ Phase 1b: Member Database & Import
-- ✅ Phase 1c: Prayer Scheduler UI
-- ✅ Phase 1d: Candidate Selection Algorithm
-- ✅ Phase 1e: SMS Integration
-- ✅ Phase 1f: State Management & Workflow
-- ✅ Phase 1g: Active Queue & Multi-Week Support
-- ✅ Phase 1h: Mobile Optimization & Polish
-- ✅ Phase 1i: Documentation & Deployment
+### ✅ Phase 2 Complete - Appointment Management
+- ✅ Appointment data model with UTC timezone support
+- ✅ Appointment types (Temple Recommend, Youth Interviews, Callings, etc.)
+- ✅ Appointment scheduler UI with state workflow
+- ✅ Google Calendar integration with OAuth
+- ✅ Separate Bishop/Counselor calendars
+- ✅ Auto-sync on create/update/delete/state change
+- ✅ Smart deletion (preserves completed appointments)
+- ✅ Manual sync button
+- ✅ Timezone bug fixes and proper UTC/local handling
+- ✅ Mobile-optimized calendar event colors
+
+### 📋 Phase 3 Planned - Completion Tracking
+- Conductor completion links in calendar events
+- Google Sheet integration for clerk reports
+- Self-service reporting without MLS3 access
 
 **Ready to Use:**
 - Full prayer scheduling workflow
+- Full appointment scheduling workflow
 - Fair rotation candidate selection
 - SMS invitations and reminders
-- Multi-week planning with active queue
+- Multi-week prayer planning with active queue
+- Google Calendar integration (optional)
 - Mobile-optimized interface
 - Termux deployment support
 
@@ -240,6 +318,9 @@ source venv/bin/activate
 # Enable SMS debug mode (skips actual SMS sending, prints to console)
 export MLS3_DEBUG_SMS=true
 
+# Optional: Enable Google Calendar (requires setup)
+export MLS3_GOOGLE_CALENDAR=true
+
 python app.py
 ```
 
@@ -248,19 +329,24 @@ Access at `http://localhost:5000`
 **SMS Debug Mode**: When `MLS3_DEBUG_SMS=true`, clicking Invite or Remind buttons will:
 - Skip opening the SMS app
 - Print the message to console instead
-- Still update the assignment state as if sent
+- Still update the assignment/appointment state as if sent
 - Great for testing on desktop without Termux
 
 ### Available Routes
 
 - `/` - Homepage with system overview
-- `/members` - List of all active members (for testing)
-- `/prayer-scheduler` - Main prayer scheduling interface
+- `/members` - List of all active members
+- `/prayer-scheduler` - Prayer scheduling interface
+- `/appointment-scheduler` - Appointment scheduling interface
+- `/events` - Calendar view of all events
+- `/sms-composer` - Standalone SMS message composer
 - `/api/members/search?q=<query>` - Search members API
+- `/api/appointments/...` - Appointment management API
+- `/api/prayers/...` - Prayer assignment API
 
 ## Contributing
 
-See `mls-master-plan.md` for detailed development roadmap and architecture.
+See `docs/mls-master-plan.md` for detailed development roadmap and architecture.
 
 ## License
 
@@ -268,9 +354,11 @@ Private project for personal church use.
 
 ## Documentation
 
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete Termux deployment guide
-- **[TESTING.md](TESTING.md)** - Testing checklist for verification
-- **[mls-master-plan.md](mls-master-plan.md)** - System architecture and design
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Complete Termux deployment guide
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing checklist for verification
+- **[docs/GOOGLE_CALENDAR_SETUP.md](docs/GOOGLE_CALENDAR_SETUP.md)** - Google Calendar integration setup
+- **[docs/COMPLETION_TRACKING_PLAN.md](docs/COMPLETION_TRACKING_PLAN.md)** - Future: Completion tracking system
+- **[docs/mls-master-plan.md](docs/mls-master-plan.md)** - System architecture and design
 - **[README.md](README.md)** - This file (quick start guide)
 
 ## Getting Started
@@ -285,7 +373,7 @@ python app.py
 ```
 
 ### For Production (Termux)
-See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete setup guide.
+See **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** for complete setup guide.
 
 Quick start:
 ```bash
@@ -294,9 +382,13 @@ export MLS3_DATA_DIR=~/mls3-data
 ./start.sh
 ```
 
+### For Google Calendar Integration
+See **[docs/GOOGLE_CALENDAR_SETUP.md](docs/GOOGLE_CALENDAR_SETUP.md)** for complete setup guide.
+
 ## Support
 
-- **Deployment Issues**: See [DEPLOYMENT.md](DEPLOYMENT.md)
-- **Testing**: See [TESTING.md](TESTING.md)
-- **Architecture**: See [mls-master-plan.md](mls-master-plan.md)
+- **Deployment Issues**: See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- **Testing**: See [docs/TESTING.md](docs/TESTING.md)
+- **Google Calendar**: See [docs/GOOGLE_CALENDAR_SETUP.md](docs/GOOGLE_CALENDAR_SETUP.md)
+- **Architecture**: See [docs/mls-master-plan.md](docs/mls-master-plan.md)
 - **Questions**: Create an issue in the repository
