@@ -9,25 +9,19 @@
     </div>
 
     <div class="events-filters">
-        <!-- Search and Sort Controls (always visible) -->
-        <div class="form-row" style="margin-bottom: 1rem;">
+        <!-- Search Bar (always visible) -->
+        <div class="form-row" style="margin-bottom: 0.5rem;">
             <div class="form-group" style="flex: 1;">
                 <label for="searchText">Search</label>
                 <input type="text" id="searchText" class="form-input" placeholder="Search names and appointment types...">
             </div>
+        </div>
 
-            <div class="form-group" style="width: auto;">
-                <label for="sortOrder">Sort Days</label>
-                <select id="sortOrder" class="form-input">
-                    <option value="desc">Newest First</option>
-                    <option value="asc">Oldest First</option>
-                </select>
-            </div>
-
-            <div class="form-group" style="width: auto;">
-                <label>&nbsp;</label>
-                <button id="toggleDateFiltersBtn" class="btn btn-secondary">
-                    <span id="toggleIcon">▼</span> Date Filters
+        <!-- Filter Toggle Button -->
+        <div class="form-row" style="margin-bottom: 1rem;">
+            <div class="form-group" style="flex: 1;">
+                <button id="toggleDateFiltersBtn" class="btn btn-secondary" style="width: 100%;">
+                    <span id="toggleIcon">▼</span> Filter/Sort
                 </button>
             </div>
         </div>
@@ -45,9 +39,14 @@
                     <input type="date" id="dateTo" class="form-input">
                 </div>
 
-                <div class="form-group">
+                <div class="form-group" style="width: auto;">
                     <label>&nbsp;</label>
                     <button id="applyFilterBtn" class="btn btn-primary">Apply</button>
+                </div>
+
+                <div class="form-group" style="width: auto;">
+                    <label>&nbsp;</label>
+                    <button id="sortToggleBtn" class="btn btn-primary" data-order="desc">Dates ↓</button>
                 </div>
             </div>
 

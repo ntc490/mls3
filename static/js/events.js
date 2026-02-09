@@ -75,8 +75,32 @@ function setupEventListeners() {
     // Search input (live filtering)
     document.getElementById('searchText').addEventListener('input', applySearchAndSort);
 
-    // Sort order dropdown
-    document.getElementById('sortOrder').addEventListener('change', applySearchAndSort);
+    // Sort toggle button
+    document.getElementById('sortToggleBtn').addEventListener('click', toggleSort);
+}
+
+/**
+ * Toggle sort order between ascending and descending
+ */
+function toggleSort() {
+    const btn = document.getElementById('sortToggleBtn');
+    const currentOrder = btn.dataset.order;
+
+    if (currentOrder === 'desc') {
+        // Switch to ascending (oldest first)
+        btn.dataset.order = 'asc';
+        btn.textContent = 'Dates ↑';
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-secondary');
+    } else {
+        // Switch to descending (newest first)
+        btn.dataset.order = 'desc';
+        btn.textContent = 'Dates ↓';
+        btn.classList.remove('btn-secondary');
+        btn.classList.add('btn-primary');
+    }
+
+    applySearchAndSort();
 }
 
 /**
@@ -225,7 +249,7 @@ function fuzzyMatch(text, query) {
  */
 function applySearchAndSort() {
     const searchText = document.getElementById('searchText').value;
-    const sortOrder = document.getElementById('sortOrder').value;
+    const sortOrder = document.getElementById('sortToggleBtn').dataset.order;
 
     // Get all date groups
     const dateGroups = Array.from(document.querySelectorAll('.calendar-date-group'));
