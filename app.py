@@ -1577,22 +1577,31 @@ def sms_composer():
         return redirect('/')
 
     # Get adhoc template categories from YAML
+    # Show all base templates (without _parent suffix) regardless of member type
     adhoc_templates = templates.templates.get('adhoc', {})
+
+    # Filter to show only base templates (not _parent variants)
+    filtered_templates = {
+        name: text for name, text in adhoc_templates.items()
+        if not name.endswith('_parent')
+    }
 
     return render_template('sms_composer.html',
                           member=member,
-                          adhoc_templates=adhoc_templates)
+                          adhoc_templates=filtered_templates)
 
 
 @app.route('/api/expand-template', methods=['POST'])
 def api_expand_template():
     """
     Expand template with member context and custom variables.
+    Handles parent routing for minors.
 
     Request JSON:
         {
             "member_id": 123,
             "template": "Hi {name|blue?formal:casual}, {random:casual_greeting} ...",
+            "template_name": "birthday" (optional - for auto-detecting _parent variant),
             "variables": {
                 "event_name": "Ward Picnic",
                 "calling_name": "Primary Teacher"
@@ -1602,7 +1611,9 @@ def api_expand_template():
     Returns:
         {
             "expanded": "Hi John, I hope you're well. ...",
-            "length": 145
+            "length": 145,
+            "template_used": "birthday" or "birthday_parent",
+            "recipient": "John Smith" or "Brother and Sister Wilson"
         }
     """
     from utils.template_expander import SmartTemplateExpander
@@ -1610,6 +1621,7 @@ def api_expand_template():
     data = request.json
     member_id = data.get('member_id')
     template_str = data.get('template', '')
+    template_name = data.get('template_name')  # Optional: for parent template lookup
     custom_vars = data.get('variables', {})
 
     if not member_id:
@@ -1619,13 +1631,55 @@ def api_expand_template():
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
+    # Check if member is a minor - try parent template first, fall back to base
+    recipient_name = member.display_name
+    actual_template_name = template_name
+
+    if member.is_minor and template_name:
+        # Try to find parent variant first
+        parent_template_name = f"{template_name}_parent"
+        parent_template = templates.get_template('adhoc', parent_template_name)
+
+        if parent_template:
+            # Parent template exists - use it
+            template_str = parent_template
+            actual_template_name = parent_template_name
+
+            # Get parents to build greeting
+            parents = members_db.get_parents(member_id)
+
+            if parents:
+                # Build parent greeting (same logic as sms_handler.py)
+                any_formal = any(p.has_flag('blue') for p in parents)
+
+                if len(parents) == 1:
+                    parent = parents[0]
+                    if parent.has_flag('blue'):
+                        title = 'Brother' if parent.gender == 'M' else 'Sister'
+                        parent_greeting = f"{title} {parent.last_name}"
+                    else:
+                        parent_greeting = parent.display_name
+                elif any_formal:
+                    parent_greeting = f"Brother and Sister {parents[0].last_name}"
+                else:
+                    parent_names_casual = [p.display_name for p in parents]
+                    parent_greeting = ' & '.join(parent_names_casual)
+
+                # Add parent-specific variables (auto-populated)
+                custom_vars['child_name'] = member.display_name
+                custom_vars['parent_greeting'] = parent_greeting
+                recipient_name = parent_greeting
+        # else: No parent template found - fall back to base template (template_str unchanged)
+
     # Expand template with smart variables
     expander = SmartTemplateExpander(templates)
     expanded = expander.expand(template_str, member, appointment=None, **custom_vars)
 
     return jsonify({
         'expanded': expanded,
-        'length': len(expanded)
+        'length': len(expanded),
+        'template_used': actual_template_name,
+        'recipient': recipient_name
     })
 
 
@@ -1660,6 +1714,60 @@ def api_queue_sms():
         return jsonify({'success': True})
     else:
         return jsonify({'error': 'Failed to queue SMS'}), 500
+
+
+@app.route('/api/members/<int:member_id>/sms-direct', methods=['POST'])
+def send_direct_sms(member_id):
+    """
+    Open direct SMS to member (or parents if minor).
+    Returns the phone number(s) to use for the SMS intent.
+
+    Returns:
+        {
+            "phone": "+1234567890" or "+1234567890;+0987654321",
+            "member_name": "John Smith"
+        }
+    """
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    # Check if member is a minor - route to parents
+    if member.is_minor:
+        parents = members_db.get_parents(member_id)
+
+        if not parents:
+            return jsonify({
+                'error': f"{member.display_name} is a minor with no parents found in household"
+            }), 400
+
+        # Collect parent phone numbers
+        parent_phones = []
+        for parent in parents:
+            if parent.phone and parent.phone.strip():
+                parent_phones.append(parent.phone.strip())
+
+        if not parent_phones:
+            return jsonify({
+                'error': f"{member.display_name}'s parents have no phone numbers on file"
+            }), 400
+
+        # Return semicolon-separated phones for group SMS
+        return jsonify({
+            'phone': ';'.join(parent_phones),
+            'member_name': member.display_name
+        })
+
+    # Normal member - check for phone
+    if not member.phone or member.phone.strip() == '':
+        return jsonify({
+            'error': f"{member.display_name} has no phone number on file"
+        }), 400
+
+    return jsonify({
+        'phone': member.phone,
+        'member_name': member.display_name
+    })
 
 
 @app.template_filter('format_date')

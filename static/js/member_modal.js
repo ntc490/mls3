@@ -637,16 +637,32 @@ async function createPrayerAssignment() {
 
 /**
  * Send text message to member (direct SMS)
+ * Handles parent routing for minors
  */
-function sendTextMessage() {
-    if (!currentMemberPhone) {
-        alert('No phone number on file for this member');
-        return;
-    }
+async function sendTextMessage() {
+    if (!currentMemberId) return;
 
-    // Open SMS app using Android intent
-    const smsUrl = `sms:${currentMemberPhone}`;
-    window.location.href = smsUrl;
+    try {
+        // Get phone number(s) via API (handles parent routing for minors)
+        const response = await fetch(`/api/members/${currentMemberId}/sms-direct`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            alert(result.error || 'Failed to send SMS');
+            return;
+        }
+
+        // Open SMS app using Android intent
+        const smsUrl = `sms:${result.phone}`;
+        window.location.href = smsUrl;
+
+    } catch (error) {
+        console.error('Error opening SMS:', error);
+        alert('Failed to open SMS');
+    }
 }
 
 /**

@@ -1961,6 +1961,12 @@ input:checked + .slider:before {
     margin-top: 0.5rem;
 }
 
+.composer-header .info-message {
+    color: var(--primary-color);
+    font-weight: 500;
+    margin-top: 0.5rem;
+}
+
 .composer-form {
     max-width: 600px;
 }

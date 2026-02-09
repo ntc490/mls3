@@ -88,9 +88,12 @@ adhoc:
   temple_recommend: "Hi {name|blue?formal:casual}, {random:casual_greeting}Bishop asked me to contact members on the month their temple recommend expires. Please let me know if I can help you setup an appointment."
 
   prayer_thanks: "Hi {name|blue?formal:casual}, thank you for praying!"
+  prayer_thanks_parent: "Hi {parent_greeting}, thank you for having {child_name} pray!"
 
   checkin: "Hi {name|blue?formal:casual}, {random:casual_greeting}Just wanted to check in and see how you're doing."
+  checkin_parent: "Hi {parent_greeting}, {random:casual_greeting}Just wanted to check in and see how you and {child_name} are doing."
 
   birthday: "Hi {name|blue?formal:casual}, Happy Birthday! Hope you have a wonderful day!"
+  birthday_parent: "Hi {parent_greeting}, Happy Birthday to {child_name}! Hope they have a wonderful day!"
 
 

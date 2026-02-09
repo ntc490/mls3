@@ -23,15 +23,42 @@ function restoreScrollPosition() {
 
 /**
  * Open SMS app with phone number
+ * Note: memberId parameter is passed via data-member-id attribute from the button
+ * Handles parent routing for minors
  */
-function openSMS(phone) {
-    if (!phone) {
-        alert('No phone number on file for this member');
+async function openSMS(phone, memberId) {
+    if (!memberId) {
+        // Fallback to direct phone if no member ID (shouldn't happen)
+        if (!phone) {
+            alert('No phone number on file for this member');
+            return;
+        }
+        const smsUrl = `sms:${phone}`;
+        window.location.href = smsUrl;
         return;
     }
-    // Open SMS app using Android intent
-    const smsUrl = `sms:${phone}`;
-    window.location.href = smsUrl;
+
+    try {
+        // Get phone number(s) via API (handles parent routing for minors)
+        const response = await fetch(`/api/members/${memberId}/sms-direct`, {
+            method: 'POST'
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            alert(result.error || 'Failed to send SMS');
+            return;
+        }
+
+        // Open SMS app with blank message
+        const smsUrl = `sms:${result.phone}`;
+        window.location.href = smsUrl;
+
+    } catch (error) {
+        console.error('Error opening SMS:', error);
+        alert('Failed to open SMS');
+    }
 }
 
 /**
@@ -118,11 +145,12 @@ function setupLongPressSMS() {
 
         button.addEventListener('mouseup', (e) => {
             const phone = button.dataset.phone;
+            const memberId = button.dataset.memberId;
             clearTimeout(pressTimer);
             button.style.opacity = '';
             if (!isLongPress) {
                 // Normal click: direct SMS
-                openSMS(phone);
+                openSMS(phone, memberId);
             }
         });
 
@@ -146,11 +174,12 @@ function setupLongPressSMS() {
 
         button.addEventListener('touchend', (e) => {
             const phone = button.dataset.phone;
+            const memberId = button.dataset.memberId;
             e.preventDefault();
             clearTimeout(pressTimer);
             button.style.opacity = '';
             if (!isLongPress) {
-                openSMS(phone);
+                openSMS(phone, memberId);
             }
         });
 

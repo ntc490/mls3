@@ -7,7 +7,9 @@
     <div class="composer-header">
         <h1>SMS Composer</h1>
         <p class="member-name">To: {{ member.full_name }}</p>
-        {% if not member.phone %}
+        {% if member.is_minor %}
+        <p class="info-message">📱 Message will be sent to parent(s)</p>
+        {% elif not member.phone %}
         <p class="error-message">⚠️ This member has no phone number on file</p>
         {% endif %}
     </div>
@@ -50,7 +52,7 @@
             <button id="expandBtn" class="btn btn-secondary">
                 Expand
             </button>
-            <button id="sendBtn" class="btn btn-primary" {% if not member.phone %}disabled{% endif %}>
+            <button id="sendBtn" class="btn btn-primary">
                 Send
             </button>
         </div>

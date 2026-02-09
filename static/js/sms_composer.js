@@ -7,7 +7,7 @@
 const STANDARD_VARS = [
     'name', 'first_name', 'last_name', 'member_name', 'full_name',
     'date', 'smart_date', 'time', 'conductor', 'prayer_type',
-    'appointment_type'
+    'appointment_type', 'parent_greeting', 'child_name'
 ];
 
 // Store the original template text for re-expansion
@@ -44,6 +44,7 @@ async function handleTemplateSelect(e) {
         document.getElementById('messageText').value = '';
         document.getElementById('customVarsSection').style.display = 'none';
         originalTemplate = null;
+        window.currentTemplateName = null;
         updateCharCount();
         return;
     }
@@ -55,8 +56,9 @@ async function handleTemplateSelect(e) {
         return;
     }
 
-    // Store original template for re-expansion
+    // Store original template and name for re-expansion
     originalTemplate = templateText;
+    window.currentTemplateName = templateName;
 
     // Set template in text area
     document.getElementById('messageText').value = templateText;
@@ -164,6 +166,7 @@ async function expandMessage() {
             body: JSON.stringify({
                 member_id: memberId,
                 template: templateText,
+                template_name: window.currentTemplateName,
                 variables: customVars
             })
         });
@@ -180,6 +183,11 @@ async function expandMessage() {
         // Update character count
         updateCharCount();
 
+        // Show which template was used (if different from selected)
+        if (result.template_used && result.template_used !== window.currentTemplateName) {
+            console.log(`Using parent template: ${result.template_used}`);
+        }
+
     } catch (error) {
         console.error('Error expanding template:', error);
         alert('Failed to expand template: ' + error.message);
@@ -188,6 +196,7 @@ async function expandMessage() {
 
 /**
  * Send SMS
+ * Handles parent routing for minors
  */
 async function sendSMS() {
     const message = document.getElementById('messageText').value.trim();
@@ -197,29 +206,22 @@ async function sendSMS() {
         return;
     }
 
-    if (!memberPhone) {
-        alert('This member has no phone number on file');
-        return;
-    }
-
     try {
-        const response = await fetch('/api/queue-sms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                phone: memberPhone,
-                message: message
-            })
+        // Get phone number(s) via API (handles parent routing for minors)
+        const phoneResponse = await fetch(`/api/members/${memberId}/sms-direct`, {
+            method: 'POST'
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to queue SMS');
+        const phoneResult = await phoneResponse.json();
+
+        if (!phoneResponse.ok) {
+            alert(phoneResult.error || 'Failed to get phone number');
+            return;
         }
 
-        // Success - redirect to home
-        window.location.href = '/';
+        // Open SMS app with the message pre-filled
+        const smsUrl = `sms:${phoneResult.phone}?body=${encodeURIComponent(message)}`;
+        window.location.href = smsUrl;
 
     } catch (error) {
         console.error('Error sending SMS:', error);
