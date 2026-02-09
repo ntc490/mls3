@@ -218,9 +218,9 @@ class CalendarSync:
         # Create event summary with state indicator
         if appointment.state in ['Draft', 'Invited']:
             state_prefix = "? "
-        elif appointment.state == 'Complete':
+        elif appointment.state == 'Completed':
             state_prefix = "✓ "
-        else:  # Accepted
+        else:  # Accepted, Reminded, Cancelled
             state_prefix = ""
         summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
 
@@ -291,9 +291,9 @@ class CalendarSync:
         # Create event summary with state indicator
         if appointment.state in ['Draft', 'Invited']:
             state_prefix = "? "
-        elif appointment.state == 'Complete':
+        elif appointment.state == 'Completed':
             state_prefix = "✓ "
-        else:  # Accepted
+        else:  # Accepted, Reminded, Cancelled
             state_prefix = ""
         summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
 
