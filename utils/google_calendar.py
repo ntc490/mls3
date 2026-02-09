@@ -222,7 +222,7 @@ class CalendarSync:
             state_prefix = "✓ "
         else:  # Accepted
             state_prefix = ""
-        summary = f"{state_prefix}{appointment.appointment_type} - {member.display_name_with_last}"
+        summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
 
         # Build event object
         event = {
@@ -295,7 +295,7 @@ class CalendarSync:
             state_prefix = "✓ "
         else:  # Accepted
             state_prefix = ""
-        summary = f"{state_prefix}{appointment.appointment_type} - {member.display_name_with_last}"
+        summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
 
         # Build updated event object
         event = {
