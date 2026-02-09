@@ -94,6 +94,27 @@ function applyQuickFilter(range) {
     let fromDate, toDate;
 
     switch (range) {
+        case 'active':
+            // Active week: same calculation as homepage
+            // Determine target Sunday
+            let targetSunday;
+            if (today.getDay() === 0) {
+                // On Sunday (getDay() returns 0 for Sunday), show this Sunday
+                targetSunday = today;
+            } else {
+                // Monday-Saturday, show next Sunday
+                targetSunday = getNextSunday(today);
+            }
+
+            // Calculate Monday of the target week (6 days before Sunday)
+            const weekStart = addDays(targetSunday, -6);
+
+            // Only show events from today onwards (don't show past events from earlier in the week)
+            const actualStart = today > weekStart ? today : weekStart;
+
+            fromDate = formatDate(actualStart);
+            toDate = formatDate(targetSunday);
+            break;
         case 'today':
             fromDate = formatDate(today);
             toDate = formatDate(today);
@@ -139,6 +160,17 @@ function formatDate(date) {
 function addDays(date, days) {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
+    return result;
+}
+
+/**
+ * Get next Sunday from a given date
+ */
+function getNextSunday(fromDate) {
+    const result = new Date(fromDate);
+    const dayOfWeek = result.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const daysUntilSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek;
+    result.setDate(result.getDate() + daysUntilSunday);
     return result;
 }
 
