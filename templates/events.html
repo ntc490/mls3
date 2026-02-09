@@ -61,12 +61,12 @@
                                 </div>
                             </div>
                             {% elif item.type == 'appointment' %}
-                            <div class="calendar-item calendar-item-appointment">
+                            <div class="calendar-item calendar-item-appointment calendar-item-{{ item.conductor.lower() }}">
                                 <div class="calendar-item-info">
                                     <span class="calendar-item-text">
-                                        📅 <a href="{{ url_for('appointment_scheduler') }}?appointment_id={{ item.appointment_id }}" class="event-link" onclick="saveScrollPosition()">{{ item.time }} - {{ item.member_name }}</a> - {{ item.appointment_type }} ({{ item.conductor }})
+                                        <a href="{{ url_for('appointment_scheduler') }}?appointment_id={{ item.appointment_id }}" class="event-link" onclick="saveScrollPosition()">{{ item.time }} - {{ item.member_name }}</a> - {{ item.appointment_type }}
+                                        <span class="calendar-item-state state-{{ item.state.lower() }}">{{ item.state }}</span>
                                     </span>
-                                    <span class="calendar-item-state state-{{ item.state.lower() }}">{{ item.state }}</span>
                                 </div>
                                 <div class="calendar-item-actions">
                                     <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ item.member_phone }}')">

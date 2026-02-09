@@ -1512,12 +1512,12 @@ input:checked + .slider:before {
 
 /* Appointment color coding - Bishop = dark orange (#D85236), Counselor = blue (#688BDE) */
 .calendar-item-appointment.calendar-item-bishop {
-    background-color: #fdf2ef;
+    background-color: #f5d5cc;
     border-left: 4px solid #D85236;
 }
 
 .calendar-item-appointment.calendar-item-counselor {
-    background-color: #f0f3fb;
+    background-color: #d4ddf2;
     border-left: 4px solid #688BDE;
 }
 
