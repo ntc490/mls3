@@ -54,3 +54,7 @@ appointment_types:
   - name: "Living Ordinance"
     default_duration: 20
     default_conductor: "Bishop"
+
+  - name: "Release"
+    default_duration: 10
+    default_conductor: "Counselor"
