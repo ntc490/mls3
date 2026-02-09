@@ -5,10 +5,115 @@ Generates SMS messages from templates and sends them via Tasker.
 Automatically routes messages to parents for minors.
 """
 from datetime import date
-from typing import Optional, List
+from typing import Optional, List, Dict, Tuple
 
 from models import Member, MessageTemplates, MemberDatabase
 import config
+
+
+def get_sms_info(activity: str, template_name: str, member: Member,
+                 templates: MessageTemplates, members_db: MemberDatabase = None,
+                 appointment=None, **kwargs) -> Dict:
+    """
+    Get SMS message and phone number(s) for a member.
+    Handles parent routing for minors automatically.
+
+    This is the shared logic used by all SMS functions - it just returns
+    the message and phone without actually sending.
+
+    Args:
+        activity: Template category (prayer, appointments, adhoc)
+        template_name: Template name within category (invite, reminder, etc.)
+        member: Member object
+        templates: MessageTemplates instance
+        members_db: MemberDatabase instance (required for parent routing)
+        appointment: Optional appointment/assignment object
+        **kwargs: Additional variables
+
+    Returns:
+        Dict with:
+            success: bool
+            message: str (if success)
+            phone: str (if success)
+            error: str (if not success)
+    """
+    # Check if member is a minor and we should route to parents
+    if member.is_minor:
+        if not members_db:
+            return {
+                'success': False,
+                'error': f"{member.display_name} is a minor but cannot route to parents (system error)"
+            }
+
+        # Get parents
+        parents = members_db.get_parents(member.member_id)
+        if not parents:
+            return {
+                'success': False,
+                'error': f"{member.display_name} is a minor with no parents found in household"
+            }
+
+        # Collect parent phone numbers
+        parent_phones = []
+        for parent in parents:
+            if parent.phone and parent.phone.strip():
+                parent_phones.append(parent.phone.strip())
+
+        if not parent_phones:
+            return {
+                'success': False,
+                'error': f"{member.display_name}'s parents have no phone numbers on file"
+            }
+
+        # Build parent greeting
+        any_formal = any(p.has_flag('blue') for p in parents)
+        if len(parents) == 1:
+            parent = parents[0]
+            if parent.has_flag('blue'):
+                title = 'Brother' if parent.gender == 'M' else 'Sister'
+                parent_greeting = f"{title} {parent.last_name}"
+            else:
+                parent_greeting = parent.display_name
+        elif any_formal:
+            parent_greeting = f"Brother and Sister {parents[0].last_name}"
+        else:
+            parent_names_casual = [p.display_name for p in parents]
+            parent_greeting = ' & '.join(parent_names_casual)
+
+        # Use parent template
+        parent_template_name = f"{template_name}_parent"
+        kwargs['child_name'] = member.display_name
+        kwargs['parent_greeting'] = parent_greeting
+
+        # Try parent template, fall back to base
+        try:
+            message = templates.expand_smart(activity, parent_template_name, member, appointment, **kwargs)
+        except KeyError:
+            # Parent template doesn't exist, use base template
+            message = templates.expand_smart(activity, template_name, member, appointment, **kwargs)
+
+        # Return group SMS phone
+        return {
+            'success': True,
+            'message': message,
+            'phone': ';'.join(parent_phones)
+        }
+
+    # Normal member flow
+    if not member.phone or member.phone.strip() == '':
+        return {
+            'success': False,
+            'error': f"{member.display_name} has no phone number on file"
+        }
+
+    # Expand template
+    message = templates.expand_smart(activity, template_name, member, appointment, **kwargs)
+
+    return {
+        'success': True,
+        'message': message,
+        'phone': member.phone
+    }
 
 
 def expand_and_send(activity: str, template_name: str, member: Member,
@@ -32,123 +137,18 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         - (True, None) if SMS was successfully queued
         - (False, "error message") if failed
     """
-    # Check if member is a minor and we should route to parents
+    # Get message and phone using shared logic
+    result = get_sms_info(activity, template_name, member, templates, members_db, appointment, **kwargs)
+
+    if not result['success']:
+        print(f"ERROR: {result['error']}")
+        return (False, result['error'])
+
+    # Send via Tasker
     if member.is_minor:
-        if not members_db:
-            error_msg = f"{member.display_name} is a minor but cannot route to parents (system error)"
-            print(f"WARNING: {member.full_name} is a minor but members_db not provided - cannot route to parents")
-            return (False, error_msg)
         print(f"Member {member.full_name} is a minor - routing to parents")
-        return send_to_parents(activity, template_name, member, templates, members_db, appointment, **kwargs)
 
-    # Normal member flow - send directly
-    # Check for phone number
-    if not member.phone or member.phone.strip() == '':
-        error_msg = f"{member.display_name} has no phone number on file"
-        print(f"ERROR: Cannot send SMS - {member.full_name} has no phone number")
-        return (False, error_msg)
-
-    # Expand template with smart variables
-    message = templates.expand_smart(activity, template_name, member, appointment, **kwargs)
-
-    # Send via Tasker
-    success = send_sms_intent(member.phone, message)
-    return (success, None) if success else (False, "Failed to queue SMS")
-
-
-def send_to_parents(activity: str, template_name: str, child: Member,
-                   templates: MessageTemplates, members_db: MemberDatabase,
-                   appointment=None, **kwargs):
-    """
-    Send message to parents instead of minor child.
-    Uses _parent template variant with {child_name} variable.
-    Sends group SMS to all parents.
-
-    Args:
-        activity: Template category (prayer, appointments, adhoc)
-        template_name: Template name within category (invite, reminder, etc.)
-        child: Minor member object
-        templates: MessageTemplates instance
-        members_db: MemberDatabase instance
-        appointment: Optional appointment/assignment object
-        **kwargs: Additional variables
-
-    Returns:
-        Tuple of (success: bool, error_message: str or None)
-    """
-    # Get parents from household
-    parents = members_db.get_parents(child.member_id)
-
-    if not parents:
-        error_msg = f"{child.display_name} is a minor with no parents found in household"
-        print(f"WARNING: {child.full_name} is a minor but no parents found in household")
-        print(f"Cannot send SMS - no parent contact available")
-        return (False, error_msg)
-
-    # Collect parent phone numbers
-    parent_phones = []
-    parent_names = []
-    for parent in parents:
-        if parent.phone and parent.phone.strip():
-            parent_phones.append(parent.phone.strip())
-            parent_names.append(parent.full_name)
-
-    if not parent_phones:
-        error_msg = f"{child.display_name}'s parents have no phone numbers on file"
-        print(f"ERROR: Cannot send SMS - no parent has phone number")
-        print(f"Parents: {', '.join(p.full_name for p in parents)}")
-        return (False, error_msg)
-
-    # Use first parent for template expansion (for has_flag checks)
-    primary_parent = parents[0]
-
-    # Build parent greeting based on formality
-    # Check if any parent has blue flag (formal)
-    any_formal = any(p.has_flag('blue') for p in parents)
-
-    if len(parents) == 1:
-        # Single parent - check if formal or casual
-        parent = parents[0]
-        if parent.has_flag('blue'):
-            # Formal - use Brother/Sister LastName
-            title = 'Brother' if parent.gender == 'M' else 'Sister'
-            parent_greeting = f"{title} {parent.last_name}"
-        else:
-            # Casual - just use their first name
-            parent_greeting = parent.display_name
-    elif any_formal:
-        # At least one parent is formal - use "Brother and Sister LastName"
-        # This works for opposite-gender couples
-        # For same-gender couples, we'll still use this format as it's respectful
-        last_name = parents[0].last_name
-        parent_greeting = f"Brother and Sister {last_name}"
-    else:
-        # Both informal - use "FirstName & FirstName"
-        parent_names_casual = [p.display_name for p in parents]
-        parent_greeting = ' & '.join(parent_names_casual)
-
-    # Try parent-specific template first (e.g., "invite_parent")
-    parent_template_name = f"{template_name}_parent"
-
-    # Add child_name and parent_greeting to kwargs for parent template
-    kwargs['child_name'] = child.display_name
-    kwargs['parent_greeting'] = parent_greeting
-
-    # Attempt to expand parent template
-    try:
-        message = templates.expand_smart(activity, parent_template_name, primary_parent, appointment, **kwargs)
-    except KeyError:
-        # Parent template doesn't exist, fall back to regular template
-        print(f"WARNING: Parent template '{parent_template_name}' not found, using '{template_name}'")
-        message = templates.expand_smart(activity, template_name, primary_parent, appointment, **kwargs)
-
-    # Join phone numbers with semicolon for group SMS
-    group_phone = ';'.join(parent_phones)
-
-    print(f"Routing SMS for minor {child.full_name} to parents: {', '.join(parent_names)}")
-
-    # Send via Tasker
-    success = send_sms_intent(group_phone, message)
+    success = send_sms_intent(result['phone'], result['message'])
     return (success, None) if success else (False, "Failed to queue SMS")
 
 

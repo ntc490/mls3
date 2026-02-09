@@ -62,28 +62,27 @@ async function openSMS(phone, memberId) {
 }
 
 /**
- * Open SMS app with pre-filled reminder message for prayer assignment
- * Note: Backend will handle routing to parents if member is a minor
+ * Send reminder SMS for prayer assignment
+ * Note: Backend handles routing to parents if member is a minor
  */
 async function openReminderSMS(assignmentId, phone, date, prayerType) {
     try {
-        // Fetch the reminder message (backend handles parent routing for minors)
-        const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
-
-        if (!response.ok) {
-            throw new Error('Failed to get reminder message');
-        }
+        // Send reminder via API (which handles SMS and parent routing)
+        const response = await fetch(`/api/assignments/${assignmentId}/remind`, {
+            method: 'POST'
+        });
 
         const result = await response.json();
 
-        // Open SMS app with pre-filled message
-        // Use phone from API response (will be parent phones for minors)
-        const smsUrl = `sms:${result.phone}?body=${encodeURIComponent(result.message)}`;
-        window.location.href = smsUrl;
+        if (!response.ok) {
+            // Show specific error message from backend
+            alert(result.error || 'Failed to send reminder');
+            return;
+        }
 
     } catch (error) {
-        console.error('Error opening reminder SMS:', error);
-        alert('Failed to open reminder SMS');
+        console.error('Error sending reminder:', error);
+        alert('Failed to send reminder');
     }
 }
 

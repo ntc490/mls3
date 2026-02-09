@@ -121,25 +121,7 @@
 <script src="{{ url_for('static', filename='js/events.js') }}"></script>
 <script src="{{ url_for('static', filename='js/home.js') }}"></script>
 <script>
-async function openReminderSMS(assignmentId, phone, date, prayerType) {
-    try {
-        // Fetch reminder message (backend handles parent routing for minors)
-        const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
-
-        if (!response.ok) {
-            throw new Error('Failed to get reminder message');
-        }
-
-        const result = await response.json();
-        // Use phone from API response (will be parent phones for minors)
-        const smsUrl = `sms:${result.phone}?body=${encodeURIComponent(result.message)}`;
-        window.location.href = smsUrl;
-
-    } catch (error) {
-        console.error('Error opening reminder SMS:', error);
-        alert('Failed to open reminder SMS');
-    }
-}
+// openReminderSMS is provided by home.js
 
 async function openAppointmentReminderSMS(appointmentId, phone) {
     try {
