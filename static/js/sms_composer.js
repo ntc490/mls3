@@ -10,6 +10,9 @@ const STANDARD_VARS = [
     'appointment_type'
 ];
 
+// Store the original template text for re-expansion
+let originalTemplate = null;
+
 /**
  * Initialize composer
  */
@@ -40,6 +43,7 @@ async function handleTemplateSelect(e) {
         // Cleared selection
         document.getElementById('messageText').value = '';
         document.getElementById('customVarsSection').style.display = 'none';
+        originalTemplate = null;
         updateCharCount();
         return;
     }
@@ -50,6 +54,9 @@ async function handleTemplateSelect(e) {
         console.error('Template not found:', templateName);
         return;
     }
+
+    // Store original template for re-expansion
+    originalTemplate = templateText;
 
     // Set template in text area
     document.getElementById('messageText').value = templateText;
@@ -138,7 +145,8 @@ function getCustomVarValues() {
  * Expand template variables
  */
 async function expandMessage() {
-    const templateText = document.getElementById('messageText').value.trim();
+    // Use original template if available, otherwise use current text
+    const templateText = originalTemplate || document.getElementById('messageText').value.trim();
 
     if (!templateText) {
         return;
