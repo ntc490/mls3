@@ -976,7 +976,10 @@ def api_create_member_assignment(member_id):
 def appointment_scheduler():
     """Appointment scheduler page"""
     # Can be accessed with member_id, appointment_id, or standalone
-    return render_template('appointment_scheduler.html')
+    return render_template(
+        'appointment_scheduler.html',
+        calendar_enabled=is_calendar_enabled()
+    )
 
 
 @app.route('/api/appointment-types')

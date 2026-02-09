@@ -73,7 +73,9 @@
                 <button id="acceptedBtn" class="btn btn-success" style="display: none;">Mark Accepted</button>
                 <button id="reminderBtn" class="btn btn-secondary" style="display: none;">Send Reminder</button>
                 <button id="completeBtn" class="btn btn-success" style="display: none;">Mark Complete</button>
-                <button id="syncCalendarBtn" class="btn btn-secondary" style="display: none;">🔄 Sync to Calendar</button>
+                {% if calendar_enabled %}
+                <button id="syncCalendarBtn" class="btn btn-secondary" style="display: none;">Cal Sync</button>
+                {% endif %}
                 <button id="deleteBtn" class="btn btn-danger" style="display: none;">Delete</button>
             </div>
         </div>

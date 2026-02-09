@@ -463,7 +463,9 @@ function updateButtonsForState(state) {
     acceptedBtn.style.display = 'none';
     reminderBtn.style.display = 'none';
     completeBtn.style.display = 'none';
-    syncCalendarBtn.style.display = 'none';
+    if (syncCalendarBtn) {
+        syncCalendarBtn.style.display = 'none';
+    }
 
     // Show delete button for existing appointments
     deleteBtn.style.display = 'inline-block';
@@ -475,27 +477,37 @@ function updateButtonsForState(state) {
             // Save button is only for creating new appointments
             sendInviteBtn.style.display = 'inline-block';
             acceptedBtn.style.display = 'inline-block';
-            syncCalendarBtn.style.display = 'inline-block';
+            if (syncCalendarBtn) {
+                syncCalendarBtn.style.display = 'inline-block';
+            }
             break;
         case 'Invited':
             acceptedBtn.style.display = 'inline-block';
             reminderBtn.style.display = 'inline-block';
-            syncCalendarBtn.style.display = 'inline-block';
+            if (syncCalendarBtn) {
+                syncCalendarBtn.style.display = 'inline-block';
+            }
             break;
         case 'Accepted':
             reminderBtn.style.display = 'inline-block';
             completeBtn.style.display = 'inline-block';
-            syncCalendarBtn.style.display = 'inline-block';
+            if (syncCalendarBtn) {
+                syncCalendarBtn.style.display = 'inline-block';
+            }
             break;
         case 'Reminded':
             reminderBtn.style.display = 'inline-block';
             completeBtn.style.display = 'inline-block';
-            syncCalendarBtn.style.display = 'inline-block';
+            if (syncCalendarBtn) {
+                syncCalendarBtn.style.display = 'inline-block';
+            }
             break;
         case 'Completed':
         case 'Cancelled':
             // Show sync button even for completed (to fix sync issues)
-            syncCalendarBtn.style.display = 'inline-block';
+            if (syncCalendarBtn) {
+                syncCalendarBtn.style.display = 'inline-block';
+            }
             break;
     }
 
@@ -561,7 +573,10 @@ function setupEventListeners() {
     document.getElementById('acceptedBtn').addEventListener('click', markAccepted);
     document.getElementById('reminderBtn').addEventListener('click', sendReminder);
     document.getElementById('completeBtn').addEventListener('click', markComplete);
-    document.getElementById('syncCalendarBtn').addEventListener('click', syncToCalendar);
+    const syncCalendarBtn = document.getElementById('syncCalendarBtn');
+    if (syncCalendarBtn) {
+        syncCalendarBtn.addEventListener('click', syncToCalendar);
+    }
     document.getElementById('newApptBtn').addEventListener('click', resetToNewAppointment);
     document.getElementById('deleteBtn').addEventListener('click', deleteAppointment);
 
