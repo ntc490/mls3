@@ -216,8 +216,13 @@ class CalendarSync:
         end_dt = local_dt + timedelta(minutes=appointment.duration_minutes)
 
         # Create event summary with state indicator
-        state_label = f"[{appointment.state}] " if appointment.state != 'Accepted' else ""
-        summary = f"{state_label}{appointment.appointment_type} - {member.display_name_with_last}"
+        if appointment.state in ['Draft', 'Invited']:
+            state_prefix = "? "
+        elif appointment.state == 'Complete':
+            state_prefix = "✓ "
+        else:  # Accepted
+            state_prefix = ""
+        summary = f"{state_prefix}{appointment.appointment_type} - {member.display_name_with_last}"
 
         # Build event object
         event = {
@@ -284,8 +289,13 @@ class CalendarSync:
         end_dt = local_dt + timedelta(minutes=appointment.duration_minutes)
 
         # Create event summary with state indicator
-        state_label = f"[{appointment.state}] " if appointment.state != 'Accepted' else ""
-        summary = f"{state_label}{appointment.appointment_type} - {member.display_name_with_last}"
+        if appointment.state in ['Draft', 'Invited']:
+            state_prefix = "? "
+        elif appointment.state == 'Complete':
+            state_prefix = "✓ "
+        else:  # Accepted
+            state_prefix = ""
+        summary = f"{state_prefix}{appointment.appointment_type} - {member.display_name_with_last}"
 
         # Build updated event object
         event = {
