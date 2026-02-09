@@ -771,6 +771,11 @@ h2 {
     margin-right: 1rem;
 }
 
+.minor-age {
+    color: #dc3545;
+    font-weight: 600;
+}
+
 .member-toggles-section {
     margin: 1.5rem 0;
     padding: 1rem;

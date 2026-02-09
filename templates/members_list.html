@@ -57,7 +57,7 @@
             {% endif %}
             <h3>{{ member.full_name }}{% if not member.active %} <span class="inactive-badge">Inactive</span>{% endif %}</h3>
             {% if member.age is not none %}
-            <p><strong>Age:</strong> {{ member.age }}{% if member.age < 18 %} (minor){% endif %}</p>
+            <p><strong>Age:</strong> {% if member.age < 18 %}<span class="minor-age">{{ member.age }}</span>{% else %}{{ member.age }}{% endif %}</p>
             {% else %}
             <p><strong>Age:</strong> <span class="text-muted">Unknown</span></p>
             {% endif %}

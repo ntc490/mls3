@@ -48,12 +48,21 @@ async function openMemberModal(memberId, date = null) {
         document.getElementById('modalGender').textContent = member.gender === 'M' ? 'Male' : 'Female';
 
         // Combined birthday and age display
+        const birthdayAgeEl = document.getElementById('modalBirthdayAge');
         let birthdayAgeText = member.birthday || 'Not specified';
         if (member.age !== null && member.age !== undefined && member.birthday) {
-            const minorText = member.is_minor ? ', minor' : '';
-            birthdayAgeText = `${member.birthday} (${member.age}${minorText})`;
+            if (member.is_minor) {
+                // Minors: show age in square brackets with red styling
+                birthdayAgeText = `${member.birthday} `;
+                birthdayAgeEl.innerHTML = `${birthdayAgeText}<span class="minor-age">[${member.age}]</span>`;
+            } else {
+                // Adults: show age in parentheses normally
+                birthdayAgeText = `${member.birthday} (${member.age})`;
+                birthdayAgeEl.textContent = birthdayAgeText;
+            }
+        } else {
+            birthdayAgeEl.textContent = birthdayAgeText;
         }
-        document.getElementById('modalBirthdayAge').textContent = birthdayAgeText;
 
         // Show household link or single label under name
         const householdLink = document.getElementById('modalHouseholdLink');
