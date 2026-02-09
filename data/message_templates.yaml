@@ -1,23 +1,23 @@
 pleasantries:
   casual_greeting:
-    - "I hope you're well."
-    - "Hope all is well!"
-    - "Hope you're doing great!"
+    - "I hope you're well. "
+    - "Hope all is well! "
+    - "Hope you're doing great! "
     - ""
 
   casual_reminder:
     - ""
-    - "Just a friendly reminder:"
-    - "Quick reminder:"
+    - "Just a friendly reminder: "
+    - "Quick reminder: "
 
 prayer:
   invite: "Hi {name|blue?formal:casual}, would you be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for you?"
-  reminder: "Hi {name|blue?formal:casual}, {random:casual_reminder} Reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
+  reminder: "Hi {name|blue?formal:casual}, {random:casual_reminder}Reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
   thank_you: "Thanks {name|blue?formal:casual} for agreeing to say the {prayer_type} prayer on {date}!"
 
 appointments:
   default_invite: "Hi {name|blue?formal:casual}, would you be available to meet with {conductor} on {date} at {time}?"
-  default_reminder: "Hi {name|blue?formal:casual}, {random:casual_reminder} Reminder for your {appointment_type} appointment with {conductor} {smart_date} at {time}"
+  default_reminder: "Hi {name|blue?formal:casual}, {random:casual_reminder}Reminder for your {appointment_type} appointment with {conductor} {smart_date} at {time}"
 
   Set apart_invite: "Hi {name|blue?formal:casual}, could you meet with {conductor} to be set apart on {date} at {time}?"
   Set apart_reminder: "Hi {name|blue?formal:casual}, sending a reminder to be set apart {smart_date} at {time} with {conductor}"
@@ -62,11 +62,11 @@ appointments:
   Living Ordinance_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Living ordinance interview {smart_date} at {time} with Bishop"
 
 adhoc:
-  template_recommand: "Hi {name|blue?formal:casual}, {random:casual_greeting} Bishop asked me to contact members on the month their temple recommend expires. Please let me know if I can help you setup an appointment."
+  temple_recommend: "Hi {name|blue?formal:casual}, {random:casual_greeting}Bishop asked me to contact members on the month their temple recommend expires. Please let me know if I can help you setup an appointment."
 
   prayer_thanks: "Hi {name|blue?formal:casual}, thank you for praying!"
 
-  general_checkin: "Hi {name|blue?formal:casual}, {random:casual_greeting} Just wanted to check in and see how you're doing."
+  checkin: "Hi {name|blue?formal:casual}, {random:casual_greeting}Just wanted to check in and see how you're doing."
 
   birthday: "Hi {name|blue?formal:casual}, Happy Birthday! Hope you have a wonderful day!"
 
