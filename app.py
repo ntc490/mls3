@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 import config
 from models import (
     MemberDatabase, PrayerAssignmentDatabase, MessageTemplates,
-    AppointmentTypesDatabase, AppointmentDatabase
+    AppointmentTypesDatabase, AppointmentDatabase, HouseholdDatabase
 )
 from utils.google_calendar import (
     get_calendar_service, CalendarSync, is_calendar_enabled, is_online
@@ -20,6 +20,7 @@ app.config['SECRET_KEY'] = config.SECRET_KEY
 
 # Initialize data models
 members_db = MemberDatabase()
+households_db = HouseholdDatabase()
 assignments_db = PrayerAssignmentDatabase()
 templates = MessageTemplates()
 appointment_types_db = AppointmentTypesDatabase()
@@ -603,14 +604,14 @@ def api_send_invitation(assignment_id):
     assignments_db.update_state(assignment_id, 'Invited')
 
     # Send SMS using smart template expansion
-    success = expand_and_send('prayer', 'invite', member, templates, assignment)
+    success, error_msg = expand_and_send('prayer', 'invite', member, templates, members_db, assignment)
 
     if success:
         return jsonify({'success': True, 'message': 'SMS sent'})
     else:
         return jsonify({
             'success': False,
-            'error': 'Failed to launch SMS app',
+            'error': error_msg or 'Failed to launch SMS app',
             'phone': member.phone,
             'member': member.full_name
         }), 500
@@ -618,7 +619,7 @@ def api_send_invitation(assignment_id):
 
 @app.route('/api/assignments/<int:assignment_id>/reminder-message', methods=['GET'])
 def api_get_reminder_message(assignment_id):
-    """Get the reminder message text for an assignment"""
+    """Get the reminder message text for an assignment (handles parent routing for minors)"""
     assignment = assignments_db.get_by_id(assignment_id)
     if not assignment:
         return jsonify({'error': 'Assignment not found'}), 404
@@ -634,18 +635,57 @@ def api_get_reminder_message(assignment_id):
     from datetime import datetime
     formatted_date = datetime.strptime(assignment.date, config.DATE_FORMAT).strftime(config.DISPLAY_DATE_FORMAT)
 
-    # Get the reminder message template
-    message = templates.expand_template(
-        'prayer',
-        'reminder',
-        first_name=member.display_name,
-        prayer_type=assignment.prayer_type,
-        date=formatted_date
-    )
+    # Check if member is a minor - route to parents
+    if member.is_minor:
+        parents = members_db.get_parents(member.member_id)
+        if not parents:
+            return jsonify({'error': 'Member is a minor but no parents found'}), 400
+
+        # Get parent phones
+        parent_phones = [p.phone for p in parents if p.phone and p.phone.strip()]
+        if not parent_phones:
+            return jsonify({'error': 'No parent has a phone number'}), 400
+
+        # Build parent greeting
+        any_formal = any(p.has_flag('blue') for p in parents)
+        if len(parents) == 1:
+            parent = parents[0]
+            if parent.has_flag('blue'):
+                title = 'Brother' if parent.gender == 'M' else 'Sister'
+                parent_greeting = f"{title} {parent.last_name}"
+            else:
+                parent_greeting = parent.display_name
+        elif any_formal:
+            parent_greeting = f"Brother and Sister {parents[0].last_name}"
+        else:
+            parent_greeting = ' & '.join([p.display_name for p in parents])
+
+        # Get parent template message
+        message = templates.expand_template(
+            'prayer',
+            'reminder_parent',
+            first_name=parent_greeting,
+            child_name=member.display_name,
+            prayer_type=assignment.prayer_type,
+            date=formatted_date
+        )
+
+        # Return group SMS phone (semicolon-separated)
+        phone = ';'.join(parent_phones)
+    else:
+        # Normal flow - direct to member
+        message = templates.expand_template(
+            'prayer',
+            'reminder',
+            first_name=member.display_name,
+            prayer_type=assignment.prayer_type,
+            date=formatted_date
+        )
+        phone = member.phone
 
     return jsonify({
         'message': message,
-        'phone': member.phone
+        'phone': phone
     })
 
 
@@ -666,7 +706,7 @@ def api_send_reminder(assignment_id):
         return jsonify({'error': 'Member not found'}), 404
 
     # Send SMS using smart template expansion
-    success = expand_and_send('prayer', 'reminder', member, templates, assignment)
+    success, error_msg = expand_and_send('prayer', 'reminder', member, templates, members_db, assignment)
 
     if success:
         # Update state to Reminded
@@ -675,7 +715,7 @@ def api_send_reminder(assignment_id):
     else:
         return jsonify({
             'success': False,
-            'error': 'Failed to launch SMS app',
+            'error': error_msg or 'Failed to launch SMS app',
             'phone': member.phone,
             'member': member.full_name
         }), 500
@@ -767,6 +807,7 @@ def api_get_member(member_id):
         'gender': member.gender,
         'birthday': member.birthday,
         'age': age,
+        'is_minor': member.is_minor,
         'phone': member.phone,
         'recommend_expiration': member.recommend_expiration,
         'active': member.active,
@@ -776,6 +817,7 @@ def api_get_member(member_id):
         'skip_until': member.skip_until,
         'flag': member.flag,
         'aka': member.aka,
+        'household_id': member.household_id,
         'prayer_history': prayer_history,
         'event_history': event_history
     })
@@ -969,6 +1011,107 @@ def api_create_member_assignment(member_id):
         'assignment_id': assignment.assignment_id,
         'date': assignment.date,
         'prayer_type': assignment.prayer_type
+    })
+
+
+@app.route('/api/households/<int:household_id>')
+def api_get_household(household_id):
+    """Get household details with all members"""
+    household = households_db.get_by_id(household_id)
+    if not household:
+        return jsonify({'error': 'Household not found'}), 404
+
+    # Get all members in this household
+    household_members = members_db.get_household_members(household_id)
+
+    # Format member data
+    members_data = []
+    for member in household_members:
+        # Calculate age
+        age = None
+        if member.birthday:
+            try:
+                birth_date = datetime.strptime(member.birthday, '%Y-%m-%d').date()
+                today = date.today()
+                age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            except ValueError:
+                pass
+
+        members_data.append({
+            'member_id': member.member_id,
+            'full_name': member.full_name,
+            'display_name': member.display_name,
+            'gender': member.gender,
+            'phone': member.phone,
+            'birthday': member.birthday,
+            'age': age,
+            'is_minor': member.is_minor
+        })
+
+    # Sort members: adults first (by age desc), then minors (by age desc)
+    members_data.sort(key=lambda m: (m['is_minor'], -(m['age'] or 0)))
+
+    return jsonify({
+        'household_id': household.household_id,
+        'name': household.name,
+        'address': household.address,
+        'phone': household.phone,
+        'email': household.email,
+        'members': members_data
+    })
+
+
+@app.route('/api/members/<int:member_id>/household')
+def api_get_member_household(member_id):
+    """Get household information for a specific member"""
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    if not member.household_id:
+        return jsonify({'household': None})
+
+    # Get household details
+    household = households_db.get_by_id(member.household_id)
+    if not household:
+        return jsonify({'household': None})
+
+    # Get parents if member is minor
+    parents = []
+    if member.is_minor:
+        parent_members = members_db.get_parents(member_id)
+        parents = [
+            {
+                'member_id': p.member_id,
+                'full_name': p.full_name,
+                'phone': p.phone
+            }
+            for p in parent_members
+        ]
+
+    # Get children if member is adult
+    children = []
+    if not member.is_minor:
+        child_members = members_db.get_children(member_id)
+        children = [
+            {
+                'member_id': c.member_id,
+                'full_name': c.full_name,
+                'age': c.age
+            }
+            for c in child_members
+        ]
+
+    return jsonify({
+        'household': {
+            'household_id': household.household_id,
+            'name': household.name,
+            'address': household.address,
+            'phone': household.phone,
+            'email': household.email
+        },
+        'parents': parents,
+        'children': children
     })
 
 
@@ -1216,11 +1359,12 @@ def send_appointment_invite(appointment_id):
         template_name = 'default_invite'
 
     # Send SMS using smart template expansion
-    success = expand_and_send(
+    success, error_msg = expand_and_send(
         'appointments',
         template_name,
         member,
         templates,
+        members_db,
         appointment,
         conductor=format_conductor_for_message(appointment.conductor)
     )
@@ -1230,7 +1374,7 @@ def send_appointment_invite(appointment_id):
     else:
         return jsonify({
             'success': False,
-            'error': 'Failed to send SMS',
+            'error': error_msg or 'Failed to send SMS',
             'phone': member.phone,
             'member': member.full_name
         }), 500
@@ -1284,11 +1428,12 @@ def send_appointment_reminder(appointment_id):
         template_name = 'default_reminder'
 
     # Send SMS using smart template expansion
-    success = expand_and_send(
+    success, error_msg = expand_and_send(
         'appointments',
         template_name,
         member,
         templates,
+        members_db,
         appointment,
         conductor=format_conductor_for_message(appointment.conductor)
     )
@@ -1302,7 +1447,7 @@ def send_appointment_reminder(appointment_id):
     else:
         return jsonify({
             'success': False,
-            'error': 'Failed to send SMS',
+            'error': error_msg or 'Failed to send SMS',
             'phone': member.phone,
             'member': member.full_name
         }), 500

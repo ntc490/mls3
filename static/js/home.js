@@ -36,15 +36,11 @@ function openSMS(phone) {
 
 /**
  * Open SMS app with pre-filled reminder message for prayer assignment
+ * Note: Backend will handle routing to parents if member is a minor
  */
 async function openReminderSMS(assignmentId, phone, date, prayerType) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-
     try {
-        // Fetch the reminder message
+        // Fetch the reminder message (backend handles parent routing for minors)
         const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
 
         if (!response.ok) {
@@ -54,7 +50,8 @@ async function openReminderSMS(assignmentId, phone, date, prayerType) {
         const result = await response.json();
 
         // Open SMS app with pre-filled message
-        const smsUrl = `sms:${phone}?body=${encodeURIComponent(result.message)}`;
+        // Use phone from API response (will be parent phones for minors)
+        const smsUrl = `sms:${result.phone}?body=${encodeURIComponent(result.message)}`;
         window.location.href = smsUrl;
 
     } catch (error) {
@@ -65,24 +62,22 @@ async function openReminderSMS(assignmentId, phone, date, prayerType) {
 
 /**
  * Send reminder SMS for appointment
+ * Note: Backend handles routing to parents if member is a minor
  */
 async function openAppointmentReminderSMS(appointmentId, phone) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-
     try {
-        // Send reminder via API (which handles SMS)
+        // Send reminder via API (which handles SMS and parent routing)
         const response = await fetch(`/api/appointments/${appointmentId}/remind`, {
             method: 'POST'
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to send reminder');
-        }
-
         const result = await response.json();
+
+        if (!response.ok) {
+            // Show specific error message from backend
+            alert(result.error || 'Failed to send reminder');
+            return;
+        }
 
     } catch (error) {
         console.error('Error sending reminder:', error);

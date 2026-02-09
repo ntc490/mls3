@@ -90,17 +90,23 @@ class Member:
         return None
 
     @property
-    def is_minor(self) -> bool:
-        """Check if member is under 18 based on birthday"""
+    def age(self) -> Optional[int]:
+        """Calculate age from birthday"""
         if not self.birthday:
-            return False
+            return None
         try:
             birth_date = datetime.strptime(self.birthday, '%Y-%m-%d').date()
             today = date.today()
             age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
-            return age < 18
+            return age
         except ValueError:
-            return False
+            return None
+
+    @property
+    def is_minor(self) -> bool:
+        """Check if member is under 18 based on birthday"""
+        age = self.age
+        return age is not None and age < 18
 
 
 @dataclass

@@ -130,12 +130,8 @@ function openSMS(phone) {
 }
 
 async function openReminderSMS(assignmentId, phone, date, prayerType) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-
     try {
+        // Fetch reminder message (backend handles parent routing for minors)
         const response = await fetch(`/api/assignments/${assignmentId}/reminder-message`);
 
         if (!response.ok) {
@@ -143,7 +139,8 @@ async function openReminderSMS(assignmentId, phone, date, prayerType) {
         }
 
         const result = await response.json();
-        const smsUrl = `sms:${phone}?body=${encodeURIComponent(result.message)}`;
+        // Use phone from API response (will be parent phones for minors)
+        const smsUrl = `sms:${result.phone}?body=${encodeURIComponent(result.message)}`;
         window.location.href = smsUrl;
 
     } catch (error) {
@@ -153,22 +150,19 @@ async function openReminderSMS(assignmentId, phone, date, prayerType) {
 }
 
 async function openAppointmentReminderSMS(appointmentId, phone) {
-    if (!phone) {
-        alert('No phone number on file for this member');
-        return;
-    }
-
     try {
-        // Send reminder via API (which handles SMS)
+        // Send reminder via API (which handles SMS and parent routing)
         const response = await fetch(`/api/appointments/${appointmentId}/remind`, {
             method: 'POST'
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to send reminder');
-        }
-
         const result = await response.json();
+
+        if (!response.ok) {
+            // Show specific error message from backend
+            alert(result.error || 'Failed to send reminder');
+            return;
+        }
 
     } catch (error) {
         console.error('Error sending reminder:', error);

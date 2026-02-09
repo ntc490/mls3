@@ -5,6 +5,7 @@
 
 let currentMemberId = null;
 let currentMemberPhone = null;
+let currentHouseholdId = null;
 let targetDate = null; // Optional date for creating assignments
 let memberDataDirty = false; // Track if member data has been modified
 
@@ -38,16 +39,28 @@ async function openMemberModal(memberId, date = null) {
             : member.name;
         document.getElementById('modalMemberName').textContent = headerText;
 
-        // Display age with indicator for minors
-        if (member.age !== null && member.age !== undefined) {
-            const ageText = member.age < 18 ? `${member.age} (minor)` : member.age.toString();
-            document.getElementById('modalAge').textContent = ageText;
+        document.getElementById('modalGender').textContent = member.gender === 'M' ? 'Male' : 'Female';
+
+        // Combined birthday and age display
+        let birthdayAgeText = member.birthday || 'Not specified';
+        if (member.age !== null && member.age !== undefined && member.birthday) {
+            const minorText = member.is_minor ? ', minor' : '';
+            birthdayAgeText = `${member.birthday} (${member.age}${minorText})`;
+        }
+        document.getElementById('modalBirthdayAge').textContent = birthdayAgeText;
+
+        // Show household row if member has household
+        const householdRow = document.getElementById('modalHouseholdRow');
+        if (member.household_id) {
+            currentHouseholdId = member.household_id;
+            householdRow.style.display = 'flex';
+            // Fetch and display household name
+            fetchHouseholdName(member.household_id);
         } else {
-            document.getElementById('modalAge').textContent = 'Unknown';
+            currentHouseholdId = null;
+            householdRow.style.display = 'none';
         }
 
-        document.getElementById('modalGender').textContent = member.gender === 'M' ? 'Male' : 'Female';
-        document.getElementById('modalBirthday').textContent = member.birthday || 'Not specified';
         document.getElementById('modalPhone').textContent = member.phone || 'Not specified';
 
         // Update skip until display
@@ -96,6 +109,7 @@ function closeMemberModal() {
     modal.style.display = 'none';
     currentMemberId = null;
     currentMemberPhone = null;
+    currentHouseholdId = null;
 
     // Reload the members list if data was modified and we're on the members page
     if (memberDataDirty && window.location.pathname === '/members') {
@@ -678,6 +692,99 @@ function showToast(message) {
     }, 2000);
 }
 
+/**
+ * Fetch and display household name
+ */
+async function fetchHouseholdName(householdId) {
+    try {
+        const response = await fetch(`/api/households/${householdId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch household');
+        }
+
+        const household = await response.json();
+        document.getElementById('modalHousehold').textContent = household.name;
+    } catch (error) {
+        console.error('Error fetching household:', error);
+        document.getElementById('modalHousehold').textContent = 'Unknown';
+    }
+}
+
+/**
+ * Open household modal
+ */
+async function openHouseholdModal() {
+    if (!currentHouseholdId) {
+        alert('No household information available');
+        return;
+    }
+
+    try {
+        // Fetch full household data
+        const response = await fetch(`/api/households/${currentHouseholdId}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch household data');
+        }
+
+        const household = await response.json();
+
+        // Show household modal
+        const modal = document.getElementById('householdModal');
+        modal.style.display = 'flex';
+
+        // Populate household details
+        document.getElementById('householdModalTitle').textContent = household.name;
+        document.getElementById('householdAddress').textContent = household.address || 'Not specified';
+        document.getElementById('householdPhone').textContent = household.phone || 'Not specified';
+        document.getElementById('householdEmail').textContent = household.email || 'Not specified';
+
+        // Display household members
+        displayHouseholdMembers(household.members);
+
+    } catch (error) {
+        console.error('Error opening household modal:', error);
+        alert('Failed to load household information');
+    }
+}
+
+/**
+ * Close household modal
+ */
+function closeHouseholdModal() {
+    const modal = document.getElementById('householdModal');
+    modal.style.display = 'none';
+}
+
+/**
+ * Display household members list
+ */
+function displayHouseholdMembers(members) {
+    const listDiv = document.getElementById('householdMembersList');
+
+    if (!members || members.length === 0) {
+        listDiv.innerHTML = '<p class="text-muted">No members found</p>';
+        return;
+    }
+
+    // Build HTML for members list
+    let html = '<ul class="household-members-items">';
+    members.forEach(member => {
+        const ageText = member.age ? ` (${member.age})` : '';
+        const minorBadge = member.is_minor ? ' <span class="minor-badge">minor</span>' : '';
+        const phoneText = member.phone ? ` - ${member.phone}` : '';
+
+        html += `
+            <li class="household-member-item" onclick="openMemberModal(${member.member_id})">
+                <span class="member-name">${member.full_name}${ageText}${minorBadge}</span>
+                <span class="member-phone">${phoneText}</span>
+            </li>
+        `;
+    });
+    html += '</ul>';
+
+    listDiv.innerHTML = html;
+}
+
 // Set up event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     // Toggle listeners
@@ -787,6 +894,16 @@ document.addEventListener('DOMContentLoaded', () => {
         skipDialog.addEventListener('click', (e) => {
             if (e.target === skipDialog) {
                 closeSkipDialog();
+            }
+        });
+    }
+
+    // Close household modal on outside click
+    const householdModal = document.getElementById('householdModal');
+    if (householdModal) {
+        householdModal.addEventListener('click', (e) => {
+            if (e.target === householdModal) {
+                closeHouseholdModal();
             }
         });
     }

@@ -13,7 +13,7 @@ import config
 
 def expand_and_send(activity: str, template_name: str, member: Member,
                     templates: MessageTemplates, members_db: MemberDatabase = None,
-                    appointment=None, **kwargs) -> bool:
+                    appointment=None, **kwargs):
     """
     Generic function to expand template with smart variables and send SMS.
     Automatically routes to parents if member is a minor.
@@ -28,28 +28,37 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         **kwargs: Additional variables (e.g., conductor="Bishop")
 
     Returns:
-        True if SMS was successfully queued, False otherwise
+        Tuple of (success: bool, error_message: str or None)
+        - (True, None) if SMS was successfully queued
+        - (False, "error message") if failed
     """
     # Check if member is a minor and we should route to parents
-    if member.is_minor and members_db:
+    if member.is_minor:
+        if not members_db:
+            error_msg = f"{member.display_name} is a minor but cannot route to parents (system error)"
+            print(f"WARNING: {member.full_name} is a minor but members_db not provided - cannot route to parents")
+            return (False, error_msg)
+        print(f"Member {member.full_name} is a minor - routing to parents")
         return send_to_parents(activity, template_name, member, templates, members_db, appointment, **kwargs)
 
     # Normal member flow - send directly
     # Check for phone number
     if not member.phone or member.phone.strip() == '':
+        error_msg = f"{member.display_name} has no phone number on file"
         print(f"ERROR: Cannot send SMS - {member.full_name} has no phone number")
-        return False
+        return (False, error_msg)
 
     # Expand template with smart variables
     message = templates.expand_smart(activity, template_name, member, appointment, **kwargs)
 
     # Send via Tasker
-    return send_sms_intent(member.phone, message)
+    success = send_sms_intent(member.phone, message)
+    return (success, None) if success else (False, "Failed to queue SMS")
 
 
 def send_to_parents(activity: str, template_name: str, child: Member,
                    templates: MessageTemplates, members_db: MemberDatabase,
-                   appointment=None, **kwargs) -> bool:
+                   appointment=None, **kwargs):
     """
     Send message to parents instead of minor child.
     Uses _parent template variant with {child_name} variable.
@@ -65,15 +74,16 @@ def send_to_parents(activity: str, template_name: str, child: Member,
         **kwargs: Additional variables
 
     Returns:
-        True if SMS was successfully queued, False otherwise
+        Tuple of (success: bool, error_message: str or None)
     """
     # Get parents from household
     parents = members_db.get_parents(child.member_id)
 
     if not parents:
+        error_msg = f"{child.display_name} is a minor with no parents found in household"
         print(f"WARNING: {child.full_name} is a minor but no parents found in household")
         print(f"Cannot send SMS - no parent contact available")
-        return False
+        return (False, error_msg)
 
     # Collect parent phone numbers
     parent_phones = []
@@ -84,18 +94,45 @@ def send_to_parents(activity: str, template_name: str, child: Member,
             parent_names.append(parent.full_name)
 
     if not parent_phones:
+        error_msg = f"{child.display_name}'s parents have no phone numbers on file"
         print(f"ERROR: Cannot send SMS - no parent has phone number")
         print(f"Parents: {', '.join(p.full_name for p in parents)}")
-        return False
+        return (False, error_msg)
 
-    # Use first parent for template expansion (name variables)
+    # Use first parent for template expansion (for has_flag checks)
     primary_parent = parents[0]
+
+    # Build parent greeting based on formality
+    # Check if any parent has blue flag (formal)
+    any_formal = any(p.has_flag('blue') for p in parents)
+
+    if len(parents) == 1:
+        # Single parent - check if formal or casual
+        parent = parents[0]
+        if parent.has_flag('blue'):
+            # Formal - use Brother/Sister LastName
+            title = 'Brother' if parent.gender == 'M' else 'Sister'
+            parent_greeting = f"{title} {parent.last_name}"
+        else:
+            # Casual - just use their first name
+            parent_greeting = parent.display_name
+    elif any_formal:
+        # At least one parent is formal - use "Brother and Sister LastName"
+        # This works for opposite-gender couples
+        # For same-gender couples, we'll still use this format as it's respectful
+        last_name = parents[0].last_name
+        parent_greeting = f"Brother and Sister {last_name}"
+    else:
+        # Both informal - use "FirstName & FirstName"
+        parent_names_casual = [p.display_name for p in parents]
+        parent_greeting = ' & '.join(parent_names_casual)
 
     # Try parent-specific template first (e.g., "invite_parent")
     parent_template_name = f"{template_name}_parent"
 
-    # Add child_name to kwargs for parent template
-    kwargs['child_name'] = child.preferred_name
+    # Add child_name and parent_greeting to kwargs for parent template
+    kwargs['child_name'] = child.display_name
+    kwargs['parent_greeting'] = parent_greeting
 
     # Attempt to expand parent template
     try:
@@ -111,7 +148,8 @@ def send_to_parents(activity: str, template_name: str, child: Member,
     print(f"Routing SMS for minor {child.full_name} to parents: {', '.join(parent_names)}")
 
     # Send via Tasker
-    return send_sms_intent(group_phone, message)
+    success = send_sms_intent(group_phone, message)
+    return (success, None) if success else (False, "Failed to queue SMS")
 
 
 def send_sms_intent(phone_number: str, message: str) -> bool:
