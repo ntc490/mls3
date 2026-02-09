@@ -228,11 +228,9 @@ class CalendarSync:
         event = {
             'summary': summary,
             'description': (
-                f"Appointment: {appointment.appointment_type}\n"
-                f"Member: {member.full_name}\n"
                 f"State: {appointment.state}\n"
-                f"Duration: {appointment.duration_minutes} minutes\n"
-                f"\nManaged by MLS3"
+                f"\n"
+                f"Managed by MLS3"
             ),
             'start': {
                 'dateTime': local_dt.isoformat(),
