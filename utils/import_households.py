@@ -141,6 +141,9 @@ def import_households(tsv_path: Path, dry_run: bool = False):
     """
     Import households from TSV file and link members.
 
+    NOTE: This clears ALL existing household assignments and recreates them from the TSV.
+    This ensures the database matches the current church household export.
+
     Args:
         tsv_path: Path to TSV file
         dry_run: If True, only show what would be imported without saving
@@ -154,6 +157,17 @@ def import_households(tsv_path: Path, dry_run: bool = False):
     print(f"Loaded {len(members_db.members)} members")
     print(f"Loaded {len(households_db.households)} existing households")
 
+    # Clear all existing household assignments
+    print("\nClearing existing household assignments...")
+    if not dry_run:
+        for member in members_db.members:
+            if member.household_id:
+                members_db.update_member(member.member_id, household_id=None)
+        # Clear all existing households
+        households_db.households = []
+        households_db.save()
+    print("✓ Cleared all household data")
+
     # Parse TSV file
     household_data = parse_household_tsv(tsv_path)
     print(f"\nParsed {len(household_data)} households from TSV\n")
@@ -162,10 +176,12 @@ def import_households(tsv_path: Path, dry_run: bool = False):
     stats = {
         'households_added': 0,
         'members_linked': 0,
-        'members_not_found': 0
+        'members_not_found': 0,
+        'members_unlinked': sum(1 for m in members_db.members if m.household_id is not None) if not dry_run else 0
     }
 
-    next_household_id = households_db.get_next_id()
+    # Start household IDs from 1 since we cleared everything
+    next_household_id = 1
 
     for hh_data in household_data:
         print(f"\nHousehold: {hh_data['name']}")
@@ -210,6 +226,8 @@ def import_households(tsv_path: Path, dry_run: bool = False):
     print("\n" + "="*60)
     print("IMPORT SUMMARY")
     print("="*60)
+    if not dry_run:
+        print(f"Previous household assignments cleared: {stats['members_unlinked']}")
     print(f"Households added: {stats['households_added']}")
     print(f"Members linked: {stats['members_linked']}")
     print(f"Members not found: {stats['members_not_found']}")
@@ -218,6 +236,7 @@ def import_households(tsv_path: Path, dry_run: bool = False):
         print("\n(DRY RUN - No changes saved)")
     else:
         print("\n✓ Changes saved successfully!")
+        print("\nNOTE: All previous household data was cleared and replaced with this import.")
 
 
 def main():
