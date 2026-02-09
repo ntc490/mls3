@@ -20,6 +20,7 @@ PORT = int(os.getenv('FLASK_PORT', '5000'))
 
 # Data file paths
 MEMBERS_CSV = DATA_DIR / 'members.csv'
+HOUSEHOLDS_CSV = DATA_DIR / 'households.csv'
 PRAYER_ASSIGNMENTS_CSV = DATA_DIR / 'prayer_assignments.csv'
 MESSAGE_TEMPLATES_YAML = DATA_DIR / 'message_templates.yaml'
 APPOINTMENT_TYPES_YAML = DATA_DIR / 'appointment_types.yaml'

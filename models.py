@@ -29,6 +29,7 @@ class Member:
     skip_until: Optional[str] = None  # Date to skip member until (YYYY-MM-DD)
     flag: str = ""  # Color flags: comma-separated list like 'red,yellow,blue' or empty
     aka: str = ""  # Also known as / preferred name (e.g., "Mike" instead of "Michael")
+    household_id: Optional[int] = None  # Links member to household
 
     @property
     def full_name(self):
@@ -87,6 +88,19 @@ class Member:
         if self.skip_until:
             return datetime.strptime(self.skip_until, config.DATE_FORMAT).date()
         return None
+
+    @property
+    def is_minor(self) -> bool:
+        """Check if member is under 18 based on birthday"""
+        if not self.birthday:
+            return False
+        try:
+            birth_date = datetime.strptime(self.birthday, '%Y-%m-%d').date()
+            today = date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            return age < 18
+        except ValueError:
+            return False
 
 
 @dataclass
@@ -197,6 +211,85 @@ class Appointment:
         return local_dt.strftime(config.DATE_FORMAT)
 
 
+@dataclass
+class Household:
+    """Represents a household (family unit)"""
+    household_id: int
+    name: str  # e.g., "Smith, Jack & Jill"
+    address: str  # Multi-line address
+    phone: str  # Household phone number
+    email: str  # Household email
+
+
+class HouseholdDatabase:
+    """Manages household data from CSV"""
+
+    def __init__(self, csv_path: Path = None):
+        self.csv_path = csv_path or config.HOUSEHOLDS_CSV
+        self.households: List[Household] = []
+        self.load()
+
+    def load(self):
+        """Load households from CSV file"""
+        self.households = []
+
+        if not self.csv_path.exists():
+            # File doesn't exist yet - this is OK, we'll create it on save
+            return
+
+        with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                household = Household(
+                    household_id=int(row['household_id']),
+                    name=row['name'],
+                    address=row['address'],
+                    phone=row['phone'],
+                    email=row['email']
+                )
+                self.households.append(household)
+
+    def save(self):
+        """Save households to CSV file"""
+        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
+            fieldnames = ['household_id', 'name', 'address', 'phone', 'email']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+
+            for household in self.households:
+                row = asdict(household)
+                writer.writerow(row)
+
+    def get_by_id(self, household_id: int) -> Optional[Household]:
+        """Get household by ID"""
+        for household in self.households:
+            if household.household_id == household_id:
+                return household
+        return None
+
+    def add(self, household: Household):
+        """Add a new household"""
+        self.households.append(household)
+        self.save()
+
+    def update(self, household_id: int, **kwargs):
+        """Update household fields"""
+        household = self.get_by_id(household_id)
+        if household:
+            for key, value in kwargs.items():
+                if hasattr(household, key):
+                    setattr(household, key, value)
+            self.save()
+
+    def get_next_id(self) -> int:
+        """Get next available household ID"""
+        if not self.households:
+            return 1
+        return max(h.household_id for h in self.households) + 1
+
+
 class MemberDatabase:
     """Manages member data from CSV"""
 
@@ -216,6 +309,14 @@ class MemberDatabase:
         with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # Parse household_id if present
+                household_id = None
+                if row.get('household_id') and row['household_id']:
+                    try:
+                        household_id = int(row['household_id'])
+                    except ValueError:
+                        household_id = None
+
                 member = Member(
                     member_id=int(row['member_id']),
                     first_name=row['first_name'],
@@ -230,7 +331,8 @@ class MemberDatabase:
                     notes=row['notes'],
                     skip_until=row.get('skip_until') if row.get('skip_until') else None,
                     flag=row.get('flag', ''),
-                    aka=row.get('aka', '')
+                    aka=row.get('aka', ''),
+                    household_id=household_id
                 )
                 self.members.append(member)
 
@@ -242,7 +344,8 @@ class MemberDatabase:
             fieldnames = [
                 'member_id', 'first_name', 'last_name', 'gender', 'phone',
                 'birthday', 'recommend_expiration', 'last_prayer_date',
-                'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka'
+                'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka',
+                'household_id'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -301,6 +404,69 @@ class MemberDatabase:
             return None
 
         return member.last_prayer_date
+
+    def get_parents(self, member_id: int) -> List['Member']:
+        """
+        Get parent(s) for a member.
+        Returns members in the same household who are adults (18+).
+
+        Args:
+            member_id: ID of the member
+
+        Returns:
+            List of parent Member objects (may be empty if no parents found)
+        """
+        member = self.get_by_id(member_id)
+        if not member or not member.household_id:
+            return []
+
+        # Find all adults in the same household
+        parents = []
+        for m in self.members:
+            if (m.household_id == member.household_id and
+                m.member_id != member_id and
+                not m.is_minor and
+                m.active):
+                parents.append(m)
+
+        return parents
+
+    def get_household_members(self, household_id: int) -> List['Member']:
+        """
+        Get all members in a household.
+
+        Args:
+            household_id: ID of the household
+
+        Returns:
+            List of Member objects in the household
+        """
+        return [m for m in self.members if m.household_id == household_id]
+
+    def get_children(self, member_id: int) -> List['Member']:
+        """
+        Get children for a member (minors in same household).
+
+        Args:
+            member_id: ID of the member
+
+        Returns:
+            List of child Member objects (may be empty if no children found)
+        """
+        member = self.get_by_id(member_id)
+        if not member or not member.household_id:
+            return []
+
+        # Find all minors in the same household
+        children = []
+        for m in self.members:
+            if (m.household_id == member.household_id and
+                m.member_id != member_id and
+                m.is_minor and
+                m.active):
+                children.append(m)
+
+        return children
 
 
 class PrayerAssignmentDatabase:

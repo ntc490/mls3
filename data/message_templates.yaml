@@ -12,8 +12,11 @@ pleasantries:
 
 prayer:
   invite: "Hi {name|blue?formal:casual}, would you be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for you?"
+  invite_parent: "Hi {name|blue?formal:casual}, would {child_name} be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for them?"
   reminder: "Hi {name|blue?formal:casual}, {random:casual_reminder}Reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
+  reminder_parent: "Hi {name|blue?formal:casual}, {random:casual_reminder}Reminder that {child_name} is scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
   thank_you: "Thanks {name|blue?formal:casual} for agreeing to say the {prayer_type} prayer on {date}!"
+  thank_you_parent: "Thanks {name|blue?formal:casual} for having {child_name} say the {prayer_type} prayer on {date}!"
 
 appointments:
   default_invite: "Hi {name|blue?formal:casual}, would you be available to meet with {conductor} on {date} at {time}?"
@@ -29,7 +32,9 @@ appointments:
   Calling_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your appointment with {conductor} {smart_date} at {time}"
 
   Ordination_invite: "Hi {name|blue?formal:casual}, could you meet with {conductor} to be ordained on {date} at {time}?"
+  Ordination_invite_parent: "Hi {name|blue?formal:casual}, could {child_name} meet with {conductor} to be ordained on {date} at {time}?"
   Ordination_reminder: "Hi {name|blue?formal:casual}, reminder: Ordination {smart_date} at {time} with {conductor}"
+  Ordination_reminder_parent: "Hi {name|blue?formal:casual}, reminder: {child_name}'s Ordination {smart_date} at {time} with {conductor}"
 
   Family_invite: "Hi {name|blue?formal:casual}, would {date} at {time} work for a family visit with {conductor}?"
   Family_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Family visit {smart_date} at {time} with {conductor}"
@@ -38,19 +43,29 @@ appointments:
   Ecclesiastical endorsement_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Ecclesiastical endorsement interview {smart_date} at {time} with {conductor}"
 
   Mission interview_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a mission interview on {date} at {time}?"
+  Mission interview_invite_parent: "Hi {name|blue?formal:casual}, could {child_name} meet with Bishop for a mission interview on {date} at {time}?"
   Mission interview_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Mission interview {smart_date} at {time} with Bishop"
+  Mission interview_reminder_parent: "Hi {name|blue?formal:casual}, sending you a reminder for {child_name}'s Mission interview {smart_date} at {time} with Bishop"
 
   Patriarchal blessing_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a patriarchal blessing interview on {date} at {time}?"
+  Patriarchal blessing_invite_parent: "Hi {name|blue?formal:casual}, could {child_name} meet with Bishop for a patriarchal blessing interview on {date} at {time}?"
   Patriarchal blessing_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Patriarchal blessing interview {smart_date} at {time} with Bishop"
+  Patriarchal blessing_reminder_parent: "Hi {name|blue?formal:casual}, sending you a reminder for {child_name}'s Patriarchal blessing interview {smart_date} at {time} with Bishop"
 
   Baptismal_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a Baptismal interview on {date} at {time}?"
+  Baptismal_invite_parent: "Hi {name|blue?formal:casual}, could {child_name} meet with Bishop for a Baptismal interview on {date} at {time}?"
   Baptismal_reminder: "Hi {name|blue?formal:casual}, reminder for your Baptismal interview {smart_date} at {time} with Bishop"
+  Baptismal_reminder_parent: "Hi {name|blue?formal:casual}, reminder that {child_name} has a Baptismal interview {smart_date} at {time} with Bishop"
 
   Annual youth_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for your annual youth interview on {date} at {time}?"
+  Annual youth_invite_parent: "Hi {name|blue?formal:casual}, could {child_name} meet with Bishop for their annual youth interview on {date} at {time}?"
   Annual youth_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your annual youth interview {smart_date} at {time} with Bishop"
+  Annual youth_reminder_parent: "Hi {name|blue?formal:casual}, sending you a reminder for {child_name}'s annual youth interview {smart_date} at {time} with Bishop"
 
   Semi-annual youth_invite: "Hi {name|blue?formal:casual}, would you be available to meet with Bishop on {date} at {time}?"
+  Semi-annual youth_invite_parent: "Hi {name|blue?formal:casual}, would {child_name} be available to meet with Bishop on {date} at {time}?"
   Semi-annual youth_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your semi-annual youth interview {smart_date} at {time} with Bishop"
+  Semi-annual youth_reminder_parent: "Hi {name|blue?formal:casual}, sending you a reminder for {child_name}'s semi-annual youth interview {smart_date} at {time} with Bishop"
 
   Endowment_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for an endowment interview on {date} at {time}?"
   Endowment_reminder: "Hi {name|blue?formal:casual}, sending a reminder for your Endowment interview {smart_date} at {time} with Bishop"

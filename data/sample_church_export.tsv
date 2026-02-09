@@ -1,7 +1,21 @@
 Name	Gender	Age	Birth Date	Phone Number	E-mail
-Smith, John	M	45	15 Mar 1980	801-555-0101	john.smith@example.com
-Johnson, Mary	F	43	22 Jul 1982	801-555-0102	mary.johnson@example.com
-Williams, Robert	M	49	8 Nov 1975	801-555-0103	robert.williams@example.com
-Brown, Patricia	F	46	30 May 1978	801-555-0104	patricia.brown@example.com
-Davis, Emily	F	29	18 Apr 1995	801-555-0201	emily.davis@example.com
-Wilson, James	M	32	22 Aug 1992	801-555-0202	james.wilson@example.com
+Smith, Jack	M	50	15 Mar 1975	801-555-0101	jack.smith@example.com
+Smith, Jill	F	48	22 Aug 1977	801-555-0102	jill.smith@example.com
+Smith, Emma	F	15	14 May 2010		emma.smith@example.com
+Smith, Noah	M	13	3 Nov 2012		noah.smith@example.com
+Johnson, Thomas	M	45	10 Jan 1980	801-555-0201	thomas.johnson@example.com
+Johnson, Sarah	F	43	18 Jun 1982	801-555-0202	sarah.johnson@example.com
+Johnson, Olivia	F	16	25 Sep 2009		olivia.johnson@example.com
+Johnson, Liam	M	10	7 Apr 2015		liam.johnson@example.com
+Williams, Robert	M	57	5 Dec 1968	801-555-0301	robert.williams@example.com
+Williams, Mary	F	55	30 Jul 1970	801-555-0302	mary.williams@example.com
+Williams, Sophia	F	17	14 Feb 2008		sophia.williams@example.com
+Brown, James	M	40	20 Nov 1985	801-555-0401	james.brown@example.com
+Brown, Emily	F	38	8 Mar 1987	801-555-0402	emily.brown@example.com
+Davis, Michael	M	33	12 Sep 1992	801-555-0501	michael.davis@example.com
+Martinez, Jennifer	F	37	25 Apr 1988	801-555-0601	jennifer.martinez@example.com
+Garcia, David	M	47	30 Jun 1978	801-555-0701	david.garcia@example.com
+Garcia, Isabella	F	14	17 Aug 2011		isabella.garcia@example.com
+Wilson, Daniel	M	53	28 Feb 1972	801-555-0801	daniel.wilson@example.com
+Wilson, Linda	F	51	15 Oct 1974	801-555-0802	linda.wilson@example.com
+Wilson, Ethan	M	12	22 May 2013		ethan.wilson@example.com
