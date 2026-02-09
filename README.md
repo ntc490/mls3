@@ -23,11 +23,22 @@ A church scheduling and communication management tool designed to run in Termux 
 - **Smart Deletion**: Preserves completed appointments as history
 - **Manual Sync**: Optional manual sync button for troubleshooting
 
+### Member Management & Household Features
+- **Household Management**: Track family relationships and household groupings
+- **Parent Routing for Minors**: SMS messages to youth automatically route to parents
+- **Smart Member Import**: Import member data and household relationships from church exports
+- **Member Profiles**: Detailed member info with prayer history, appointment history, and household links
+
+### Communication Features
+- **SMS Integration**: Generate SMS messages via Android intents (Termux)
+- **Smart Templates**: Powerful template system with conditional logic and random variations
+- **Parent Templates**: Automatic template selection for minors with parent-friendly messaging
+- **Template Variables**: Support for formal/casual greetings, smart dates, and custom variables
+
 ### General Features
 - **Mobile-First UI**: Touch-friendly, responsive interface optimized for phone use
 - **CSV-Based Data**: Simple, editable data storage with no database required
 - **Timezone Support**: Proper UTC/local timezone handling for appointments
-- **Smart Templates**: Powerful template system for SMS messages
 
 ## Quick Start
 
@@ -127,13 +138,14 @@ A church scheduling and communication management tool designed to run in Termux 
 
 ### Data Files
 
-The system uses five main data files:
+The system uses six main data files:
 
-1. **members.csv** - Member database with names, phone numbers, prayer history
-2. **prayer_assignments.csv** - All prayer assignments (past, present, future)
-3. **appointments.csv** - Appointment tracking database
-4. **message_templates.yaml** - Customizable SMS message templates
-5. **appointment_types.yaml** - Configurable appointment types with default durations
+1. **members.csv** - Member database with names, phone numbers, prayer history, household assignments
+2. **households.csv** - Household groupings and family relationships
+3. **prayer_assignments.csv** - All prayer assignments (past, present, future)
+4. **appointments.csv** - Appointment tracking database
+5. **message_templates.yaml** - Customizable SMS message templates
+6. **appointment_types.yaml** - Configurable appointment types with default durations
 
 ### Using Mock Data (Development)
 
@@ -167,32 +179,42 @@ Download tab-separated data from your church website with these columns:
 
 ```bash
 # Import members (updates existing, adds new)
-python utils/import_members.py church_export.csv
+python utils/import_members.py church_export.tsv
 
 # Preview changes without saving
-python utils/import_members.py church_export.csv --dry-run
+python utils/import_members.py church_export.tsv --dry-run
 
 # Mark members in import as active, others as inactive (sync mode)
-python utils/import_members.py church_export.csv --activate-present --deactivate-absent
+python utils/import_members.py church_export.tsv --activate-present --deactivate-absent
+```
+
+#### **Import Household Relationships**
+Tab-separated file with columns: Last Name, Adults (semicolon-separated), Children (semicolon-separated)
+```bash
+# Import household relationships
+python utils/import_households.py households.tsv
+
+# Preview changes without saving
+python utils/import_households.py households.tsv --dry-run
 ```
 
 #### **Import Prayer Dates**
 Tab-separated file with columns: Name, Prayed
 ```bash
-python utils/import_members.py --update-prayed prayer_history.csv
+python utils/import_members.py --update-prayed prayer_history.tsv
 ```
 
 #### **Import Don't Ask Flags**
 Tab-separated file with single Name column:
 ```bash
 # Mark members as "don't ask for prayers"
-python utils/import_members.py --dont-ask dont_ask_list.csv
+python utils/import_members.py --dont-ask dont_ask_list.tsv
 
 # Re-enable members for prayer assignments
-python utils/import_members.py --do-ask can_ask_list.csv
+python utils/import_members.py --do-ask can_ask_list.tsv
 ```
 
-**See `data/sample_*.csv` for example file formats.**
+**See `data/sample_*.tsv` for example file formats.**
 
 ### Backing Up Data
 
@@ -237,6 +259,7 @@ mls3/
 │   └── appointment_types.yaml
 ├── utils/                           # Utility scripts
 │   ├── import_members.py
+│   ├── import_households.py
 │   ├── candidate_selector.py
 │   ├── sms_handler.py
 │   ├── template_expander.py
@@ -293,6 +316,15 @@ Edit `config.py` or use environment variables:
 - ✅ Timezone bug fixes and proper UTC/local handling
 - ✅ Mobile-optimized calendar event colors
 
+### ✅ Phase 2.5 Complete - Household Features & Minor Protection
+- ✅ Household data model and import utility
+- ✅ Parent/child relationship tracking
+- ✅ Automatic SMS routing to parents for minors
+- ✅ Parent-specific message templates
+- ✅ Household view in member modal
+- ✅ Visual indicators for minors (red age display)
+- ✅ Group SMS support (multiple parents)
+
 ### 📋 Phase 3 Planned - Completion Tracking
 - Conductor completion links in calendar events
 - Google Sheet integration for clerk reports
@@ -301,8 +333,9 @@ Edit `config.py` or use environment variables:
 **Ready to Use:**
 - Full prayer scheduling workflow
 - Full appointment scheduling workflow
+- Household management and parent routing
 - Fair rotation candidate selection
-- SMS invitations and reminders
+- SMS invitations and reminders with parent templates
 - Multi-week prayer planning with active queue
 - Google Calendar integration (optional)
 - Mobile-optimized interface

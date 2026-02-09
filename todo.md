@@ -3,6 +3,7 @@
 ## Current Status
 - ✅ **Phase 1 Complete** - Prayer Scheduling (February 6, 2026)
 - ✅ **Phase 2 Complete** - Appointment Management with Google Calendar (February 8, 2026)
+- ✅ **Phase 2.5 Complete** - Household Features & Minor Protection (February 9, 2026)
 - 📋 **Phase 3 Planned** - Completion Tracking (awaiting approval)
 
 ---
@@ -53,41 +54,35 @@
 
 ## Future Enhancements (Post Phase 3)
 
-### High Priority Features
+### Recently Completed Features
 
-#### Household Lookups for Youth Protection
-**Priority**: High - Safeguarding feature
+#### ✅ Household Lookups for Youth Protection
+**Status**: Complete (February 9, 2026)
 
 Youth protection when scheduling appointments with minors:
-- [ ] Import household data from church CSV
+- [x] Import household data from TSV files
   - Parent/guardian relationships
   - Household groupings
-- [ ] Extend member database schema
-  - Add `household_id` field
-  - Add `parent_member_ids` field (for minors)
-  - Add `is_minor` flag (age-based or manual)
-- [ ] Update appointment scheduling UI
-  - When selecting a minor, automatically show parent/guardian
-  - Require parent selection for minor appointments
-  - Display warning if attempting to contact minor directly
-- [ ] SMS logic updates
-  - Route all youth appointment SMS to parent/guardian
+- [x] Extended member database schema
+  - Added `household_id` field
+  - Automatic `is_minor` flag (age-based)
+- [x] SMS logic updates
+  - Route all youth SMS to parent/guardian automatically
   - Include both youth and parent names in message
-  - Template variables: `{youth_name}`, `{parent_name}`
-- [ ] Member search improvements
-  - Show household context in search results
-  - "Search households" option
-  - Filter: "Youth only" / "Adults only" / "All"
-- [ ] Import script updates
-  - Parse household relationships from church data
-  - Match parents to children
-  - Validate household integrity
+  - Template variables: `{child_name}`, `{parent_greeting}`
+  - Parent-specific templates (e.g., `reminder_parent`)
+  - Group SMS support for multiple parents
+- [x] Member UI improvements
+  - Household link in member modal header
+  - Household dialog showing all family members
+  - Visual indicators for minors (red age display in brackets)
+  - "Single" label for members without households
+- [x] Import script
+  - `utils/import_households.py` with dry-run mode
+  - Automatic parent/child matching by name
+  - Household integrity validation
 
-**Use Cases**:
-- Youth interviews → contact parents
-- Temple recommend (youth) → contact parents
-- Youth callings → contact parents
-- Never send SMS directly to minors
+**Result**: All SMS to minors now automatically routes to parents with appropriate templates.
 
 #### Command-Line Interface Enhancement
 **Priority**: Medium-High - Quality of life improvement
@@ -199,7 +194,14 @@ Only implement if needed by user:
 
 ## Documentation Tasks
 
-### Recently Completed (February 8, 2026)
+### Recently Completed (February 9, 2026)
+- [x] Updated README.md for Phase 2.5 (household features)
+- [x] Updated todo.md with household feature completion
+- [x] Cleaned up member notes (removed youth/primary age notes)
+- [x] Fixed redundant "reminder" text in SMS templates
+- [x] Added visual indicators for minors (red age display)
+
+### Previously Completed (February 8, 2026)
 - [x] Updated README.md for Phase 2
 - [x] Updated TESTING.md with appointment tests
 - [x] Updated DEPLOYMENT.md with Google Calendar setup
@@ -268,5 +270,5 @@ These are intentional design decisions for simplicity and security.
 
 ---
 
-*Last Updated: February 8, 2026*
-*Status: Phases 1 & 2 Complete, Phase 3 Planned*
+*Last Updated: February 9, 2026*
+*Status: Phases 1, 2, and 2.5 Complete, Phase 3 Planned*
