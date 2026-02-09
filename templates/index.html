@@ -34,7 +34,7 @@
                                 </span>
                             </div>
                             <div class="calendar-item-actions">
-                                <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ item.member_phone }}')">SMS</button>
+                                <button class="btn btn-sm btn-secondary sms-btn" data-phone="{{ item.member_phone }}" data-member-id="{{ item.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
                                 <button class="btn btn-sm btn-secondary" onclick="openReminderSMS({{ item.assignment_id }}, '{{ item.member_phone }}', '{{ date_str }}', '{{ item.prayer_type }}')">Reminder</button>
                             </div>
                         </div>
@@ -47,7 +47,7 @@
                                 </span>
                             </div>
                             <div class="calendar-item-actions">
-                                <button class="btn btn-sm btn-secondary" onclick="openSMS('{{ item.member_phone }}')">SMS</button>
+                                <button class="btn btn-sm btn-secondary sms-btn" data-phone="{{ item.member_phone }}" data-member-id="{{ item.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
                                 <button class="btn btn-sm btn-secondary" onclick="openAppointmentReminderSMS({{ item.appointment_id }}, '{{ item.member_phone }}')" {% if item.state in ['Draft', 'Invited'] %}disabled{% endif %}>Reminder</button>
                             </div>
                         </div>

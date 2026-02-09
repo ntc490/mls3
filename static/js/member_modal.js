@@ -691,16 +691,62 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleDontAskEl.addEventListener('change', toggleDontAsk);
     }
 
-    // Send text button (direct SMS)
+    // Send text button with long-press detection
+    // Tap: direct SMS | Long-press: SMS composer
     const sendTextBtn = document.getElementById('sendTextBtn');
     if (sendTextBtn) {
-        sendTextBtn.addEventListener('click', sendTextMessage);
-    }
+        let pressTimer;
+        let isLongPress = false;
 
-    // SMS+ button (composer)
-    const sendComposerBtn = document.getElementById('sendComposerBtn');
-    if (sendComposerBtn) {
-        sendComposerBtn.addEventListener('click', openSmsComposer);
+        sendTextBtn.addEventListener('mousedown', (e) => {
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                // Visual feedback for long press
+                sendTextBtn.style.opacity = '0.7';
+                // Trigger SMS composer on long press
+                openSmsComposer();
+            }, 500); // 500ms for long press
+        });
+
+        sendTextBtn.addEventListener('mouseup', (e) => {
+            clearTimeout(pressTimer);
+            sendTextBtn.style.opacity = '';
+            if (!isLongPress) {
+                // Normal click - direct SMS
+                sendTextMessage();
+            }
+        });
+
+        sendTextBtn.addEventListener('mouseleave', (e) => {
+            clearTimeout(pressTimer);
+            sendTextBtn.style.opacity = '';
+        });
+
+        // Touch events for mobile
+        sendTextBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Prevent mouse events from firing
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                sendTextBtn.style.opacity = '0.7';
+                openSmsComposer();
+            }, 500);
+        });
+
+        sendTextBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            clearTimeout(pressTimer);
+            sendTextBtn.style.opacity = '';
+            if (!isLongPress) {
+                sendTextMessage();
+            }
+        });
+
+        sendTextBtn.addEventListener('touchcancel', (e) => {
+            clearTimeout(pressTimer);
+            sendTextBtn.style.opacity = '';
+        });
     }
 
     // Appointment button

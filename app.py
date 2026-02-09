@@ -150,6 +150,7 @@ def index():
         items_by_date[assignment.date].append({
             'type': 'prayer',
             'assignment_id': assignment.assignment_id,
+            'member_id': assignment.member_id,
             'member_name': member_name,
             'member_phone': member_phone,
             'prayer_type': assignment.prayer_type,
@@ -168,6 +169,7 @@ def index():
         items_by_date[local_date].append({
             'type': 'appointment',
             'appointment_id': appointment.appointment_id,
+            'member_id': appointment.member_id,
             'member_name': member_name,
             'member_phone': member_phone,
             'appointment_type': appointment.appointment_type,
@@ -245,6 +247,7 @@ def events():
         items_by_date[assignment.date].append({
             'type': 'prayer',
             'assignment_id': assignment.assignment_id,
+            'member_id': assignment.member_id,
             'member_name': member_name,
             'member_phone': member_phone,
             'prayer_type': assignment.prayer_type,
@@ -263,6 +266,7 @@ def events():
         items_by_date[local_date].append({
             'type': 'appointment',
             'appointment_id': appointment.appointment_id,
+            'member_id': appointment.member_id,
             'member_name': member_name,
             'member_phone': member_phone,
             'appointment_type': appointment.appointment_type,

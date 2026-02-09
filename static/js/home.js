@@ -98,5 +98,76 @@ window.addEventListener('pageshow', function(event) {
     }
 });
 
+/**
+ * Setup long-press detection for SMS buttons
+ */
+function setupLongPressSMS() {
+    const smsButtons = document.querySelectorAll('.sms-btn');
+
+    smsButtons.forEach(button => {
+        let pressTimer;
+        let isLongPress = false;
+
+        // Mouse events (desktop)
+        button.addEventListener('mousedown', (e) => {
+            const phone = button.dataset.phone;
+            const memberId = button.dataset.memberId;
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                button.style.opacity = '0.7';
+                // Long press: open SMS composer
+                window.location.href = `/sms-composer?member_id=${encodeURIComponent(memberId)}`;
+            }, 500);
+        });
+
+        button.addEventListener('mouseup', (e) => {
+            const phone = button.dataset.phone;
+            clearTimeout(pressTimer);
+            button.style.opacity = '';
+            if (!isLongPress) {
+                // Normal click: direct SMS
+                openSMS(phone);
+            }
+        });
+
+        button.addEventListener('mouseleave', (e) => {
+            clearTimeout(pressTimer);
+            button.style.opacity = '';
+        });
+
+        // Touch events (mobile)
+        button.addEventListener('touchstart', (e) => {
+            const phone = button.dataset.phone;
+            const memberId = button.dataset.memberId;
+            e.preventDefault();
+            isLongPress = false;
+            pressTimer = setTimeout(() => {
+                isLongPress = true;
+                button.style.opacity = '0.7';
+                window.location.href = `/sms-composer?member_id=${encodeURIComponent(memberId)}`;
+            }, 500);
+        });
+
+        button.addEventListener('touchend', (e) => {
+            const phone = button.dataset.phone;
+            e.preventDefault();
+            clearTimeout(pressTimer);
+            button.style.opacity = '';
+            if (!isLongPress) {
+                openSMS(phone);
+            }
+        });
+
+        button.addEventListener('touchcancel', (e) => {
+            clearTimeout(pressTimer);
+            button.style.opacity = '';
+        });
+    });
+}
+
 // Restore scroll position on page load
-document.addEventListener('DOMContentLoaded', restoreScrollPosition);
+document.addEventListener('DOMContentLoaded', () => {
+    restoreScrollPosition();
+    setupLongPressSMS();
+});
