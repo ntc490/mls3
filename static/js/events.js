@@ -29,6 +29,15 @@ function initEventsPage() {
         document.getElementById('dateTo').value = formatDate(thirtyDaysLater);
     }
 
+    // Restore filter section state
+    const filterSectionOpen = sessionStorage.getItem('eventsFilterOpen');
+    if (filterSectionOpen === 'true') {
+        const section = document.getElementById('dateFiltersSection');
+        const icon = document.getElementById('toggleIcon');
+        section.style.display = 'block';
+        icon.textContent = '▲';
+    }
+
     // Restore scroll position if returning from another page
     const savedScrollPos = sessionStorage.getItem('eventsScrollPos');
     if (savedScrollPos) {
@@ -89,13 +98,13 @@ function toggleSort() {
     if (currentOrder === 'desc') {
         // Switch to ascending (oldest first)
         btn.dataset.order = 'asc';
-        btn.textContent = 'Dates ↑';
+        btn.textContent = 'Dates ▲';
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-secondary');
     } else {
         // Switch to descending (newest first)
         btn.dataset.order = 'desc';
-        btn.textContent = 'Dates ↓';
+        btn.textContent = 'Dates ▼';
         btn.classList.remove('btn-secondary');
         btn.classList.add('btn-primary');
     }
@@ -225,9 +234,11 @@ function toggleDateFilters() {
     if (section.style.display === 'none') {
         section.style.display = 'block';
         icon.textContent = '▲';
+        sessionStorage.setItem('eventsFilterOpen', 'true');
     } else {
         section.style.display = 'none';
         icon.textContent = '▼';
+        sessionStorage.setItem('eventsFilterOpen', 'false');
     }
 }
 
