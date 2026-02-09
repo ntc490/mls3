@@ -44,5 +44,5 @@ GOOGLE_CALENDAR_ENABLED = os.getenv('MLS3_GOOGLE_CALENDAR', 'false').lower() in 
 CREDENTIALS_FILE = DATA_DIR / 'credentials.json'
 TOKEN_FILE = DATA_DIR / 'token.pickle'
 # Calendar IDs for Bishop and Counselor schedules
-BISHOP_CALENDAR_ID = os.getenv('BISHOP_CALENDAR_ID', '')
-COUNSELOR_CALENDAR_ID = os.getenv('COUNSELOR_CALENDAR_ID', '')
+BISHOP_CALENDAR_ID = os.getenv('MLS3_BISHOP_CALENDAR_ID', '')
+COUNSELOR_CALENDAR_ID = os.getenv('MLS3_COUNSELOR_CALENDAR_ID', '')
