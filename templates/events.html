@@ -9,14 +9,6 @@
     </div>
 
     <div class="events-filters">
-        <!-- Search Bar (always visible) -->
-        <div class="form-row" style="margin-bottom: 0.5rem;">
-            <div class="form-group" style="flex: 1;">
-                <label for="searchText">Search</label>
-                <input type="text" id="searchText" class="form-input" placeholder="Search names and appointment types...">
-            </div>
-        </div>
-
         <!-- Filter Toggle Button -->
         <div class="form-row" style="margin-bottom: 1rem;">
             <div class="form-group" style="flex: 1;">
@@ -28,6 +20,13 @@
 
         <!-- Date Filters (collapsible) -->
         <div id="dateFiltersSection" style="display: none;">
+            <div class="form-row">
+                <div class="form-group" style="flex: 1;">
+                    <label for="searchText">Search</label>
+                    <input type="text" id="searchText" class="form-input" placeholder="Search names and appointment types...">
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label for="dateFrom">From Date</label>
