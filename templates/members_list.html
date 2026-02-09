@@ -7,11 +7,6 @@
     <h1 id="page-title">Members <span id="member-count" class="text-muted" style="font-size: 0.7em;">({{ active_count }})</span></h1>
 
     <div class="filters">
-        <div class="search-container">
-            <input type="text" id="search-box" placeholder="Search members..." class="search-input">
-            <button class="search-clear-btn" id="search-clear-btn" title="Clear search">&times;</button>
-        </div>
-
         <button class="btn btn-secondary filters-toggle" id="filters-toggle">
             <span id="filters-toggle-text">Show Filters</span>
         </button>
@@ -25,10 +20,15 @@
                 <button class="btn btn-filter" id="filter-flag">Flag: All</button>
                 <button class="btn btn-filter" id="filter-name-format">Name Format</button>
             </div>
-            <div class="sort-buttons">
+            <div class="sort-buttons" style="margin-bottom: 0.75rem;">
                 <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
-                <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Prayer Date ↓</button>
+                <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Date ▼</button>
             </div>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="search-box" placeholder="Search members..." class="search-input">
+            <button class="search-clear-btn" id="search-clear-btn" title="Clear search">&times;</button>
         </div>
     </div>
 
@@ -102,7 +102,7 @@
     let filterState = savedFilters ? JSON.parse(savedFilters) : {
         activeFilter: 'active',
         genderFilter: 'all',
-        showMinors: false,
+        minorsFilter: 'no',  // 'no', 'yes', 'only'
         prayerHistoryFilter: 'all',
         flagFilter: 'all',
         alphaSort: null,
@@ -114,7 +114,7 @@
     // Filter states
     let activeFilter = filterState.activeFilter;
     let genderFilter = filterState.genderFilter;
-    let showMinors = filterState.showMinors;
+    let minorsFilter = filterState.minorsFilter || 'no';
     let prayerHistoryFilter = filterState.prayerHistoryFilter;
     let flagFilter = filterState.flagFilter;
     let alphaSort = filterState.alphaSort;
@@ -161,7 +161,7 @@
         const state = {
             activeFilter,
             genderFilter,
-            showMinors,
+            minorsFilter,
             prayerHistoryFilter,
             flagFilter,
             alphaSort,
@@ -199,8 +199,11 @@
         }
 
         // Minors filter
-        if (showMinors) {
+        if (minorsFilter === 'yes') {
             filterMinorsBtn.textContent = 'Minors: Yes';
+            filterMinorsBtn.classList.add('active');
+        } else if (minorsFilter === 'only') {
+            filterMinorsBtn.textContent = 'Minors: Only';
             filterMinorsBtn.classList.add('active');
         } else {
             filterMinorsBtn.textContent = 'Minors: No';
@@ -254,13 +257,13 @@
         }
 
         if (prayerSort === 'asc') {
-            sortPrayerBtn.textContent = 'Prayer Date ↑';
+            sortPrayerBtn.textContent = 'Date ▲';
             sortPrayerBtn.classList.add('active');
         } else if (prayerSort === 'desc') {
-            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.textContent = 'Date ▼';
             sortPrayerBtn.classList.add('active');
         } else {
-            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.textContent = 'Date ▼';
             sortPrayerBtn.classList.remove('active');
         }
     }
@@ -306,13 +309,18 @@
         applyFiltersAndSort();
     });
 
-    // Minors button - toggles yes/no
+    // Minors button - cycles through no -> yes -> only
     filterMinorsBtn.addEventListener('click', () => {
-        showMinors = !showMinors;
-        if (showMinors) {
+        if (minorsFilter === 'no') {
+            minorsFilter = 'yes';
             filterMinorsBtn.textContent = 'Minors: Yes';
             filterMinorsBtn.classList.add('active');
+        } else if (minorsFilter === 'yes') {
+            minorsFilter = 'only';
+            filterMinorsBtn.textContent = 'Minors: Only';
+            filterMinorsBtn.classList.add('active');
         } else {
+            minorsFilter = 'no';
             filterMinorsBtn.textContent = 'Minors: No';
             filterMinorsBtn.classList.remove('active');
         }
@@ -426,14 +434,14 @@
         // Toggle: null -> asc (oldest first) -> desc (newest first) -> null
         if (prayerSort === null) {
             prayerSort = 'asc';
-            sortPrayerBtn.textContent = 'Prayer Date ↑';
+            sortPrayerBtn.textContent = 'Date ▲';
             sortPrayerBtn.classList.add('active');
         } else if (prayerSort === 'asc') {
             prayerSort = 'desc';
-            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.textContent = 'Date ▼';
         } else {
             prayerSort = null;
-            sortPrayerBtn.textContent = 'Prayer Date ↓';
+            sortPrayerBtn.textContent = 'Date ▼';
             sortPrayerBtn.classList.remove('active');
         }
 
@@ -540,7 +548,14 @@
             let matchesGender = (genderFilter === 'all' || gender === genderFilter);
 
             // Check minors filter
-            let matchesMinors = (showMinors || !isMinor);
+            let matchesMinors = false;
+            if (minorsFilter === 'no') {
+                matchesMinors = !isMinor;  // Exclude minors
+            } else if (minorsFilter === 'yes') {
+                matchesMinors = true;  // Include everyone
+            } else { // 'only'
+                matchesMinors = isMinor;  // Only minors
+            }
 
             // Check prayer history filter
             let matchesPrayerHistory = false;
