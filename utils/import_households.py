@@ -140,20 +140,46 @@ def parse_household_tsv(tsv_path: Path) -> List[Dict]:
                     current_household['email'] = parts[2].strip()
             else:
                 # Check if this looks like a name or address
-                # Names typically: "FirstName" or "FirstName (age)"
-                # Addresses typically have numbers or "Street", "Ln", "Cir", etc.
+                # Names can be:
+                #   - "FirstName" or "FirstName (age)"
+                #   - "LastName, FirstName" or "LastName, FirstName (age)" (different last name)
+                # Addresses typically have street indicators: numbers, "Street", "Ln", "Cir", "W", "E", etc.
 
-                # Extract name without age (if present)
-                name_part = content.split('(')[0].strip()
+                # Check if this is a full name with different last name: "Spooner, Tyler Franklin (13)"
+                if ',' in content:
+                    # Could be "LastName, FirstName" or an address
+                    # If it doesn't look like an address, treat as a name
+                    # Addresses with commas usually have state: "Riverton UT 84065, USA" or multi-part addresses
+                    # Names with commas: "LastName, FirstName"
 
-                # If it's a short name-like string (1-2 words, no numbers at start)
-                words = name_part.split()
-                if len(words) <= 2 and not any(c.isdigit() for c in name_part[:3]):
-                    # This is a member name
-                    current_household['members'].append(name_part)
+                    # Heuristic: If comma is followed by a capitalized word (not state abbrev), it's likely a name
+                    comma_parts = content.split(',', 1)
+                    if len(comma_parts) == 2:
+                        after_comma = comma_parts[1].strip().split()[0] if comma_parts[1].strip() else ''
+                        # If after comma looks like a first name (capitalized, not a state code, not a number)
+                        if after_comma and after_comma[0].isupper() and len(after_comma) > 2 and not after_comma.isdigit():
+                            # This is a name: "Spooner, Tyler Franklin"
+                            current_household['members'].append(content)
+                        else:
+                            # This is an address
+                            address_lines.append(content)
+                    else:
+                        address_lines.append(content)
                 else:
-                    # This is an address line
-                    address_lines.append(content)
+                    # No comma - check if name or address
+                    # Extract name without age (if present)
+                    name_part = content.split('(')[0].strip()
+
+                    # If it's a short name-like string (1-3 words, no numbers at start, no street indicators)
+                    words = name_part.split()
+                    has_street_indicator = any(word in ['W', 'E', 'N', 'S', 'Street', 'St', 'Ave', 'Ln', 'Dr', 'Cir', 'Way', 'Ct'] for word in words)
+
+                    if len(words) <= 3 and not any(c.isdigit() for c in name_part[:3]) and not has_street_indicator:
+                        # This is a member name
+                        current_household['members'].append(content)
+                    else:
+                        # This is an address line
+                        address_lines.append(content)
 
     # Add last household if exists
     if current_household:
@@ -230,20 +256,37 @@ def import_households(tsv_path: Path, dry_run: bool = False):
 
         # Parse last name from household name
         # Format is typically "Last, First & First" or just "Last, First"
-        last_name = hh_data['name'].split(',')[0].strip()
+        household_last_name = hh_data['name'].split(',')[0].strip()
 
         # Link members
-        for member_first_name in hh_data['members']:
-            member_first_name = member_first_name.strip()
-            member_id = find_matching_member(member_first_name, last_name, members_db)
+        for member_name in hh_data['members']:
+            member_name = member_name.strip()
+
+            # Remove age suffix if present: "Tyler Franklin (13)" -> "Tyler Franklin"
+            if '(' in member_name:
+                member_name = member_name.split('(')[0].strip()
+
+            # Check if this member has a different last name
+            # Format: "LastName, FirstName" or just "FirstName"
+            if ',' in member_name:
+                # Full name with different last name: "Spooner, Tyler Franklin"
+                parts = member_name.split(',', 1)
+                member_last_name = parts[0].strip()
+                member_first_name = parts[1].strip()
+            else:
+                # Just first name - use household last name
+                member_first_name = member_name
+                member_last_name = household_last_name
+
+            member_id = find_matching_member(member_first_name, member_last_name, members_db)
 
             if member_id:
-                print(f"  ✓ Linked: {member_first_name} {last_name} (ID: {member_id})")
+                print(f"  ✓ Linked: {member_first_name} {member_last_name} (ID: {member_id})")
                 if not dry_run:
                     members_db.update_member(member_id, household_id=next_household_id)
                     stats['members_linked'] += 1
             else:
-                print(f"  ✗ Not found: {member_first_name} {last_name}")
+                print(f"  ✗ Not found: {member_first_name} {member_last_name}")
                 stats['members_not_found'] += 1
 
         next_household_id += 1
