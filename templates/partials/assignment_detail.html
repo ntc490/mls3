@@ -1,3 +1,4 @@
+{% if assignment %}
 {% set member = members_db.get_by_id(assignment.member_id) if assignment.member_id and assignment.member_id > 0 else None %}
 {# Determine gender: use member's gender if assigned, otherwise show both genders as candidates #}
 {% set gender = member.gender if member else None %}
@@ -6,9 +7,15 @@
 <div class="assignment-details {% if is_completed %}assignment-completed{% endif %}">
     <!-- Person Bubble -->
     <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')"{% endif %}>
+{% else %}
+{# Empty state - no assignment exists yet #}
+<div class="assignment-details">
+    <!-- Person Bubble - clickable to create assignment -->
+    <div class="bubble bubble-person" onclick="selectMember(null, null, null, {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}')">
+{% endif %}
         <label>Person</label>
         <div class="bubble-value">
-            {% if member %}
+            {% if assignment and member %}
                 <div class="member-display">
                     <div class="member-name-section">
                         {{ member.full_name }}
@@ -32,11 +39,16 @@
     </div>
 
     <!-- Prayer Type Bubble -->
+    {% if assignment %}
     <div class="bubble bubble-type {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="togglePrayerType({{ assignment.assignment_id }}, '{{ assignment.prayer_type }}')"{% endif %}>
+    {% else %}
+    <div class="bubble bubble-type" onclick="togglePrayerType(null, 'Undecided', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}')">
+    {% endif %}
         <label>Type</label>
-        <div class="bubble-value">{{ assignment.prayer_type }}</div>
+        <div class="bubble-value">{% if assignment %}{{ assignment.prayer_type }}{% else %}Undecided{% endif %}</div>
     </div>
 
+    {% if assignment %}
     <!-- State Display -->
     <p class="state-display"><strong>State:</strong> <span class="state-badge state-{{ assignment.state|lower }}">{{ assignment.state }}</span></p>
 
@@ -64,4 +76,8 @@
             <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>
         {% endif %}
     </div>
+    {% else %}
+    <!-- Empty state - no actions shown -->
+    <p class="state-display"><strong>State:</strong> <span class="state-badge state-draft">Empty</span></p>
+    {% endif %}
 </div>

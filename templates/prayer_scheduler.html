@@ -23,30 +23,20 @@
         <div class="assignment-card" id="slot1-card">
             <h3>Slot 1</h3>
 
-            {% if slot1 %}
-                {% set assignment = slot1 %}
-                {% include 'partials/assignment_detail.html' %}
-            {% else %}
-                <div class="assignment-empty">
-                    <p class="empty-state">No assignment created yet</p>
-                    <button class="btn btn-primary" onclick="createAssignment('Undecided')">Create Assignment</button>
-                </div>
-            {% endif %}
+            {% set assignment = slot1 %}
+            {% set member = members_db.get_by_id(slot1.member_id) if slot1 and slot1.member_id else None %}
+            {% set slot_number = 1 %}
+            {% include 'partials/assignment_detail.html' %}
         </div>
 
         <!-- Slot 2 -->
         <div class="assignment-card" id="slot2-card">
             <h3>Slot 2</h3>
 
-            {% if slot2 %}
-                {% set assignment = slot2 %}
-                {% include 'partials/assignment_detail.html' %}
-            {% else %}
-                <div class="assignment-empty">
-                    <p class="empty-state">No assignment created yet</p>
-                    <button class="btn btn-primary" onclick="createAssignment('Undecided')">Create Assignment</button>
-                </div>
-            {% endif %}
+            {% set assignment = slot2 %}
+            {% set member = members_db.get_by_id(slot2.member_id) if slot2 and slot2.member_id else None %}
+            {% set slot_number = 2 %}
+            {% include 'partials/assignment_detail.html' %}
         </div>
     </div>
 </div>
@@ -187,9 +177,18 @@
     }
 
     // Open member selection modal
-    async function selectMember(assignmentId, currentMemberId, gender) {
-        currentAssignment = assignmentId;
-        currentField = 'member';
+    async function selectMember(assignmentId, currentMemberId, gender, slotNumber = null, targetDate = null) {
+        // If no assignment exists, we'll need to create one when a member is selected
+        // Store slot info for later
+        if (assignmentId === null && slotNumber !== null) {
+            currentAssignment = null;
+            currentField = 'create';
+            window.pendingSlotNumber = slotNumber;
+            window.pendingTargetDate = targetDate || targetSunday;
+        } else {
+            currentAssignment = assignmentId;
+            currentField = 'member';
+        }
 
         const modal = document.getElementById('member-modal');
         modal.style.display = 'flex';
@@ -315,6 +314,7 @@
     // Select a candidate
     async function selectCandidate(memberId, memberName) {
         if (currentAssignment) {
+            // Normal update to existing assignment
             const response = await fetch(`/api/assignments/${currentAssignment}/update`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -324,6 +324,34 @@
             if (response.ok) {
                 closeModal();
                 location.reload();
+            }
+        } else if (currentField === 'create') {
+            // Create new assignment with this member
+            showLoading();
+            try {
+                const response = await fetch('/api/assignments/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        member_id: memberId,
+                        date: window.pendingTargetDate,
+                        prayer_type: 'Undecided'
+                    })
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    console.error('Failed to create assignment:', error);
+                    alert('Failed to create assignment: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error creating assignment:', error);
+                alert('Error creating assignment: ' + error.message);
+            } finally {
+                hideLoading();
             }
         }
     }
@@ -342,7 +370,7 @@
     }
 
     // Toggle prayer type - cycles through Undecided -> Opening -> Closing -> Undecided
-    async function togglePrayerType(assignmentId, currentType) {
+    async function togglePrayerType(assignmentId, currentType, slotNumber = null, targetDate = null) {
         let newType;
         if (currentType === 'Undecided') {
             newType = 'Opening';
@@ -352,14 +380,44 @@
             newType = 'Undecided';
         }
 
-        const response = await fetch(`/api/assignments/${assignmentId}/update`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({prayer_type: newType})
-        });
+        if (assignmentId === null && slotNumber !== null) {
+            // Create new assignment with the selected prayer type
+            showLoading();
+            try {
+                const response = await fetch('/api/assignments/create', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        member_id: null,
+                        date: targetDate || targetSunday,
+                        prayer_type: newType
+                    })
+                });
 
-        if (response.ok) {
-            location.reload();
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const error = await response.json();
+                    console.error('Failed to create assignment:', error);
+                    alert('Failed to create assignment: ' + (error.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error creating assignment:', error);
+                alert('Error creating assignment: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        } else {
+            // Normal update to existing assignment
+            const response = await fetch(`/api/assignments/${assignmentId}/update`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({prayer_type: newType})
+            });
+
+            if (response.ok) {
+                location.reload();
+            }
         }
     }
 
