@@ -151,10 +151,8 @@ function applyQuickFilter(range) {
             // Calculate Monday of the target week (6 days before Sunday)
             const weekStart = addDays(targetSunday, -6);
 
-            // Only show events from today onwards (don't show past events from earlier in the week)
-            const actualStart = today > weekStart ? today : weekStart;
-
-            fromDate = formatDate(actualStart);
+            // Show ALL events for the active week (including past days and completed)
+            fromDate = formatDate(weekStart);
             toDate = formatDate(targetSunday);
             break;
         case 'today':

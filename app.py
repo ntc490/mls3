@@ -123,8 +123,7 @@ def index():
     days_since_monday = 6  # Always go back 6 days from Sunday to get to Monday
     week_start = target_sunday - timedelta(days=days_since_monday)
 
-    # Only show events from today onwards (don't show past events from earlier in the week)
-    week_start = max(week_start, today)
+    # Show ALL events for the current week (including past days and completed)
 
     # Get prayer assignments for current week
     upcoming_assignments = [
