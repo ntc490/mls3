@@ -72,13 +72,11 @@ def parse_household_tsv(tsv_path: Path) -> List[Dict]:
     Parse household TSV file exported from church system.
 
     Expected format:
-    - Tab-separated values
-    - First line: Family name (e.g., "Smith, Jack & Jill")
-    - Following lines: Individual first names
-    - Then: Address lines
-    - Then: Phone number
-    - Then: Email
-    - Blank line separates households
+    - Header row: <tab>Name<tab>Household Members<tab>Address<tab>Phone Number<tab>E-mail
+    - Each household:
+      - Row 1: <tab>Family Name<tab><empty>
+      - Row 2-N: Member first names (one per line, no tabs)
+      - Last row: Address lines...<tab>Phone<tab>Email
 
     Args:
         tsv_path: Path to TSV file
@@ -88,51 +86,79 @@ def parse_household_tsv(tsv_path: Path) -> List[Dict]:
     """
     households = []
     current_household = None
+    address_lines = []
 
     with open(tsv_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.rstrip('\n')
+        lines = f.readlines()
 
-            # Blank line indicates end of household
-            if not line.strip():
-                if current_household:
-                    households.append(current_household)
-                    current_household = None
-                continue
+    # Skip header row
+    i = 1
+    while i < len(lines):
+        line = lines[i].rstrip('\n')
+        i += 1
 
-            # Parse tab-separated values
+        # Check if this is a household name line (starts with tab, has household name)
+        if line.startswith('\t') and line.strip():
+            # Save previous household if exists
+            if current_household:
+                # Clean up address
+                current_household['address'] = '\n'.join(address_lines).strip()
+                households.append(current_household)
+                address_lines = []
+
+            # Parse household name line: <tab>Name<tab>...
             parts = line.split('\t')
+            household_name = parts[1] if len(parts) > 1 else parts[0].strip()
 
-            if current_household is None:
-                # First line of household - family name
-                current_household = {
-                    'name': parts[0] if parts else '',
-                    'members': [],
-                    'address': '',
-                    'phone': '',
-                    'email': ''
-                }
+            current_household = {
+                'name': household_name,
+                'members': [],
+                'address': '',
+                'phone': '',
+                'email': ''
+            }
+
+        elif current_household and not line.startswith('\t') and line.strip():
+            # This is a member name or address line (no leading tab)
+            content = line.strip()
+
+            # Check if this line has tabs (final line with contact info)
+            if '\t' in line:
+                # This is the final line: address<tab>phone<tab>email
+                parts = line.split('\t')
+
+                # First part is rest of address
+                if parts[0].strip():
+                    address_lines.append(parts[0].strip())
+
+                # Phone is second column
+                if len(parts) > 1 and parts[1].strip():
+                    current_household['phone'] = parts[1].strip()
+
+                # Email is third column
+                if len(parts) > 2 and parts[2].strip():
+                    current_household['email'] = parts[2].strip()
             else:
-                # Subsequent lines - could be member names or contact info
-                # If line looks like a name (single word or two words)
-                if len(parts[0].split()) <= 2 and not '@' in parts[0] and not any(c.isdigit() for c in parts[0][:5]):
-                    current_household['members'].append(parts[0])
-                elif '@' in parts[0]:
-                    # Email address
-                    current_household['email'] = parts[0]
-                elif any(c.isdigit() for c in parts[0]):
-                    # Phone or address - check if it looks like a phone number
-                    if parts[0].replace('-', '').replace('(', '').replace(')', '').replace(' ', '').isdigit():
-                        current_household['phone'] = parts[0]
-                    else:
-                        # Address line
-                        if current_household['address']:
-                            current_household['address'] += '\n'
-                        current_household['address'] += parts[0]
+                # Check if this looks like a name or address
+                # Names typically: "FirstName" or "FirstName (age)"
+                # Addresses typically have numbers or "Street", "Ln", "Cir", etc.
 
-        # Add last household if exists
-        if current_household:
-            households.append(current_household)
+                # Extract name without age (if present)
+                name_part = content.split('(')[0].strip()
+
+                # If it's a short name-like string (1-2 words, no numbers at start)
+                words = name_part.split()
+                if len(words) <= 2 and not any(c.isdigit() for c in name_part[:3]):
+                    # This is a member name
+                    current_household['members'].append(name_part)
+                else:
+                    # This is an address line
+                    address_lines.append(content)
+
+    # Add last household if exists
+    if current_household:
+        current_household['address'] = '\n'.join(address_lines).strip()
+        households.append(current_household)
 
     return households
 
