@@ -425,7 +425,19 @@ class MemberDatabase:
             self.save()
 
     def get_last_prayer_date(self, member_id: int, assignments_db) -> Optional[str]:
-        """Get member's last prayer date from members.csv"""
+        """
+        Get member's last prayer date from the members database.
+
+        This returns the stored last_prayer_date field, which is maintained
+        by the system when prayers are marked as completed.
+
+        Args:
+            member_id: Member ID to look up
+            assignments_db: Unused (kept for compatibility)
+
+        Returns:
+            Date string in YYYY-MM-DD format, or None if never prayed
+        """
         member = self.get_by_id(member_id)
         if not member:
             return None
