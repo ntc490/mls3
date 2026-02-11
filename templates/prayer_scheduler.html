@@ -19,13 +19,20 @@
     </div>
 
     <div class="assignments-container">
+        {# Determine gender filtering - if one slot has a member, other slot should filter to opposite gender #}
+        {% set slot1_member = members_db.get_by_id(slot1.member_id) if slot1 and slot1.member_id else None %}
+        {% set slot2_member = members_db.get_by_id(slot2.member_id) if slot2 and slot2.member_id else None %}
+        {% set slot1_gender = slot1_member.gender if slot1_member else None %}
+        {% set slot2_gender = slot2_member.gender if slot2_member else None %}
+
         <!-- Slot 1 -->
         <div class="assignment-card" id="slot1-card">
             <h3>Slot 1</h3>
 
             {% set assignment = slot1 %}
-            {% set member = members_db.get_by_id(slot1.member_id) if slot1 and slot1.member_id else None %}
+            {% set member = slot1_member %}
             {% set slot_number = 1 %}
+            {% set other_gender = slot2_gender %}
             {% include 'partials/assignment_detail.html' %}
         </div>
 
@@ -34,8 +41,9 @@
             <h3>Slot 2</h3>
 
             {% set assignment = slot2 %}
-            {% set member = members_db.get_by_id(slot2.member_id) if slot2 and slot2.member_id else None %}
+            {% set member = slot2_member %}
             {% set slot_number = 2 %}
+            {% set other_gender = slot1_gender %}
             {% include 'partials/assignment_detail.html' %}
         </div>
     </div>

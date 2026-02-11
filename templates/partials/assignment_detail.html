@@ -1,7 +1,9 @@
 {% if assignment %}
-{% set member = members_db.get_by_id(assignment.member_id) if assignment.member_id and assignment.member_id > 0 else None %}
-{# Determine gender: use member's gender if assigned, otherwise show both genders as candidates #}
-{% set gender = member.gender if member else None %}
+{# Determine gender filter:
+   - If this slot has a member, use their gender
+   - Otherwise, if other slot has a member, use OPPOSITE gender
+   - Otherwise, show all genders (None) #}
+{% set gender = member.gender if member else (('M' if other_gender == 'F' else 'F') if other_gender else None) %}
 {% set is_completed = assignment.state == 'Completed' %}
 
 <div class="assignment-details {% if is_completed %}assignment-completed{% endif %}">
@@ -9,9 +11,11 @@
     <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')"{% endif %}>
 {% else %}
 {# Empty state - no assignment exists yet #}
+{# Gender filter: if other slot has a member, filter to opposite gender #}
+{% set gender = ('M' if other_gender == 'F' else 'F') if other_gender else None %}
 <div class="assignment-details">
     <!-- Person Bubble - clickable to create assignment -->
-    <div class="bubble bubble-person" onclick="selectMember(null, null, null, {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}')">
+    <div class="bubble bubble-person" onclick="selectMember(null, null, '{{ gender if gender else 'null' }}', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}')">
 {% endif %}
         <label>Person</label>
         <div class="bubble-value">
