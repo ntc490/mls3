@@ -192,7 +192,8 @@ def index():
     for date_str, items in items_by_date.items():
         items.sort(key=lambda x: x.get('time_24h', '00:00'), reverse=True)  # Prayers go first (have 00:00)
 
-    calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date())
+    # Sort dates in reverse chronological order (newest first)
+    calendar_items = sorted(items_by_date.items(), key=lambda x: datetime.strptime(x[0], config.DATE_FORMAT).date(), reverse=True)
 
     return render_template(
         'index.html',
