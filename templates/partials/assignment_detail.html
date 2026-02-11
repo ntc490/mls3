@@ -8,14 +8,14 @@
 
 <div class="assignment-details {% if is_completed %}assignment-completed{% endif %}">
     <!-- Person Bubble -->
-    <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')"{% endif %}>
+    <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}', null, null, '{{ other_prayer_type if other_prayer_type else 'null' }}')"{% endif %}>
 {% else %}
 {# Empty state - no assignment exists yet #}
 {# Gender filter: if other slot has a member, filter to opposite gender #}
 {% set gender = ('M' if other_gender == 'F' else 'F') if other_gender else None %}
 <div class="assignment-details">
     <!-- Person Bubble - clickable to create assignment -->
-    <div class="bubble bubble-person" onclick="selectMember(null, null, '{{ gender if gender else 'null' }}', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}')">
+    <div class="bubble bubble-person" onclick="selectMember(null, null, '{{ gender if gender else 'null' }}', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}', '{{ other_prayer_type if other_prayer_type else 'null' }}')">
 {% endif %}
         <label>Person</label>
         <div class="bubble-value">

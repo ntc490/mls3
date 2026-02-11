@@ -24,6 +24,8 @@
         {% set slot2_member = members_db.get_by_id(slot2.member_id) if slot2 and slot2.member_id else None %}
         {% set slot1_gender = slot1_member.gender if slot1_member else None %}
         {% set slot2_gender = slot2_member.gender if slot2_member else None %}
+        {% set slot1_prayer_type = slot1.prayer_type if slot1 else None %}
+        {% set slot2_prayer_type = slot2.prayer_type if slot2 else None %}
 
         <!-- Slot 1 -->
         <div class="assignment-card" id="slot1-card">
@@ -33,6 +35,7 @@
             {% set member = slot1_member %}
             {% set slot_number = 1 %}
             {% set other_gender = slot2_gender %}
+            {% set other_prayer_type = slot2_prayer_type %}
             {% include 'partials/assignment_detail.html' %}
         </div>
 
@@ -44,6 +47,7 @@
             {% set member = slot2_member %}
             {% set slot_number = 2 %}
             {% set other_gender = slot1_gender %}
+            {% set other_prayer_type = slot1_prayer_type %}
             {% include 'partials/assignment_detail.html' %}
         </div>
     </div>
@@ -185,7 +189,7 @@
     }
 
     // Open member selection modal
-    async function selectMember(assignmentId, currentMemberId, gender, slotNumber = null, targetDate = null) {
+    async function selectMember(assignmentId, currentMemberId, gender, slotNumber = null, targetDate = null, otherPrayerType = null) {
         // If no assignment exists, we'll need to create one when a member is selected
         // Store slot info for later
         if (assignmentId === null && slotNumber !== null) {
@@ -193,9 +197,11 @@
             currentField = 'create';
             window.pendingSlotNumber = slotNumber;
             window.pendingTargetDate = targetDate || targetSunday;
+            window.pendingOtherPrayerType = otherPrayerType;
         } else {
             currentAssignment = assignmentId;
             currentField = 'member';
+            window.pendingOtherPrayerType = otherPrayerType;
         }
 
         const modal = document.getElementById('member-modal');
@@ -335,6 +341,14 @@
             }
         } else if (currentField === 'create') {
             // Create new assignment with this member
+            // Determine prayer type: use opposite of other slot if known, otherwise Undecided
+            let prayerType = 'Undecided';
+            const otherType = window.pendingOtherPrayerType;
+            if (otherType && otherType !== 'null' && otherType !== 'Undecided') {
+                // Set to opposite of other slot
+                prayerType = otherType === 'Opening' ? 'Closing' : 'Opening';
+            }
+
             showLoading();
             try {
                 const response = await fetch('/api/assignments/create', {
@@ -343,7 +357,7 @@
                     body: JSON.stringify({
                         member_id: memberId,
                         date: window.pendingTargetDate,
-                        prayer_type: 'Undecided'
+                        prayer_type: prayerType
                     })
                 });
 
