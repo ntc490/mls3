@@ -59,22 +59,35 @@
     <!-- Actions -->
     <div class="actions">
         {% if is_completed %}
+            {% if member %}
+            <button class="btn btn-secondary btn-sm sms-btn" data-phone="{{ member.phone }}" data-member-id="{{ member.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
+            {% endif %}
             <button class="btn btn-danger" onclick="deleteCompletedAssignment({{ assignment.assignment_id }})">Delete</button>
             <p class="help-text">Changing the date will make this assignment editable again.</p>
         {% elif assignment.state == 'Draft' %}
             {% if assignment.member_id and assignment.member_id > 0 %}
+                <button class="btn btn-secondary btn-sm sms-btn" data-phone="{{ member.phone }}" data-member-id="{{ member.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
                 <button class="btn btn-primary" onclick="sendInvite({{ assignment.assignment_id }})">Invite</button>
             {% endif %}
             <button class="btn btn-secondary btn-sm" onclick="clearSlot({{ assignment.assignment_id }})">Clear Slot</button>
         {% elif assignment.state == 'Invited' %}
+            {% if member %}
+            <button class="btn btn-secondary btn-sm sms-btn" data-phone="{{ member.phone }}" data-member-id="{{ member.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
+            {% endif %}
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Accepted')">Accept</button>
             <button class="btn btn-danger" onclick="confirmDecline({{ assignment.assignment_id }})">Decline</button>
             <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>
         {% elif assignment.state == 'Accepted' %}
+            {% if member %}
+            <button class="btn btn-secondary btn-sm sms-btn" data-phone="{{ member.phone }}" data-member-id="{{ member.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
+            {% endif %}
             <button class="btn btn-primary" onclick="sendReminder({{ assignment.assignment_id }})">Remind</button>
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Completed')">Complete</button>
             <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>
         {% elif assignment.state == 'Reminded' %}
+            {% if member %}
+            <button class="btn btn-secondary btn-sm sms-btn" data-phone="{{ member.phone }}" data-member-id="{{ member.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
+            {% endif %}
             <button class="btn btn-primary" onclick="sendReminder({{ assignment.assignment_id }})">Remind</button>
             <button class="btn btn-success" onclick="updateState({{ assignment.assignment_id }}, 'Completed')">Complete</button>
             <button class="btn btn-danger" onclick="deleteAssignment({{ assignment.assignment_id }})">Delete</button>

@@ -583,9 +583,29 @@ def api_delete_assignment(assignment_id):
     if not assignment:
         return jsonify({'error': 'Assignment not found'}), 404
 
+    # Store member_id and state before deletion
+    member_id = assignment.member_id
+    was_completed = assignment.state == 'Completed'
+
     # Remove from list and save
     assignments_db.assignments = [a for a in assignments_db.assignments if a.assignment_id != assignment_id]
     assignments_db.save()
+
+    # If this was a completed assignment, recalculate member's last_prayer_date
+    if was_completed and member_id:
+        # Find the most recent completed prayer for this member
+        member_assignments = [
+            a for a in assignments_db.assignments
+            if a.member_id == member_id and a.state == 'Completed'
+        ]
+
+        if member_assignments:
+            # Find the most recent one
+            most_recent = max(member_assignments, key=lambda a: a.date_obj)
+            members_db.update_member(member_id, last_prayer_date=most_recent.date)
+        else:
+            # No more completed prayers, clear the date
+            members_db.update_member(member_id, last_prayer_date=None)
 
     return jsonify({'success': True})
 

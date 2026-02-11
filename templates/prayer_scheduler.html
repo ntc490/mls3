@@ -634,4 +634,11 @@
         }
     }
 </script>
+<script src="{{ url_for('static', filename='js/home.js') }}"></script>
+<script>
+    // Setup long-press SMS functionality after page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        setupLongPressSMS();
+    });
+</script>
 {% endblock %}
