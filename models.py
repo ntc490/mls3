@@ -108,6 +108,15 @@ class Member:
         age = self.age
         return age is not None and age < 18
 
+    @property
+    def is_prayer_eligible(self) -> bool:
+        """Check if member is eligible to pray in sacrament meeting (8 years or older)"""
+        age = self.age
+        if age is None:
+            # If no birthday, assume eligible
+            return True
+        return age >= 8
+
 
 @dataclass
 class PrayerAssignment:
@@ -368,11 +377,22 @@ class MemberDatabase:
                 return member
         return None
 
-    def get_active_members(self, gender: Optional[str] = None) -> List[Member]:
-        """Get all active members, optionally filtered by gender"""
+    def get_active_members(self, gender: Optional[str] = None, prayer_eligible_only: bool = False) -> List[Member]:
+        """
+        Get all active members, optionally filtered by gender and prayer eligibility.
+
+        Args:
+            gender: Optional gender filter ('M' or 'F')
+            prayer_eligible_only: If True, only return members 8 years or older
+
+        Returns:
+            List of active members matching the filters
+        """
         result = [m for m in self.members if m.active]
         if gender:
             result = [m for m in result if m.gender == gender]
+        if prayer_eligible_only:
+            result = [m for m in result if m.is_prayer_eligible]
         return result
 
     def search(self, query: str) -> List[Member]:

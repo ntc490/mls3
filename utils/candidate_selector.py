@@ -31,10 +31,10 @@ def get_next_candidates(
     """
     today = date.today()
 
-    # Get all active members of specified gender
+    # Get all active members of specified gender who are prayer eligible (8+ years old)
     eligible = [
         m for m in members_db.members
-        if m.active and m.gender == gender and not m.dont_ask_prayer
+        if m.active and m.gender == gender and not m.dont_ask_prayer and m.is_prayer_eligible
     ]
 
     # Exclude members with skip_until date in the future
@@ -128,8 +128,8 @@ def find_member_by_fuzzy_search(
     query_lower = query.lower().strip()
 
     if not query_lower:
-        # No query, return active members of specified gender
-        members = members_db.get_active_members(gender=gender)
+        # No query, return active prayer-eligible members of specified gender
+        members = members_db.get_active_members(gender=gender, prayer_eligible_only=True)
         return members[:limit]
 
     # Split query into words
@@ -142,6 +142,10 @@ def find_member_by_fuzzy_search(
             continue
 
         if gender and member.gender != gender:
+            continue
+
+        # Filter out members under 8 (not prayer eligible)
+        if not member.is_prayer_eligible:
             continue
 
         full_name = member.full_name.lower()
