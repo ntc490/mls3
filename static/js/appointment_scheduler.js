@@ -349,6 +349,7 @@ async function loadAppointmentForEdit(apptId) {
         document.getElementById('appointmentDate').value = appt.date;
         document.getElementById('appointmentTime').value = appt.time;
         document.getElementById('duration').value = appt.duration_minutes;
+        document.getElementById('appointmentNotes').value = appt.notes || '';
 
         // Set conductor
         selectConductor(appt.conductor);
@@ -580,9 +581,10 @@ function setupEventListeners() {
     document.getElementById('newApptBtn').addEventListener('click', resetToNewAppointment);
     document.getElementById('deleteBtn').addEventListener('click', deleteAppointment);
 
-    // Mark as dirty when time or duration changes
+    // Mark as dirty when time, duration, or notes changes
     document.getElementById('appointmentTime').addEventListener('input', markDirty);
     document.getElementById('duration').addEventListener('input', markDirty);
+    document.getElementById('appointmentNotes').addEventListener('input', markDirty);
 
     // Form validation - enable/disable save and invite buttons
     document.getElementById('memberSearch').addEventListener('input', validateForm);
@@ -841,13 +843,15 @@ async function updateAppointment() {
         return;
     }
 
+    const notes = document.getElementById('appointmentNotes').value;
     const payload = {
         appointment_type: appointmentType,
         date: date,
         time: time,
         duration_minutes: parseInt(duration),
         conductor: selectedConductor,
-        timezone: getBrowserTimezone()
+        timezone: getBrowserTimezone(),
+        notes: notes || ''  // Send empty string instead of null so backend knows to clear it
     };
 
     try {
@@ -1043,7 +1047,8 @@ async function saveAppointment(initialState) {
                     time: time,
                     duration_minutes: parseInt(duration),
                     conductor: selectedConductor,
-                    timezone: getBrowserTimezone()
+                    timezone: getBrowserTimezone(),
+                    notes: document.getElementById('appointmentNotes').value || ''
                 })
             });
 
@@ -1080,7 +1085,8 @@ async function saveAppointment(initialState) {
                     time: time,
                     duration_minutes: parseInt(duration),
                     conductor: selectedConductor,
-                    timezone: getBrowserTimezone()
+                    timezone: getBrowserTimezone(),
+                    notes: document.getElementById('appointmentNotes').value || ''
                 })
             });
 
@@ -1188,6 +1194,9 @@ function resetToNewAppointment() {
         document.getElementById('conductorBishop').classList.remove('active');
         document.getElementById('conductorCounselor').classList.remove('active');
     }
+
+    // Reset notes
+    document.getElementById('appointmentNotes').value = '';
 
     // Reset button visibility
     document.getElementById('saveBtn').style.display = 'inline-block';

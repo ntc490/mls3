@@ -149,6 +149,7 @@ class Appointment:
     last_updated: str
     completed_date: Optional[str] = None
     google_event_id: Optional[str] = None  # Google Calendar event ID for sync
+    notes: Optional[str] = None  # Optional notes (location, calling info, etc.)
 
     @property
     def datetime_obj_utc(self) -> datetime:
@@ -721,7 +722,8 @@ class AppointmentDatabase:
                     created_date=row['created_date'],
                     last_updated=row['last_updated'],
                     completed_date=row['completed_date'] if row['completed_date'] else None,
-                    google_event_id=row.get('google_event_id') if row.get('google_event_id') else None
+                    google_event_id=row.get('google_event_id') if row.get('google_event_id') else None,
+                    notes=row.get('notes') if row.get('notes') else None
                 )
                 self.appointments.append(appointment)
 
@@ -733,7 +735,7 @@ class AppointmentDatabase:
             fieldnames = [
                 'appointment_id', 'member_id', 'appointment_type', 'datetime_utc',
                 'duration_minutes', 'conductor', 'state', 'created_date',
-                'last_updated', 'completed_date', 'google_event_id'
+                'last_updated', 'completed_date', 'google_event_id', 'notes'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -771,7 +773,8 @@ class AppointmentDatabase:
         time: str,
         duration_minutes: int,
         conductor: str,
-        timezone: str = None
+        timezone: str = None,
+        notes: str = None
     ) -> Appointment:
         """
         Create a new appointment
@@ -784,6 +787,7 @@ class AppointmentDatabase:
             duration_minutes: Duration in minutes
             conductor: Conductor name
             timezone: IANA timezone string (e.g., 'America/Denver'). If None, uses HOME_TIMEZONE.
+            notes: Optional notes (location, calling info, etc.)
         """
         try:
             from zoneinfo import ZoneInfo
@@ -817,7 +821,8 @@ class AppointmentDatabase:
             conductor=conductor,
             state="Draft",
             created_date=now,
-            last_updated=now
+            last_updated=now,
+            notes=notes
         )
         self.appointments.append(appointment)
         self.save()
@@ -843,7 +848,8 @@ class AppointmentDatabase:
         time: Optional[str] = None,
         duration_minutes: Optional[int] = None,
         conductor: Optional[str] = None,
-        timezone: Optional[str] = None
+        timezone: Optional[str] = None,
+        notes: Optional[str] = None
     ):
         """Update appointment details
 
@@ -855,6 +861,7 @@ class AppointmentDatabase:
             duration_minutes: Optional new duration
             conductor: Optional new conductor
             timezone: Timezone for date/time interpretation. If None, uses HOME_TIMEZONE.
+            notes: Optional notes (pass empty string to clear, None to leave unchanged)
         """
         try:
             from zoneinfo import ZoneInfo
@@ -897,6 +904,8 @@ class AppointmentDatabase:
                 appointment.duration_minutes = duration_minutes
             if conductor is not None:
                 appointment.conductor = conductor
+            if notes is not None:
+                appointment.notes = notes if notes else None  # Convert empty string to None
 
             appointment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
             self.save()

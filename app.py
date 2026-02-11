@@ -1197,6 +1197,7 @@ def create_appointment():
     duration_minutes = data.get('duration_minutes')
     conductor = data.get('conductor')
     timezone = data.get('timezone')  # Browser's detected timezone
+    notes = data.get('notes')  # Optional notes
 
     if not all([member_id, appointment_type, date_str, time_str, duration_minutes, conductor]):
         return jsonify({'error': 'Missing required fields'}), 400
@@ -1213,7 +1214,8 @@ def create_appointment():
         time=time_str,
         duration_minutes=int(duration_minutes),
         conductor=conductor,
-        timezone=timezone
+        timezone=timezone,
+        notes=notes
     )
 
     # Sync to Google Calendar
@@ -1235,6 +1237,7 @@ def update_appointment(appointment_id):
     duration_minutes = data.get('duration_minutes')
     conductor = data.get('conductor')
     timezone = data.get('timezone')  # Browser's detected timezone
+    notes = data.get('notes')  # Optional notes
 
     # Get old appointment to check if conductor changed
     old_appointment = appointments_db.get_by_id(appointment_id)
@@ -1254,7 +1257,8 @@ def update_appointment(appointment_id):
         time=time_str,
         duration_minutes=int(duration_minutes) if duration_minutes is not None else None,
         conductor=conductor,
-        timezone=timezone
+        timezone=timezone,
+        notes=notes
     )
 
     # Sync updated appointment to Google Calendar
@@ -1478,7 +1482,8 @@ def get_appointment(appointment_id):
         'state': appointment.state,
         'created_date': appointment.created_date,
         'last_updated': appointment.last_updated,
-        'completed_date': appointment.completed_date
+        'completed_date': appointment.completed_date,
+        'notes': appointment.notes
     })
 
 

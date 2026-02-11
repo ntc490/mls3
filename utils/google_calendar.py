@@ -224,14 +224,19 @@ class CalendarSync:
             state_prefix = ""
         summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
 
+        # Build description with MLS3 notes (if present) and system markers
+        description_parts = [f"State: {appointment.state}"]
+        if appointment.notes:
+            description_parts.append("")  # Blank line
+            description_parts.append(f"Note: {appointment.notes}")
+        description_parts.append("")  # Blank line before signature
+        description_parts.append("Managed by MLS3")
+        description = "\n".join(description_parts)
+
         # Build event object
         event = {
             'summary': summary,
-            'description': (
-                f"State: {appointment.state}\n"
-                f"\n"
-                f"Managed by MLS3"
-            ),
+            'description': description,
             'start': {
                 'dateTime': local_dt.isoformat(),
                 'timeZone': config.HOME_TIMEZONE,
@@ -307,24 +312,27 @@ class CalendarSync:
             print(f"Warning: Could not fetch existing event for description preservation: {e}")
             existing_description = ''
 
-        # Preserve user-added notes
+        # Preserve user-added notes from Google Calendar
         user_notes = self._extract_user_notes(existing_description)
 
-        # Build description with State and Managed by MLS3, preserving user notes in between
+        # Build description with State, MLS3 notes, user notes, and signature
+        description_parts = [f"State: {appointment.state}"]
+
+        # Add MLS3 notes if present
+        if appointment.notes:
+            description_parts.append("")  # Blank line
+            description_parts.append(f"Note: {appointment.notes}")
+
+        # Add user-added notes from Google Calendar if present
         if user_notes:
-            description = (
-                f"State: {appointment.state}\n"
-                f"\n"
-                f"{user_notes}\n"
-                f"\n"
-                f"Managed by MLS3"
-            )
-        else:
-            description = (
-                f"State: {appointment.state}\n"
-                f"\n"
-                f"Managed by MLS3"
-            )
+            description_parts.append("")  # Blank line
+            description_parts.append(user_notes)
+
+        # Add signature
+        description_parts.append("")  # Blank line before signature
+        description_parts.append("Managed by MLS3")
+
+        description = "\n".join(description_parts)
 
         # Build updated event object
         event = {
@@ -366,7 +374,7 @@ class CalendarSync:
     def _extract_user_notes(self, description: str) -> str:
         """
         Extract user-added notes from calendar event description.
-        Removes only the "Managed by MLS3" marker and old "State:" lines.
+        Removes MLS3-generated lines (State:, Note:, Managed by MLS3).
         Everything else is preserved as user content.
 
         Args:
@@ -384,8 +392,8 @@ class CalendarSync:
 
         for line in lines:
             line_stripped = line.strip()
-            # Skip only MLS3 system markers (current and old state marker)
-            if line_stripped and not any(line_stripped.startswith(marker) for marker in ['State:', 'Managed by MLS3']):
+            # Skip MLS3 system markers (State, Note, and signature)
+            if line_stripped and not any(line_stripped.startswith(marker) for marker in ['State:', 'Note:', 'Managed by MLS3']):
                 user_lines.append(line)
 
         user_content = '\n'.join(user_lines).strip()
