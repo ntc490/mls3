@@ -13,6 +13,7 @@ from models import (
 from utils.google_calendar import (
     get_calendar_service, CalendarSync, is_calendar_enabled, is_online
 )
+from utils.version import get_version
 
 
 app = Flask(__name__)
@@ -25,6 +26,12 @@ assignments_db = PrayerAssignmentDatabase()
 templates = MessageTemplates()
 appointment_types_db = AppointmentTypesDatabase()
 appointments_db = AppointmentDatabase()
+
+
+# Context processor to make version available in all templates
+@app.context_processor
+def inject_version():
+    return {'app_version': get_version()}
 
 # Print debug mode status on startup
 print(f"\n{'='*60}")
