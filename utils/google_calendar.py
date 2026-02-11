@@ -273,6 +273,7 @@ class CalendarSync:
     def update_appointment_event(self, appointment, member, calendar_id: str) -> str:
         """
         Update existing calendar event for appointment.
+        Preserves any user-added notes in the description.
 
         Args:
             appointment: Appointment object
@@ -295,16 +296,40 @@ class CalendarSync:
             state_prefix = ""
         summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
 
+        # Fetch existing event to preserve user notes
+        try:
+            existing_event = self.service.events().get(
+                calendarId=calendar_id,
+                eventId=appointment.google_event_id
+            ).execute()
+            existing_description = existing_event.get('description', '')
+        except HttpError as e:
+            print(f"Warning: Could not fetch existing event for description preservation: {e}")
+            existing_description = ''
+
+        # Preserve user-added notes
+        user_notes = self._extract_user_notes(existing_description)
+
+        # Build description with State and Managed by MLS3, preserving user notes in between
+        if user_notes:
+            description = (
+                f"State: {appointment.state}\n"
+                f"\n"
+                f"{user_notes}\n"
+                f"\n"
+                f"Managed by MLS3"
+            )
+        else:
+            description = (
+                f"State: {appointment.state}\n"
+                f"\n"
+                f"Managed by MLS3"
+            )
+
         # Build updated event object
         event = {
             'summary': summary,
-            'description': (
-                f"Appointment: {appointment.appointment_type}\n"
-                f"Member: {member.full_name}\n"
-                f"State: {appointment.state}\n"
-                f"Duration: {appointment.duration_minutes} minutes\n"
-                f"\nManaged by MLS3"
-            ),
+            'description': description,
             'start': {
                 'dateTime': local_dt.isoformat(),
                 'timeZone': config.HOME_TIMEZONE,
@@ -337,6 +362,34 @@ class CalendarSync:
         except HttpError as e:
             print(f"Error updating calendar event: {e}")
             raise
+
+    def _extract_user_notes(self, description: str) -> str:
+        """
+        Extract user-added notes from calendar event description.
+        Removes only the "Managed by MLS3" marker and old "State:" lines.
+        Everything else is preserved as user content.
+
+        Args:
+            description: Full event description
+
+        Returns:
+            User-added notes (empty string if none)
+        """
+        if not description:
+            return ''
+
+        # Remove only MLS3 system lines, preserve everything else
+        lines = description.split('\n')
+        user_lines = []
+
+        for line in lines:
+            line_stripped = line.strip()
+            # Skip only MLS3 system markers (current and old state marker)
+            if line_stripped and not any(line_stripped.startswith(marker) for marker in ['State:', 'Managed by MLS3']):
+                user_lines.append(line)
+
+        user_content = '\n'.join(user_lines).strip()
+        return user_content
 
     def delete_appointment_event(self, appointment):
         """
