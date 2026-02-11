@@ -1415,9 +1415,8 @@ def delete_appointment(appointment_id):
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
 
-    # Delete from Google Calendar only if NOT completed (preserve history for completed)
+    # Delete from Google Calendar if it exists
     if (appointment.google_event_id and
-        appointment.state != 'Completed' and
         is_calendar_enabled() and
         is_online()):
         try:
@@ -1428,8 +1427,6 @@ def delete_appointment(appointment_id):
         except Exception as e:
             print(f"Warning: Could not delete from Google Calendar: {e}")
             # Continue with MLS3 deletion even if calendar deletion fails
-    elif appointment.state == 'Completed':
-        print(f"Preserving completed appointment in Google Calendar for history")
 
     # Remove from list and save
     appointments_db.appointments = [a for a in appointments_db.appointments if a.appointment_id != appointment_id]
