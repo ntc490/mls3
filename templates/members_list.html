@@ -22,7 +22,7 @@
             </div>
             <div class="sort-buttons" style="margin-bottom: 0.75rem;">
                 <button class="btn btn-sort" id="sort-alpha" title="Sort alphabetically">A→Z</button>
-                <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Date ▼</button>
+                <button class="btn btn-sort" id="sort-prayer" title="Sort by prayer date">Prayer Date ▼</button>
             </div>
         </div>
 
@@ -257,13 +257,13 @@
         }
 
         if (prayerSort === 'asc') {
-            sortPrayerBtn.textContent = 'Date ▲';
+            sortPrayerBtn.textContent = 'Prayer Date ▲';
             sortPrayerBtn.classList.add('active');
         } else if (prayerSort === 'desc') {
-            sortPrayerBtn.textContent = 'Date ▼';
+            sortPrayerBtn.textContent = 'Prayer Date ▼';
             sortPrayerBtn.classList.add('active');
         } else {
-            sortPrayerBtn.textContent = 'Date ▼';
+            sortPrayerBtn.textContent = 'Prayer Date ▼';
             sortPrayerBtn.classList.remove('active');
         }
     }
@@ -434,14 +434,14 @@
         // Toggle: null -> asc (oldest first) -> desc (newest first) -> null
         if (prayerSort === null) {
             prayerSort = 'asc';
-            sortPrayerBtn.textContent = 'Date ▲';
+            sortPrayerBtn.textContent = 'Prayer Date ▲';
             sortPrayerBtn.classList.add('active');
         } else if (prayerSort === 'asc') {
             prayerSort = 'desc';
-            sortPrayerBtn.textContent = 'Date ▼';
+            sortPrayerBtn.textContent = 'Prayer Date ▼';
         } else {
             prayerSort = null;
-            sortPrayerBtn.textContent = 'Date ▼';
+            sortPrayerBtn.textContent = 'Prayer Date ▼';
             sortPrayerBtn.classList.remove('active');
         }
 
