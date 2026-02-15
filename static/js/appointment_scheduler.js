@@ -345,6 +345,18 @@ async function loadAppointmentForEdit(apptId) {
         memberSearch.style.cursor = 'not-allowed';
 
         // Populate form fields
+        // Check if appointment type exists in dropdown, if not add it as an option
+        const typeSelect = document.getElementById('appointmentType');
+        const typeExists = Array.from(typeSelect.options).some(opt => opt.value === appt.appointment_type);
+        if (!typeExists && appt.appointment_type) {
+            // Add unknown type as an option (possibly from old config)
+            const option = document.createElement('option');
+            option.value = appt.appointment_type;
+            option.textContent = `${appt.appointment_type} (legacy)`;
+            option.dataset.duration = appt.duration_minutes || 20;
+            option.dataset.conductor = appt.conductor || 'Bishop';
+            typeSelect.appendChild(option);
+        }
         document.getElementById('appointmentType').value = appt.appointment_type;
         document.getElementById('appointmentDate').value = appt.date;
         document.getElementById('appointmentTime').value = appt.time;
