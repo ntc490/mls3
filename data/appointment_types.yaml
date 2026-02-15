@@ -23,8 +23,8 @@ appointment_types:
     default_duration: 15
     default_conductor: "Bishop"
 
-  - name: "Mission interview"
-    default_duration: 15
+  - name: "Mission"
+    default_duration: 30
     default_conductor: "Bishop"
 
   - name: "Patriarchal blessing"
