@@ -632,7 +632,7 @@ def api_send_invitation(assignment_id):
     assignments_db.update_state(assignment_id, 'Invited')
 
     # Send SMS using smart template expansion
-    success, error_msg = expand_and_send('prayer', 'invite', member, templates, members_db, assignment)
+    success, error_msg = expand_and_send('prayer', 'invite', member, templates, members_db, households_db, assignment)
 
     if success:
         return jsonify({'success': True, 'message': 'SMS sent'})
@@ -662,7 +662,7 @@ def api_send_reminder(assignment_id):
         return jsonify({'error': 'Member not found'}), 404
 
     # Send SMS using smart template expansion
-    success, error_msg = expand_and_send('prayer', 'reminder', member, templates, members_db, assignment)
+    success, error_msg = expand_and_send('prayer', 'reminder', member, templates, members_db, households_db, assignment)
 
     if success:
         # Update state to Reminded
@@ -1035,7 +1035,7 @@ def api_get_member_household(member_id):
     # Get parents if member is minor
     parents = []
     if member.is_minor:
-        parent_members = members_db.get_parents(member_id)
+        parent_members = members_db.get_parents(member_id, households_db)
         parents = [
             {
                 'member_id': p.member_id,
@@ -1329,6 +1329,7 @@ def send_appointment_invite(appointment_id):
         member,
         templates,
         members_db,
+        households_db,
         appointment,
         conductor=format_conductor_for_message(appointment.conductor)
     )
@@ -1398,6 +1399,7 @@ def send_appointment_reminder(appointment_id):
         member,
         templates,
         members_db,
+        households_db,
         appointment,
         conductor=format_conductor_for_message(appointment.conductor)
     )
@@ -1608,7 +1610,7 @@ def api_expand_template():
             actual_template_name = parent_template_name
 
             # Get parents to build greeting
-            parents = members_db.get_parents(member_id)
+            parents = members_db.get_parents(member_id, households_db)
 
             if parents:
                 # Build parent greeting (same logic as sms_handler.py)
@@ -1696,7 +1698,7 @@ def send_direct_sms(member_id):
 
     # Check if member is a minor - route to parents
     if member.is_minor:
-        parents = members_db.get_parents(member_id)
+        parents = members_db.get_parents(member_id, households_db)
 
         if not parents:
             return jsonify({

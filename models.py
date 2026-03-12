@@ -444,31 +444,83 @@ class MemberDatabase:
 
         return member.last_prayer_date
 
-    def get_parents(self, member_id: int) -> List['Member']:
+    def get_parents(self, member_id: int, households_db=None) -> List['Member']:
         """
-        Get parent(s) for a member.
-        Returns members in the same household who are adults (18+).
+        Get parent(s) for a member using household.name data.
+
+        IMPORTANT: This ONLY uses household.name to identify parents.
+        No fallback method is used - if household data is unavailable or
+        doesn't match, an empty list is returned.
 
         Args:
             member_id: ID of the member
+            households_db: HouseholdDatabase to look up parent names (required)
 
         Returns:
-            List of parent Member objects (may be empty if no parents found)
+            List of parent Member objects (empty if household data unavailable)
         """
         member = self.get_by_id(member_id)
         if not member or not member.household_id:
             return []
 
-        # Find all adults in the same household
+        # Require household database - no fallback
+        if not households_db:
+            return []
+
+        household = households_db.get_by_id(member.household_id)
+        if not household or not household.name:
+            return []
+
+        # Parse parent names from household.name
+        # Format: "LastName, FirstName1 & FirstName2" or "LastName, FirstName"
+        parent_first_names = self._parse_parent_names(household.name)
+
+        if not parent_first_names:
+            return []
+
+        # Find members matching these first names in the household
+        # Only match adults to avoid matching children with same names
         parents = []
         for m in self.members:
             if (m.household_id == member.household_id and
                 m.member_id != member_id and
+                m.active and
                 not m.is_minor and
-                m.active):
+                m.first_name in parent_first_names):
                 parents.append(m)
 
         return parents
+
+    def _parse_parent_names(self, household_name: str) -> set:
+        """
+        Parse parent first names from household name string.
+
+        Args:
+            household_name: e.g., "Smith, Jack & Jill" or "Smith, Jack"
+
+        Returns:
+            Set of parent first names, e.g., {"Jack", "Jill"}
+        """
+        if not household_name or ',' not in household_name:
+            return set()
+
+        # Split on comma: ["Smith", " Jack & Jill"]
+        parts = household_name.split(',', 1)
+        if len(parts) < 2:
+            return set()
+
+        # Get the names part: " Jack & Jill"
+        names_part = parts[1].strip()
+
+        # Split on & or 'and' to get individual names
+        if '&' in names_part:
+            names = [n.strip() for n in names_part.split('&')]
+        elif ' and ' in names_part.lower():
+            names = [n.strip() for n in names_part.split(' and ')]
+        else:
+            names = [names_part]
+
+        return set(names)
 
     def get_household_members(self, household_id: int) -> List['Member']:
         """

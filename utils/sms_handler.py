@@ -7,12 +7,13 @@ Automatically routes messages to parents for minors.
 from datetime import date
 from typing import Optional, List, Dict, Tuple
 
-from models import Member, MessageTemplates, MemberDatabase
+from models import Member, MessageTemplates, MemberDatabase, HouseholdDatabase
 import config
 
 
 def get_sms_info(activity: str, template_name: str, member: Member,
                  templates: MessageTemplates, members_db: MemberDatabase = None,
+                 households_db: HouseholdDatabase = None,
                  appointment=None, **kwargs) -> Dict:
     """
     Get SMS message and phone number(s) for a member.
@@ -45,8 +46,8 @@ def get_sms_info(activity: str, template_name: str, member: Member,
                 'error': f"{member.display_name} is a minor but cannot route to parents (system error)"
             }
 
-        # Get parents
-        parents = members_db.get_parents(member.member_id)
+        # Get parents (using household data if available)
+        parents = members_db.get_parents(member.member_id, households_db)
         if not parents:
             return {
                 'success': False,
@@ -118,6 +119,7 @@ def get_sms_info(activity: str, template_name: str, member: Member,
 
 def expand_and_send(activity: str, template_name: str, member: Member,
                     templates: MessageTemplates, members_db: MemberDatabase = None,
+                    households_db: HouseholdDatabase = None,
                     appointment=None, **kwargs):
     """
     Generic function to expand template with smart variables and send SMS.
@@ -129,6 +131,7 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         member: Member object
         templates: MessageTemplates instance
         members_db: MemberDatabase instance (required for parent routing)
+        households_db: HouseholdDatabase instance (for accurate parent identification)
         appointment: Optional appointment/assignment object
         **kwargs: Additional variables (e.g., conductor="Bishop")
 
@@ -138,7 +141,7 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         - (False, "error message") if failed
     """
     # Get message and phone using shared logic
-    result = get_sms_info(activity, template_name, member, templates, members_db, appointment, **kwargs)
+    result = get_sms_info(activity, template_name, member, templates, members_db, households_db, appointment, **kwargs)
 
     if not result['success']:
         print(f"ERROR: {result['error']}")
