@@ -718,7 +718,11 @@ function displayAppointments(appointments, date) {
             html += `
                 <div class="appt-item">
                     <span class="appt-time">${appt.time}</span>
-                    <span class="appt-details">${appt.member_name} - ${appt.appointment_type}</span>
+                    <span class="appt-details">
+                        <a href="/appointment-scheduler?appointment_id=${appt.appointment_id}" class="appt-link">
+                            ${appt.member_name}
+                        </a> - ${appt.appointment_type}
+                    </span>
                     <span class="appt-duration">${appt.duration_minutes}m</span>
                 </div>
             `;
@@ -733,7 +737,11 @@ function displayAppointments(appointments, date) {
             html += `
                 <div class="appt-item">
                     <span class="appt-time">${appt.time}</span>
-                    <span class="appt-details">${appt.member_name} - ${appt.appointment_type}</span>
+                    <span class="appt-details">
+                        <a href="/appointment-scheduler?appointment_id=${appt.appointment_id}" class="appt-link">
+                            ${appt.member_name}
+                        </a> - ${appt.appointment_type}
+                    </span>
                     <span class="appt-duration">${appt.duration_minutes}m</span>
                 </div>
             `;
