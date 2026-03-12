@@ -1163,7 +1163,11 @@ def suggest_appointment_time():
     # Create list of occupied time slots
     occupied_slots = []
     for appt in existing_appointments:
-        time_parts = appt.time.split(':')
+        # Get local time for the appointment
+        local_dt = appt.datetime_local(config.HOME_TIMEZONE)
+        local_time_str = local_dt.strftime('%H:%M')
+
+        time_parts = local_time_str.split(':')
         appt_start = int(time_parts[0]) * 60 + int(time_parts[1])
         appt_end = appt_start + appt.duration_minutes
         occupied_slots.append((appt_start, appt_end))

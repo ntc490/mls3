@@ -42,7 +42,7 @@
                     <label for="appointmentTime">Time</label>
                     <div class="time-input-group">
                         <input type="time" id="appointmentTime" class="form-input">
-                        <button id="suggestTimeBtn" class="btn btn-sm btn-secondary" title="Suggest next available time">
+                        <button type="button" id="suggestTimeBtn" class="btn btn-sm btn-secondary" title="Suggest next available time">
                             💡
                         </button>
                     </div>
@@ -99,5 +99,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/appointment_scheduler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/appointment_scheduler.js') }}?v=3"></script>
 {% endblock %}

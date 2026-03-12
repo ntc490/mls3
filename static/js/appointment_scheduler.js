@@ -555,7 +555,10 @@ function setupEventListeners() {
     });
 
     // Suggest time button
-    document.getElementById('suggestTimeBtn').addEventListener('click', suggestTime);
+    const suggestTimeBtn = document.getElementById('suggestTimeBtn');
+    if (suggestTimeBtn) {
+        suggestTimeBtn.addEventListener('click', suggestTime);
+    }
 
     // Member info button
     document.getElementById('memberInfoBtn').addEventListener('click', function() {
@@ -775,7 +778,12 @@ async function suggestTime() {
         const data = await response.json();
 
         if (data.available) {
-            document.getElementById('appointmentTime').value = data.suggested_time;
+            const timeField = document.getElementById('appointmentTime');
+            timeField.value = data.suggested_time;
+
+            // Trigger change event to update validation
+            timeField.dispatchEvent(new Event('change', { bubbles: true }));
+            timeField.dispatchEvent(new Event('input', { bubbles: true }));
         } else {
             alert(data.message || 'No available time slots found');
         }
