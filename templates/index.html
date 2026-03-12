@@ -34,8 +34,18 @@
                                 </span>
                             </div>
                             <div class="calendar-item-actions">
-                                <button class="btn btn-sm btn-secondary sms-btn" data-phone="{{ item.member_phone }}" data-member-id="{{ item.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
-                                <button class="btn btn-sm btn-secondary" onclick="openReminderSMS({{ item.assignment_id }}, '{{ item.member_phone }}', '{{ date_str }}', '{{ item.prayer_type }}')">Reminder</button>
+                                <button class="btn btn-sm btn-secondary reminder-btn"
+                                        data-assignment-id="{{ item.assignment_id }}"
+                                        data-member-id="{{ item.member_id }}"
+                                        data-phone="{{ item.member_phone }}"
+                                        data-date="{{ date_str }}"
+                                        data-prayer-type="{{ item.prayer_type }}"
+                                        title="Tap: Send reminder | Long-press: Open SMS">Reminder</button>
+                                <button class="btn btn-sm btn-secondary complete-btn"
+                                        data-assignment-id="{{ item.assignment_id }}"
+                                        data-type="prayer"
+                                        {% if item.state in ['Draft', 'Invited', 'Completed'] %}disabled{% endif %}
+                                        title="Mark as complete">✓</button>
                             </div>
                         </div>
                         {% elif item.type == 'appointment' %}
@@ -47,8 +57,17 @@
                                 </span>
                             </div>
                             <div class="calendar-item-actions">
-                                <button class="btn btn-sm btn-secondary sms-btn" data-phone="{{ item.member_phone }}" data-member-id="{{ item.member_id }}" title="Tap: SMS | Long-press: SMS+">SMS</button>
-                                <button class="btn btn-sm btn-secondary" onclick="openAppointmentReminderSMS({{ item.appointment_id }}, '{{ item.member_phone }}')" {% if item.state in ['Draft', 'Invited'] %}disabled{% endif %}>Reminder</button>
+                                <button class="btn btn-sm btn-secondary reminder-btn"
+                                        data-appointment-id="{{ item.appointment_id }}"
+                                        data-member-id="{{ item.member_id }}"
+                                        data-phone="{{ item.member_phone }}"
+                                        {% if item.state in ['Draft', 'Invited'] %}disabled{% endif %}
+                                        title="Tap: Send reminder | Long-press: Open SMS">Reminder</button>
+                                <button class="btn btn-sm btn-secondary complete-btn"
+                                        data-appointment-id="{{ item.appointment_id }}"
+                                        data-type="appointment"
+                                        {% if item.state in ['Draft', 'Invited', 'Completed'] %}disabled{% endif %}
+                                        title="Mark as complete">✓</button>
                             </div>
                         </div>
                         {% endif %}

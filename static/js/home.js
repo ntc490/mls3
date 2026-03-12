@@ -120,36 +120,48 @@ window.addEventListener('pageshow', function(event) {
 });
 
 /**
- * Setup long-press detection for SMS buttons
+ * Setup long-press detection for Reminder buttons
  */
-function setupLongPressSMS() {
-    const smsButtons = document.querySelectorAll('.sms-btn');
+function setupLongPressReminder() {
+    const reminderButtons = document.querySelectorAll('.reminder-btn');
 
-    smsButtons.forEach(button => {
+    reminderButtons.forEach(button => {
         let pressTimer;
         let isLongPress = false;
 
         // Mouse events (desktop)
         button.addEventListener('mousedown', (e) => {
-            const phone = button.dataset.phone;
-            const memberId = button.dataset.memberId;
             isLongPress = false;
             pressTimer = setTimeout(() => {
                 isLongPress = true;
                 button.style.opacity = '0.7';
-                // Long press: open SMS composer
-                window.location.href = `/sms-composer?member_id=${encodeURIComponent(memberId)}`;
+                // Long press: open SMS app with blank message
+                const memberId = button.dataset.memberId;
+                const phone = button.dataset.phone;
+                openSMS(phone, memberId);
             }, 500);
         });
 
         button.addEventListener('mouseup', (e) => {
-            const phone = button.dataset.phone;
-            const memberId = button.dataset.memberId;
             clearTimeout(pressTimer);
             button.style.opacity = '';
             if (!isLongPress) {
-                // Normal click: direct SMS
-                openSMS(phone, memberId);
+                // Normal click: send reminder
+                if (button.dataset.assignmentId) {
+                    // Prayer reminder
+                    openReminderSMS(
+                        button.dataset.assignmentId,
+                        button.dataset.phone,
+                        button.dataset.date,
+                        button.dataset.prayerType
+                    );
+                } else if (button.dataset.appointmentId) {
+                    // Appointment reminder
+                    openAppointmentReminderSMS(
+                        button.dataset.appointmentId,
+                        button.dataset.phone
+                    );
+                }
             }
         });
 
@@ -160,25 +172,36 @@ function setupLongPressSMS() {
 
         // Touch events (mobile)
         button.addEventListener('touchstart', (e) => {
-            const phone = button.dataset.phone;
-            const memberId = button.dataset.memberId;
             e.preventDefault();
             isLongPress = false;
             pressTimer = setTimeout(() => {
                 isLongPress = true;
                 button.style.opacity = '0.7';
-                window.location.href = `/sms-composer?member_id=${encodeURIComponent(memberId)}`;
+                const memberId = button.dataset.memberId;
+                const phone = button.dataset.phone;
+                openSMS(phone, memberId);
             }, 500);
         });
 
         button.addEventListener('touchend', (e) => {
-            const phone = button.dataset.phone;
-            const memberId = button.dataset.memberId;
             e.preventDefault();
             clearTimeout(pressTimer);
             button.style.opacity = '';
             if (!isLongPress) {
-                openSMS(phone, memberId);
+                // Normal click: send reminder
+                if (button.dataset.assignmentId) {
+                    openReminderSMS(
+                        button.dataset.assignmentId,
+                        button.dataset.phone,
+                        button.dataset.date,
+                        button.dataset.prayerType
+                    );
+                } else if (button.dataset.appointmentId) {
+                    openAppointmentReminderSMS(
+                        button.dataset.appointmentId,
+                        button.dataset.phone
+                    );
+                }
             }
         });
 
@@ -189,8 +212,60 @@ function setupLongPressSMS() {
     });
 }
 
+/**
+ * Setup Complete button click handlers
+ */
+function setupCompleteButtons() {
+    const completeButtons = document.querySelectorAll('.complete-btn');
+
+    completeButtons.forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const type = button.dataset.type;
+
+            // Show confirmation dialog
+            const confirmed = confirm('Mark this event as complete?');
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                let response;
+                if (type === 'prayer') {
+                    const assignmentId = button.dataset.assignmentId;
+                    response = await fetch(`/api/assignments/${assignmentId}/state`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ state: 'Completed' })
+                    });
+                } else if (type === 'appointment') {
+                    const appointmentId = button.dataset.appointmentId;
+                    response = await fetch(`/api/appointments/${appointmentId}/state`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ state: 'Completed' })
+                    });
+                }
+
+                if (!response.ok) {
+                    const result = await response.json();
+                    alert(result.error || 'Failed to mark as complete');
+                    return;
+                }
+
+                // Reload page to show updated state
+                window.location.reload();
+
+            } catch (error) {
+                console.error('Error marking complete:', error);
+                alert('Failed to mark as complete');
+            }
+        });
+    });
+}
+
 // Restore scroll position on page load
 document.addEventListener('DOMContentLoaded', () => {
     restoreScrollPosition();
-    setupLongPressSMS();
+    setupLongPressReminder();
+    setupCompleteButtons();
 });
