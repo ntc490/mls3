@@ -493,10 +493,22 @@ def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '
                     # Parse date with flexible format support
                     parsed_date = parse_prayer_date(date_str)
 
-                    if member.last_prayer_date != parsed_date:
+                    # Only update if CSV date is newer (or if member has no date yet)
+                    should_update = False
+                    if not member.last_prayer_date:
+                        # Member has no prayer date yet, always update
+                        should_update = True
+                    elif parsed_date > member.last_prayer_date:
+                        # CSV has a newer date
+                        should_update = True
+
+                    if should_update:
                         member.last_prayer_date = parsed_date
                         stats['updated'] += 1
                         print(f"  Updated: {member.full_name} → {parsed_date}")
+                    elif parsed_date < member.last_prayer_date:
+                        # CSV has older date, skip
+                        print(f"  Skipped (CSV older): {member.full_name} (CSV: {parsed_date}, DB: {member.last_prayer_date})")
                 else:
                     stats['not_found'] += 1
                     stats['not_found_names'].append(name_str)
