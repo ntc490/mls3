@@ -79,6 +79,14 @@ async function openMemberModal(memberId, date = null) {
 
         document.getElementById('modalPhone').textContent = member.phone || 'Not specified';
 
+        // Display last prayer date
+        const lastPrayerEl = document.getElementById('modalLastPrayer');
+        if (member.last_prayer_date) {
+            lastPrayerEl.textContent = member.last_prayer_date;
+        } else {
+            lastPrayerEl.textContent = 'Never';
+        }
+
         // Update skip until display
         updateSkipUntilDisplay(member.skip_until);
 
