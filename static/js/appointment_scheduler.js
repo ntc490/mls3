@@ -465,6 +465,7 @@ function updateButtonsForState(state) {
     const sendInviteBtn = document.getElementById('sendInviteBtn');
     const acceptedBtn = document.getElementById('acceptedBtn');
     const reminderBtn = document.getElementById('reminderBtn');
+    const clearReminderBtn = document.getElementById('clearReminderBtn');
     const completeBtn = document.getElementById('completeBtn');
     const syncCalendarBtn = document.getElementById('syncCalendarBtn');
     const deleteBtn = document.getElementById('deleteBtn');
@@ -475,6 +476,7 @@ function updateButtonsForState(state) {
     sendInviteBtn.style.display = 'none';
     acceptedBtn.style.display = 'none';
     reminderBtn.style.display = 'none';
+    clearReminderBtn.style.display = 'none';
     completeBtn.style.display = 'none';
     if (syncCalendarBtn) {
         syncCalendarBtn.style.display = 'none';
@@ -510,6 +512,7 @@ function updateButtonsForState(state) {
             break;
         case 'Reminded':
             reminderBtn.style.display = 'inline-block';
+            clearReminderBtn.style.display = 'inline-block';
             completeBtn.style.display = 'inline-block';
             if (syncCalendarBtn) {
                 syncCalendarBtn.style.display = 'inline-block';
@@ -588,6 +591,7 @@ function setupEventListeners() {
     document.getElementById('sendInviteBtn').addEventListener('click', sendInvite);
     document.getElementById('acceptedBtn').addEventListener('click', markAccepted);
     document.getElementById('reminderBtn').addEventListener('click', sendReminder);
+    document.getElementById('clearReminderBtn').addEventListener('click', clearReminder);
     document.getElementById('completeBtn').addEventListener('click', markComplete);
     const syncCalendarBtn = document.getElementById('syncCalendarBtn');
     if (syncCalendarBtn) {
@@ -918,6 +922,12 @@ async function sendInvite() {
 async function markAccepted() {
     if (!appointmentId) return;
 
+    // Show confirmation dialog
+    const confirmed = confirm('Mark this appointment as accepted?');
+    if (!confirmed) {
+        return;
+    }
+
     try {
         const response = await fetch(`/api/appointments/${appointmentId}/state`, {
             method: 'POST',
@@ -965,10 +975,51 @@ async function sendReminder() {
 }
 
 /**
+ * Clear reminder state (move back to Accepted)
+ */
+async function clearReminder() {
+    if (!appointmentId) return;
+
+    // Show confirmation dialog
+    const confirmed = confirm('Clear reminder state and move back to Accepted?');
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/appointments/${appointmentId}/state`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                state: 'Accepted'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to clear reminder');
+        }
+
+        window.location.reload();
+
+    } catch (error) {
+        console.error('Error clearing reminder:', error);
+        alert('Failed to clear reminder: ' + error.message);
+    }
+}
+
+/**
  * Mark appointment as complete
  */
 async function markComplete() {
     if (!appointmentId) return;
+
+    // Show confirmation dialog
+    const confirmed = confirm('Mark this appointment as complete?');
+    if (!confirmed) {
+        return;
+    }
 
     try {
         const response = await fetch(`/api/appointments/${appointmentId}/state`, {
