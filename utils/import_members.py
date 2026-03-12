@@ -485,11 +485,14 @@ def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '
             if not name_str or not date_str:
                 continue
 
+            print(f"  Processing: {name_str} (date: {date_str})")
+
             try:
                 # Find member using smart name matching with fuzzy enabled
                 member = find_member_by_name(db, name_str, fuzzy=True)
 
                 if member:
+                    print(f"    ✓ Matched: {member.full_name}")
                     # Parse date with flexible format support
                     parsed_date = parse_prayer_date(date_str)
 
@@ -505,13 +508,17 @@ def update_prayer_dates(db: MemberDatabase, prayer_csv: Path, delimiter: str = '
                     if should_update:
                         member.last_prayer_date = parsed_date
                         stats['updated'] += 1
-                        print(f"  Updated: {member.full_name} → {parsed_date}")
+                        print(f"    → Updated to: {parsed_date}")
                     elif parsed_date < member.last_prayer_date:
                         # CSV has older date, skip
-                        print(f"  Skipped (CSV older): {member.full_name} (CSV: {parsed_date}, DB: {member.last_prayer_date})")
+                        print(f"    ⊗ Skipped (CSV older): CSV={parsed_date}, DB={member.last_prayer_date}")
+                    else:
+                        # Dates are the same
+                        print(f"    = No change (already {parsed_date})")
                 else:
                     stats['not_found'] += 1
                     stats['not_found_names'].append(name_str)
+                    print(f"    ✗ NOT FOUND in members database")
 
             except Exception as e:
                 stats['errors'] += 1
