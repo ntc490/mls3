@@ -430,7 +430,8 @@ def api_candidates(gender):
     from utils.candidate_selector import get_candidates_with_context
 
     count = int(request.args.get('count', config.NEXT_CANDIDATE_COUNT))
-    candidates = get_candidates_with_context(members_db, assignments_db, gender, count)
+    randomize = request.args.get('randomize', 'false').lower() == 'true'
+    candidates = get_candidates_with_context(members_db, assignments_db, gender, count, randomize)
 
     # Helper function to calculate age
     def calc_age(birthday_str):

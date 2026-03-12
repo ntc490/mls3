@@ -5,6 +5,7 @@ Implements fair rotation logic for selecting next prayer candidates.
 """
 from datetime import date
 from typing import List, Optional
+import random
 from models import Member, MemberDatabase, PrayerAssignmentDatabase
 
 
@@ -12,7 +13,8 @@ def get_next_candidates(
     members_db: MemberDatabase,
     assignments_db: PrayerAssignmentDatabase,
     gender: str,
-    count: int = 3
+    count: int = 3,
+    randomize: bool = False
 ) -> List[Member]:
     """
     Get the next eligible candidates for prayer assignment.
@@ -25,6 +27,7 @@ def get_next_candidates(
         assignments_db: Prayer assignment database
         gender: 'M' or 'F'
         count: Number of candidates to return (default: 3)
+        randomize: If True, randomize selection within the same priority tier (default: False)
 
     Returns:
         List of Member objects (up to count)
@@ -62,6 +65,21 @@ def get_next_candidates(
 
     eligible.sort(key=get_sort_key)
 
+    if randomize and len(eligible) > count:
+        # Group members by their last_prayer_date to identify same-priority tiers
+        # Find all members with the same priority as the last person we would normally select
+        if count > 0:
+            # Get the date of the Nth person (where N = count)
+            nth_person_date = get_sort_key(eligible[count - 1]) if count <= len(eligible) else None
+
+            # Find all members with the same date as or older than the Nth person
+            # This is our randomization pool
+            randomization_pool = [m for m in eligible if get_sort_key(m) <= nth_person_date]
+
+            # Randomly select 'count' members from the pool
+            if len(randomization_pool) >= count:
+                return random.sample(randomization_pool, count)
+
     return eligible[:count]
 
 
@@ -69,7 +87,8 @@ def get_candidates_with_context(
     members_db: MemberDatabase,
     assignments_db: PrayerAssignmentDatabase,
     gender: str,
-    count: int = 3
+    count: int = 3,
+    randomize: bool = False
 ) -> List[dict]:
     """
     Get next candidates with additional context for display.
@@ -81,11 +100,12 @@ def get_candidates_with_context(
         assignments_db: Prayer assignment database
         gender: 'M' or 'F'
         count: Number of candidates to return
+        randomize: If True, randomize selection within same priority tier
 
     Returns:
         List of dicts with keys: member, last_prayer_date_display, priority
     """
-    candidates = get_next_candidates(members_db, assignments_db, gender, count)
+    candidates = get_next_candidates(members_db, assignments_db, gender, count, randomize)
 
     results = []
     for i, member in enumerate(candidates):

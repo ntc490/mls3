@@ -65,7 +65,10 @@
             <input type="text" id="member-search" class="search-input" placeholder="Search members...">
 
             <div id="next-up-section">
-                <h4>Next Up</h4>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <h4 style="margin: 0;">Next Up</h4>
+                    <button id="randomize-btn" class="btn btn-sm btn-secondary" onclick="randomizeCandidates()" style="font-size: 0.9rem;">🎲 Re-roll</button>
+                </div>
                 <div id="next-up-list"></div>
             </div>
 
@@ -139,6 +142,7 @@
 
     let currentAssignment = null;
     let currentField = null;
+    let currentGender = null;  // Track current gender for re-randomization
 
     // Show loading indicator
     function showLoading() {
@@ -204,26 +208,35 @@
             window.pendingOtherPrayerType = otherPrayerType;
         }
 
+        currentGender = gender;  // Store for re-randomization
+
         const modal = document.getElementById('member-modal');
         modal.style.display = 'flex';
 
-        // Load next-up candidates
-        await loadNextUpCandidates(gender);
+        // Load next-up candidates with randomization enabled by default
+        await loadNextUpCandidates(gender, true);
 
         // Focus search box
         document.getElementById('member-search').focus();
     }
 
+    // Re-randomize the candidate selection
+    async function randomizeCandidates() {
+        await loadNextUpCandidates(currentGender, true);
+    }
+
     // Load next-up candidates
-    async function loadNextUpCandidates(gender) {
-        console.log('Loading candidates for gender:', gender);
+    async function loadNextUpCandidates(gender, randomize = false) {
+        console.log('Loading candidates for gender:', gender, 'randomize:', randomize);
         const list = document.getElementById('next-up-list');
         list.innerHTML = '';
+
+        const randomizeParam = randomize ? 'randomize=true' : '';
 
         // If no gender specified, show both male and female candidates
         if (!gender || gender === 'None' || gender === 'null' || gender === null || gender === undefined) {
             // Load men
-            const menResponse = await fetch(`/api/candidates/M`);
+            const menResponse = await fetch(`/api/candidates/M${randomizeParam ? '?' + randomizeParam : ''}`);
             const menCandidates = await menResponse.json();
 
             const menHeader = document.createElement('h5');
@@ -245,7 +258,7 @@
             });
 
             // Load women
-            const womenResponse = await fetch(`/api/candidates/F`);
+            const womenResponse = await fetch(`/api/candidates/F${randomizeParam ? '?' + randomizeParam : ''}`);
             const womenCandidates = await womenResponse.json();
 
             const womenHeader = document.createElement('h5');
@@ -267,7 +280,7 @@
             });
         } else {
             // Load candidates of specified gender
-            const response = await fetch(`/api/candidates/${gender}`);
+            const response = await fetch(`/api/candidates/${gender}${randomizeParam ? '?' + randomizeParam : ''}`);
             const candidates = await response.json();
 
             candidates.forEach(candidate => {
