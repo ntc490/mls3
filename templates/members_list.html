@@ -17,6 +17,7 @@
                 <button class="btn btn-filter" id="filter-gender">Gender: All</button>
                 <button class="btn btn-filter" id="filter-minors">Minors: No</button>
                 <button class="btn btn-filter" id="filter-prayed">Prayed: All</button>
+                <button class="btn btn-filter" id="filter-dont-ask">Shy: Hide</button>
                 <button class="btn btn-filter" id="filter-flag">Flag: All</button>
                 <button class="btn btn-filter" id="filter-name-format">Name Format</button>
             </div>
@@ -47,6 +48,7 @@
              data-is-minor="{{ 'true' if member.age is not none and member.age < 18 else 'false' }}"
              data-has-prayed="{{ 'true' if member.last_prayer_date else 'false' }}"
              data-flag="{{ member.flag if member.flag else '' }}"
+             data-dont-ask-prayer="{{ 'true' if member.dont_ask_prayer else 'false' }}"
              onclick="openMemberModal({{ member.member_id }})">
             {% if member.flag %}
             <div class="flag-circles-container">
@@ -94,6 +96,7 @@
     const filterGenderBtn = document.getElementById('filter-gender');
     const filterMinorsBtn = document.getElementById('filter-minors');
     const filterPrayedBtn = document.getElementById('filter-prayed');
+    const filterDontAskBtn = document.getElementById('filter-dont-ask');
     const filterFlagBtn = document.getElementById('filter-flag');
     const filterNameFormatBtn = document.getElementById('filter-name-format');
 
@@ -104,6 +107,7 @@
         genderFilter: 'all',
         minorsFilter: 'no',  // 'no', 'yes', 'only'
         prayerHistoryFilter: 'all',
+        dontAskFilter: 'hide',  // 'hide', 'show', 'only'
         flagFilter: 'all',
         alphaSort: null,
         prayerSort: null,
@@ -116,6 +120,7 @@
     let genderFilter = filterState.genderFilter;
     let minorsFilter = filterState.minorsFilter || 'no';
     let prayerHistoryFilter = filterState.prayerHistoryFilter;
+    let dontAskFilter = filterState.dontAskFilter || 'hide';
     let flagFilter = filterState.flagFilter;
     let alphaSort = filterState.alphaSort;
     let prayerSort = filterState.prayerSort;
@@ -163,6 +168,7 @@
             genderFilter,
             minorsFilter,
             prayerHistoryFilter,
+            dontAskFilter,
             flagFilter,
             alphaSort,
             prayerSort,
@@ -220,6 +226,18 @@
         } else {
             filterPrayedBtn.textContent = 'Prayed: All';
             filterPrayedBtn.classList.remove('active');
+        }
+
+        // Don't ask filter
+        if (dontAskFilter === 'hide') {
+            filterDontAskBtn.textContent = "Shy: Hide";
+            filterDontAskBtn.classList.add('active');
+        } else if (dontAskFilter === 'show') {
+            filterDontAskBtn.textContent = "Shy: Show";
+            filterDontAskBtn.classList.add('active');
+        } else {
+            filterDontAskBtn.textContent = "Shy: Only";
+            filterDontAskBtn.classList.add('active');
         }
 
         // Flag filter
@@ -342,6 +360,25 @@
             prayerHistoryFilter = 'all';
             filterPrayedBtn.textContent = 'Prayed: All';
             filterPrayedBtn.classList.remove('active');
+        }
+        saveFilterState();
+        applyFiltersAndSort();
+    });
+
+    // Don't ask button - cycles through Hide -> Show -> Only
+    filterDontAskBtn.addEventListener('click', () => {
+        if (dontAskFilter === 'hide') {
+            dontAskFilter = 'show';
+            filterDontAskBtn.textContent = "Shy: Show";
+            filterDontAskBtn.classList.add('active');
+        } else if (dontAskFilter === 'show') {
+            dontAskFilter = 'only';
+            filterDontAskBtn.textContent = "Shy: Only";
+            filterDontAskBtn.classList.add('active');
+        } else {
+            dontAskFilter = 'hide';
+            filterDontAskBtn.textContent = "Shy: Hide";
+            filterDontAskBtn.classList.add('active');
         }
         saveFilterState();
         applyFiltersAndSort();
@@ -532,6 +569,7 @@
             const gender = card.dataset.gender;
             const isMinor = card.dataset.isMinor === 'true';
             const hasPrayed = card.dataset.hasPrayed === 'true';
+            const dontAskPrayer = card.dataset.dontAskPrayer === 'true';
             const flag = card.dataset.flag;
 
             // Check active status filter
@@ -567,6 +605,16 @@
                 matchesPrayerHistory = !hasPrayed;
             }
 
+            // Check don't ask prayer filter
+            let matchesDontAsk = false;
+            if (dontAskFilter === 'hide') {
+                matchesDontAsk = !dontAskPrayer;  // Exclude people who don't want to be asked
+            } else if (dontAskFilter === 'show') {
+                matchesDontAsk = true;  // Include everyone
+            } else { // 'only'
+                matchesDontAsk = dontAskPrayer;  // Only people who don't want to be asked
+            }
+
             // Check flag filter (member can have multiple flags)
             let matchesFlag = flagFilter === 'all';
             if (!matchesFlag && flag) {
@@ -579,7 +627,7 @@
             const matchesSearch = fuzzyMatch(searchTerm, card);
 
             // All filters must match
-            if (matchesActive && matchesGender && matchesMinors && matchesPrayerHistory && matchesFlag && matchesSearch) {
+            if (matchesActive && matchesGender && matchesMinors && matchesPrayerHistory && matchesDontAsk && matchesFlag && matchesSearch) {
                 card.style.display = '';
                 return true;
             } else {
