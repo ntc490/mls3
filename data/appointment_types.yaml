@@ -58,3 +58,7 @@ appointment_types:
   - name: "Release"
     default_duration: 10
     default_conductor: "Counselor"
+
+  - name: "Tithing"
+    default_duration: 10
+    default_conductor: "Bishop"

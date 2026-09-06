@@ -89,6 +89,11 @@ appointments:
   Release_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your appointment with {conductor} {smart_date} at {time}"
   Release_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s appointment with {conductor} {smart_date} at {time}"
 
+  Tithing_invite: "Hi {name|blue?formal:casual}, could you meet with {conductor} for tithing declaration on {date} at {time}?"
+  Tithing_invite_parent: "Hi {parent_greeting}, could {child_name} meet with {conductor} for tithing declaration on {date} at {time}?"
+  Tithing_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your tithing declaration {smart_date} at {time} with {conductor}"
+  Tithing_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s tithing declaration {smart_date} at {time} with {conductor}"
+
 adhoc:
   temple_recommend: "Hi {name|blue?formal:casual}, {random:casual_greeting}Bishop asked me to contact members on the month their temple recommend expires. Please let me know if I can help you setup an appointment."
 
