@@ -451,14 +451,14 @@ python utils/import_members.py --update-prayed prayer_dates.csv
 
 File format: Name (tab) Prayed (supports various date formats)
 
-### Manage Don't Ask List
+### Manage Shy List
 
 ```bash
 # Mark members who shouldn't be asked
-python utils/import_members.py --dont-ask dont_ask_list.csv
+python utils/import_members.py --shy shy_list.csv
 
 # Re-enable members
-python utils/import_members.py --do-ask can_ask_again.csv
+python utils/import_members.py --not-shy can_ask_again.csv
 ```
 
 File format: Single Name column (tab-separated)

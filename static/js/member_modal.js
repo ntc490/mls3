@@ -286,11 +286,11 @@ async function toggleDontAsk() {
         memberDataDirty = true;
 
         // Show feedback
-        showToast(result.dont_ask_prayer ? 'Member marked as "don\'t ask"' : 'Member can be asked for prayers');
+        showToast(result.dont_ask_prayer ? 'Member marked as shy' : 'Member no longer marked as shy');
 
     } catch (error) {
         console.error('Error toggling dont ask:', error);
-        alert('Failed to update dont ask flag');
+        alert('Failed to update shy flag');
         // Revert checkbox
         document.getElementById('toggleDontAsk').checked = !document.getElementById('toggleDontAsk').checked;
     }

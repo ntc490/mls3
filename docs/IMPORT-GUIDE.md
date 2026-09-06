@@ -76,7 +76,7 @@ python utils/import_members.py --update-prayed prayer_history.csv --dry-run
 - 5 Dec 2023 (DD Month YYYY)
 - Plus all of the above with trailing c, o, or ?
 
-### 3. Manage Don't Ask Flags
+### 3. Manage Shy Flags
 
 **File Format:** Tab-separated with header row
 ```
@@ -90,14 +90,14 @@ Davis, Emily
 
 **Commands:**
 ```bash
-# Mark members as "don't ask for prayers"
-python utils/import_members.py --dont-ask dont_ask_list.csv
+# Mark members as shy (don't ask for prayers)
+python utils/import_members.py --shy shy_list.csv
 
 # Re-enable members for prayer assignments
-python utils/import_members.py --do-ask can_ask_list.csv
+python utils/import_members.py --not-shy can_ask_list.csv
 
 # Preview first
-python utils/import_members.py --dont-ask dont_ask_list.csv --dry-run
+python utils/import_members.py --shy shy_list.csv --dry-run
 ```
 
 **Fuzzy Matching:**
@@ -110,14 +110,14 @@ Names are matched fuzzily - all words in your query must match the start of word
 
 ## Query Commands
 
-### Show Don't Ask Members
+### Show Shy Members
 
-List all members marked with dont_ask_prayer=True:
+List all members marked shy:
 ```bash
-python utils/import_members.py --show-dont-ask
+python utils/import_members.py --show-shy
 
 # Prefix matching works too
-python utils/import_members.py --show-d
+python utils/import_members.py --show-s
 ```
 
 **Output:**
@@ -266,7 +266,7 @@ Names not found in database:
 
 ## Tips
 
-1. **Prefix matching works** - You can use `--show-d` instead of `--show-dont-ask`, `--dry` instead of `--dry-run`, etc. (as long as it's unambiguous)
+1. **Prefix matching works** - You can use `--show-s` instead of `--show-shy`, `--dry` instead of `--dry-run`, etc. (as long as it's unambiguous)
 2. **Always use --dry-run first** to preview changes
 3. **Backups are automatic** unless you use --no-backup
 4. **Names are flexible** - "Last, First" or "First Last" both work

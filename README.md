@@ -204,14 +204,14 @@ Tab-separated file with columns: Name, Prayed
 python utils/import_members.py --update-prayed prayer_history.tsv
 ```
 
-#### **Import Don't Ask Flags**
+#### **Import Shy Flags**
 Tab-separated file with single Name column:
 ```bash
-# Mark members as "don't ask for prayers"
-python utils/import_members.py --dont-ask dont_ask_list.tsv
+# Mark members as shy (don't ask for prayers)
+python utils/import_members.py --shy shy_list.tsv
 
 # Re-enable members for prayer assignments
-python utils/import_members.py --do-ask can_ask_list.tsv
+python utils/import_members.py --not-shy can_ask_list.tsv
 ```
 
 **See `data/sample_*.tsv` for example file formats.**

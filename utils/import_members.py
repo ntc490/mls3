@@ -372,7 +372,7 @@ def find_member_by_name(db: MemberDatabase, name_str: str, fuzzy: bool = False) 
     return None
 
 
-def update_dont_ask_flags(db: MemberDatabase, names_csv: Path, set_value: bool, delimiter: str = '\t', dry_run: bool = False) -> dict:
+def update_shy_flags(db: MemberDatabase, names_csv: Path, set_value: bool, delimiter: str = '\t', dry_run: bool = False) -> dict:
     """
     Update dont_ask_prayer flag from a CSV file with Name column.
 
@@ -419,7 +419,7 @@ def update_dont_ask_flags(db: MemberDatabase, names_csv: Path, set_value: bool, 
                     if member.dont_ask_prayer != set_value:
                         member.dont_ask_prayer = set_value
                         stats['updated'] += 1
-                        status = "DON'T ASK" if set_value else "DO ASK"
+                        status = "SHY" if set_value else "NOT SHY"
                         print(f"  Updated: {member.full_name} → {status}")
                 else:
                     stats['not_found'] += 1
@@ -603,21 +603,21 @@ def main():
         help='Update last_prayer_date from CSV file (Name, Prayed columns)'
     )
     parser.add_argument(
-        '--dont-ask',
+        '--shy',
         type=Path,
         metavar='NAMES_CSV',
-        help='Set dont_ask_prayer=True for members in CSV file (Name column)'
+        help='Mark members in CSV file as shy (Name column)'
     )
     parser.add_argument(
-        '--do-ask',
+        '--not-shy',
         type=Path,
         metavar='NAMES_CSV',
-        help='Set dont_ask_prayer=False for members in CSV file (Name column)'
+        help='Clear the shy flag for members in CSV file (Name column)'
     )
     parser.add_argument(
-        '--show-dont-ask',
+        '--show-shy',
         action='store_true',
-        help='List all members with dont_ask_prayer=True'
+        help='List all members marked shy'
     )
     parser.add_argument(
         '--show-inactive',
@@ -644,25 +644,25 @@ def main():
     else:
         print(f"Current members: {len(db.members)}")
 
-    # Handle --show-dont-ask mode
-    if args.show_dont_ask:
-        dont_ask_members = [m for m in db.members if m.dont_ask_prayer]
+    # Handle --show-shy mode
+    if args.show_shy:
+        shy_members = [m for m in db.members if m.dont_ask_prayer]
 
         if args.tsv:
             # TSV output: single Name column in "Last, First" format
             print("Name")
-            dont_ask_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
-            for m in dont_ask_members:
+            shy_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+            for m in shy_members:
                 print(f"{m.last_name}, {m.first_name}")
         else:
             # Human-readable output
-            print(f"\n=== Members with Don't Ask Flag ===")
-            print(f"Total: {len(dont_ask_members)}\n")
+            print(f"\n=== Members Marked Shy ===")
+            print(f"Total: {len(shy_members)}\n")
 
-            if dont_ask_members:
+            if shy_members:
                 # Sort by last name
-                dont_ask_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
-                for m in dont_ask_members:
+                shy_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
+                for m in shy_members:
                     status = "inactive" if not m.active else "active"
                     print(f"  {m.full_name} ({m.gender}) - {status}")
             else:
@@ -689,24 +689,24 @@ def main():
                 # Sort by last name
                 inactive_members.sort(key=lambda m: (m.last_name.lower(), m.first_name.lower()))
                 for m in inactive_members:
-                    dont_ask_status = " [DON'T ASK]" if m.dont_ask_prayer else ""
-                    print(f"  {m.full_name} ({m.gender}){dont_ask_status}")
+                    shy_status = " [SHY]" if m.dont_ask_prayer else ""
+                    print(f"  {m.full_name} ({m.gender}){shy_status}")
             else:
                 print("  (none)")
 
         return
 
-    # Handle --dont-ask mode
-    if args.dont_ask:
-        if not args.dont_ask.exists():
-            print(f"Error: Names CSV file not found: {args.dont_ask}")
+    # Handle --shy mode
+    if args.shy:
+        if not args.shy.exists():
+            print(f"Error: Names CSV file not found: {args.shy}")
             sys.exit(1)
 
         # Create backup unless disabled
         if not args.no_backup and not args.dry_run:
             create_backup(db)
 
-        print(f"\nSetting dont_ask_prayer=True from: {args.dont_ask}")
+        print(f"\nMarking members as shy from: {args.shy}")
         print(f"Expected format: Name column (tab-separated)")
         print(f"Name format: Last, First OR First Last")
         print()
@@ -714,9 +714,9 @@ def main():
         if args.dry_run:
             print("=== DRY RUN - No changes will be saved ===\n")
 
-        stats = update_dont_ask_flags(db, args.dont_ask, set_value=True, delimiter=args.delimiter, dry_run=args.dry_run)
+        stats = update_shy_flags(db, args.shy, set_value=True, delimiter=args.delimiter, dry_run=args.dry_run)
 
-        print("\n=== Don't Ask Update Results ===")
+        print("\n=== Shy Update Results ===")
         print(f"Updated:   {stats['updated']} members")
         print(f"Not Found: {stats['not_found']} members")
         if stats['errors'] > 0:
@@ -735,17 +735,17 @@ def main():
 
         return
 
-    # Handle --do-ask mode
-    if args.do_ask:
-        if not args.do_ask.exists():
-            print(f"Error: Names CSV file not found: {args.do_ask}")
+    # Handle --not-shy mode
+    if args.not_shy:
+        if not args.not_shy.exists():
+            print(f"Error: Names CSV file not found: {args.not_shy}")
             sys.exit(1)
 
         # Create backup unless disabled
         if not args.no_backup and not args.dry_run:
             create_backup(db)
 
-        print(f"\nSetting dont_ask_prayer=False from: {args.do_ask}")
+        print(f"\nClearing the shy flag from: {args.not_shy}")
         print(f"Expected format: Name column (tab-separated)")
         print(f"Name format: Last, First OR First Last")
         print()
@@ -753,9 +753,9 @@ def main():
         if args.dry_run:
             print("=== DRY RUN - No changes will be saved ===\n")
 
-        stats = update_dont_ask_flags(db, args.do_ask, set_value=False, delimiter=args.delimiter, dry_run=args.dry_run)
+        stats = update_shy_flags(db, args.not_shy, set_value=False, delimiter=args.delimiter, dry_run=args.dry_run)
 
-        print("\n=== Do Ask Update Results ===")
+        print("\n=== Not Shy Update Results ===")
         print(f"Updated:   {stats['updated']} members")
         print(f"Not Found: {stats['not_found']} members")
         if stats['errors'] > 0:
