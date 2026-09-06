@@ -46,14 +46,18 @@ appointments:
 
   Family_invite: "Hi {name|blue?formal:casual}, would {date} at {time} work for a family visit with {conductor}?"
   Family_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Family visit {smart_date} at {time} with {conductor}"
+  Family_invite_parent: "Hi {parent_greeting}, would {date} at {time} work for a family visit with {conductor}?"
+  Family_reminder_parent: "Hi {parent_greeting}, sending you a reminder for your Family visit {smart_date} at {time} with {conductor}"
 
   Ecclesiastical endorsement_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for an ecclesiastical endorsement interview on {date} at {time}?"
   Ecclesiastical endorsement_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Ecclesiastical endorsement interview {smart_date} at {time} with {conductor}"
+  Ecclesiastical endorsement_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for an ecclesiastical endorsement interview on {date} at {time}?"
+  Ecclesiastical endorsement_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s Ecclesiastical endorsement interview {smart_date} at {time} with {conductor}"
 
-  Mission interview_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a mission interview on {date} at {time}?"
-  Mission interview_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for a mission interview on {date} at {time}?"
-  Mission interview_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Mission interview {smart_date} at {time} with Bishop"
-  Mission interview_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s Mission interview {smart_date} at {time} with Bishop"
+  Mission_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a mission interview on {date} at {time}?"
+  Mission_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for a mission interview on {date} at {time}?"
+  Mission_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Mission interview {smart_date} at {time} with Bishop"
+  Mission_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s Mission interview {smart_date} at {time} with Bishop"
 
   Patriarchal blessing_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a patriarchal blessing interview on {date} at {time}?"
   Patriarchal blessing_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for a patriarchal blessing interview on {date} at {time}?"
@@ -77,12 +81,18 @@ appointments:
 
   Endowment_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for an endowment interview on {date} at {time}?"
   Endowment_reminder: "Hi {name|blue?formal:casual}, sending a reminder for your Endowment interview {smart_date} at {time} with Bishop"
+  Endowment_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for an endowment interview on {date} at {time}?"
+  Endowment_reminder_parent: "Hi {parent_greeting}, sending a reminder for {child_name}'s Endowment interview {smart_date} at {time} with Bishop"
 
   General_invite: "Hi {name|blue?formal:casual}, would you be available to meet with {conductor} on {date} at {time}?"
   General_reminder: "Hi {name|blue?formal:casual}, reminder: Appointment with {conductor} {smart_date} at {time}"
+  General_invite_parent: "Hi {parent_greeting}, would {child_name} be available to meet with {conductor} on {date} at {time}?"
+  General_reminder_parent: "Hi {parent_greeting}, reminder: {child_name}'s appointment with {conductor} {smart_date} at {time}"
 
   Living Ordinance_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for a living ordinance interview on {date} at {time}?"
   Living Ordinance_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your Living ordinance interview {smart_date} at {time} with Bishop"
+  Living Ordinance_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for a living ordinance interview on {date} at {time}?"
+  Living Ordinance_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s Living ordinance interview {smart_date} at {time} with Bishop"
 
   Release_invite: "Hi {name|blue?formal:casual}, would you be available to meet with {conductor} on {date} at {time}?"
   Release_invite_parent: "Hi {parent_greeting}, would {child_name} be available to meet with {conductor} on {date} at {time}?"

@@ -86,11 +86,12 @@ def get_sms_info(activity: str, template_name: str, member: Member,
         kwargs['child_name'] = member.display_name
         kwargs['parent_greeting'] = parent_greeting
 
-        # Try parent template, fall back to base
-        try:
+        # Try parent template, fall back to base. A missing template comes back
+        # as an empty string (not a KeyError), so check before expanding -
+        # otherwise the parent gets an empty SMS.
+        if templates.get_template(activity, parent_template_name):
             message = templates.expand_smart(activity, parent_template_name, member, appointment, **kwargs)
-        except KeyError:
-            # Parent template doesn't exist, use base template
+        else:
             message = templates.expand_smart(activity, template_name, member, appointment, **kwargs)
 
         # Return group SMS phone

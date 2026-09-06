@@ -93,12 +93,27 @@ class SmartTemplateExpander:
 
         return self.SMART_DATE_PATTERN.sub(replace_smart_date, text)
 
+    def _appointment_date(self, appointment) -> date:
+        """
+        Date to display for an appointment/assignment.
+
+        Appointments are stored in UTC, so an evening appointment has already
+        rolled over to the next UTC day. Convert to HOME_TIMEZONE so the date
+        matches the time shown alongside it. Prayer assignments store a plain
+        date and are used as-is.
+        """
+        import config
+
+        if hasattr(appointment, 'datetime_local'):
+            return appointment.datetime_local(config.HOME_TIMEZONE).date()
+        return appointment.date_obj
+
     def _calculate_smart_date(self, appointment) -> str:
         """Calculate smart date string based on appointment date vs today"""
         if not appointment:
             return ""
 
-        appt_date = appointment.date_obj
+        appt_date = self._appointment_date(appointment)
         today = date.today()
         delta = (appt_date - today).days
 
@@ -115,7 +130,7 @@ class SmartTemplateExpander:
         if not appointment:
             return base_value
 
-        appt_date = appointment.date_obj
+        appt_date = self._appointment_date(appointment)
 
         if transform == "short":
             return appt_date.strftime("%b %d")  # "Feb 9"
@@ -162,13 +177,14 @@ class SmartTemplateExpander:
 
         # Date transforms (for variables other than smart_date)
         elif var_name == "date" and appointment:
+            appt_date = self._appointment_date(appointment)
             if transform == "short":
-                return appointment.date_obj.strftime("%b %d")
+                return appt_date.strftime("%b %d")
             elif transform == "long":
-                return appointment.date_obj.strftime("%A, %B %d, %Y")
+                return appt_date.strftime("%A, %B %d, %Y")
             else:
                 # Default date format from config
-                return appointment.date_obj.strftime(config.DISPLAY_DATE_FORMAT)
+                return appt_date.strftime(config.DISPLAY_DATE_FORMAT)
 
         # Unknown variable/transform
         return f"{{{var_name}}}"  # Return unchanged
@@ -187,7 +203,7 @@ class SmartTemplateExpander:
 
         # Add appointment/assignment variables if present
         if appointment:
-            context['date'] = appointment.date_obj.strftime(config.DISPLAY_DATE_FORMAT)
+            context['date'] = self._appointment_date(appointment).strftime(config.DISPLAY_DATE_FORMAT)
 
             # Check if it's a prayer assignment or appointment
             if hasattr(appointment, 'prayer_type'):

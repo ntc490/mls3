@@ -1348,6 +1348,8 @@ def send_appointment_invite(appointment_id):
 @app.route('/api/appointments/<int:appointment_id>/reminder-message', methods=['GET'])
 def get_appointment_reminder_message(appointment_id):
     """Get reminder message for an appointment"""
+    from utils.sms_handler import get_sms_info
+
     appointment = appointments_db.get_by_id(appointment_id)
     if not appointment:
         return jsonify({'error': 'Appointment not found'}), 404
@@ -1356,22 +1358,28 @@ def get_appointment_reminder_message(appointment_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    # Get message template
-    template = templates.get_template('appointments', f'{appointment.appointment_type}_reminder')
-    if not template:
-        template = templates.get_template('appointments', 'default_reminder')
+    # Determine template name (try specific type, fallback to default)
+    template_name = f'{appointment.appointment_type}_reminder'
+    if not templates.get_template('appointments', template_name):
+        template_name = 'default_reminder'
 
-    # Format the message with localized time
-    appt_datetime_local = appointment.datetime_local(config.HOME_TIMEZONE)
-    message = template.format(
-        member_name=member.display_name,
-        appointment_type=appointment.appointment_type,
-        date=appt_datetime_local.strftime(config.DISPLAY_DATE_FORMAT),
-        time=appt_datetime_local.strftime('%I:%M %p'),
+    # Build the message the same way sending does, so the preview matches what
+    # goes out (smart variables, and parent routing for minors)
+    info = get_sms_info(
+        'appointments',
+        template_name,
+        member,
+        templates,
+        members_db,
+        households_db,
+        appointment,
         conductor=format_conductor_for_message(appointment.conductor)
     )
 
-    return jsonify({'message': message})
+    if not info['success']:
+        return jsonify({'error': info['error']}), 400
+
+    return jsonify({'message': info['message'], 'phone': info['phone']})
 
 
 @app.route('/api/appointments/<int:appointment_id>/remind', methods=['POST'])
