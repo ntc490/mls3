@@ -757,8 +757,6 @@ async function openHouseholdModal() {
         // Populate household details
         document.getElementById('householdModalTitle').textContent = household.name;
         document.getElementById('householdAddress').textContent = household.address || 'Not specified';
-        document.getElementById('householdPhone').textContent = household.phone || 'Not specified';
-        document.getElementById('householdEmail').textContent = household.email || 'Not specified';
 
         // Display household members
         displayHouseholdMembers(household.members);

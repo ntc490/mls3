@@ -66,6 +66,10 @@ class HouseholdMember:
 class HouseholdRecord:
     """One household block."""
     name: str                              # "Anderson, Bryan & Barbara"
+    # Captured but not stored anywhere by the import: MLS3 keeps contact details
+    # on the member, not the household. It still has to be recognised here,
+    # because the phone shares a column with the address lines and would
+    # otherwise be read as part of the address.
     phone: str = ''
     address: str = ''                      # newline-joined, as printed
     members: List[HouseholdMember] = field(default_factory=list)

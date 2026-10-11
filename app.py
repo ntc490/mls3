@@ -1071,8 +1071,6 @@ def api_get_household(household_id):
         'household_id': household.household_id,
         'name': household.name,
         'address': household.address,
-        'phone': household.phone,
-        'email': household.email,
         'members': members_data
     })
 
@@ -1123,8 +1121,6 @@ def api_get_member_household(member_id):
             'household_id': household.household_id,
             'name': household.name,
             'address': household.address,
-            'phone': household.phone,
-            'email': household.email
         },
         'parents': parents,
         'children': children

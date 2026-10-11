@@ -408,8 +408,10 @@ class Household:
     household_id: int
     name: str  # e.g., "Smith, Jack & Jill"
     address: str  # Multi-line address
-    phone: str  # Household phone number
-    email: str  # Household email
+    # No phone or email here on purpose. Contact details live on the member -
+    # messages go to a person, and the heads' own numbers are what SMS uses -
+    # so a second copy on the household was only ever displayed, and was one
+    # more thing an import could overwrite or blank.
 
 
 class HouseholdDatabase:
@@ -422,7 +424,7 @@ class HouseholdDatabase:
         self._lock = threading.Lock()
         self.load()
 
-    FIELDNAMES = ['household_id', 'name', 'address', 'phone', 'email']
+    FIELDNAMES = ['household_id', 'name', 'address']
 
     def load(self):
         """Load households from CSV, refusing a damaged file."""
@@ -438,12 +440,12 @@ class HouseholdDatabase:
             reader = csv.DictReader(f)
             _require_columns(self.csv_path, reader, ['household_id', 'name'])
             for line, row in enumerate(reader, start=2):
+                # phone and email columns may still be present in an older
+                # file; they are simply not read, and drop out on the next save.
                 self.households.append(Household(
                     household_id=_int_field(self.csv_path, row, 'household_id', line),
                     name=row.get('name') or '',
-                    address=row.get('address') or '',
-                    phone=row.get('phone') or '',
-                    email=row.get('email') or ''
+                    address=row.get('address') or ''
                 ))
 
         _check_unique(self.csv_path,

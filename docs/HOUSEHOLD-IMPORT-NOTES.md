@@ -55,6 +55,7 @@ class Household:
 1. **Parse household TSV**:
    - Identify record boundaries (when Name column is non-empty)
    - Extract household name, address, phone, email
+     (phone and email are no longer stored - see docs/PDF-IMPORT-PLAN.md)
    - Parse individual names in "Household Members" column
 
 2. **Match members to household**:

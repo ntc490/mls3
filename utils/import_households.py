@@ -244,12 +244,12 @@ def import_households(tsv_path: Path, dry_run: bool = False):
 
         if not dry_run:
             # Create household
+            # The TSV carries a household phone and e-mail, but MLS3 does not
+            # track them: contact details belong to the member.
             household = Household(
                 household_id=next_household_id,
                 name=hh_data['name'],
-                address=hh_data['address'],
-                phone=hh_data['phone'],
-                email=hh_data['email']
+                address=hh_data['address']
             )
             households_db.add(household)
             stats['households_added'] += 1

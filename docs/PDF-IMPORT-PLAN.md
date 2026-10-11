@@ -162,10 +162,19 @@ household name, and it cannot tell a 26-year-old dependent from a parent. Rewrit
 it to return the household's `household_role == 'head'` members, keeping the
 name-parsing path as a fallback for rows imported before this change.
 
-`Household.email` has no source in the household report: preserve the existing
-value on update, leave empty for new households.
+`Household` keeps only `household_id`, `name` and `address`. The `phone` and
+`email` fields it used to carry (from the older TSV import) are dropped: contact
+details belong to the member, since messages go to a person and SMS uses the
+heads' own numbers, so a second copy on the household was only ever displayed
+and was one more thing an import could overwrite. The household report's phone
+is still *recognised* by the parser, because it shares a column with the address
+lines and would otherwise be read as part of the address - it is simply not
+stored.
 
-No email field is added to `Member`. Email is parsed and discarded.
+An older `households.csv` with those columns still loads; they are ignored and
+drop out on the next save.
+
+No email field is added to `Member` either. Email is parsed and discarded.
 
 ## New files
 

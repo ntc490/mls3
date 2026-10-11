@@ -764,28 +764,18 @@ class TestImportPlan(DataDirTestCase):
         self.assertTrue(any('more than one member' in w for w in plan2.warnings),
                         plan2.warnings)
 
-    def test_a_household_phone_entered_by_hand_is_kept(self):
-        # Eight households in a typical report have no phone. An absent value
-        # means "not printed", not "deleted".
-        from utils.pdf_household_list import parse_household_list
+    def test_household_phone_and_email_are_not_tracked(self):
+        # Contact details belong to the member: messages go to a person, and
+        # SMS uses the heads' own numbers. A second copy on the household was
+        # only ever displayed, and was one more thing an import could overwrite.
         plan, members, households = self.build()
         self.pdf_import.commit(plan, members, households)
 
-        phoneless = [h.name for h in parse_household_list(HOUSEHOLD_PDF).households
-                     if not h.phone]
-        self.assertTrue(phoneless, 'expected some households with no phone')
-
-        stored = self.models.HouseholdDatabase()
-        target = next(h for h in stored.households if h.name == phoneless[0])
-        target.phone = '801-555-9999'
-        stored.save()
-
-        plan2, members2, households2 = self.build()
-        self.pdf_import.commit(plan2, members2, households2)
-
-        after = next(h for h in self.models.HouseholdDatabase().households
-                     if h.name == phoneless[0])
-        self.assertEqual(after.phone, '801-555-9999')
+        self.assertNotIn('phone', self.models.HouseholdDatabase.FIELDNAMES)
+        self.assertNotIn('email', self.models.HouseholdDatabase.FIELDNAMES)
+        for household in self.models.HouseholdDatabase().households:
+            self.assertFalse(hasattr(household, 'phone'))
+            self.assertFalse(hasattr(household, 'email'))
 
     def test_a_household_address_entered_by_hand_is_kept(self):
         plan, members, households = self.build()
@@ -803,11 +793,11 @@ class TestImportPlan(DataDirTestCase):
                      if h.name == 'Barton, Linda')
         self.assertEqual(after.address, '12 Hand Entered Ln\nRiverton UT')
 
-    def test_a_household_keeps_its_id_and_email_through_a_head_change(self):
+    def test_a_household_keeps_its_id_through_a_head_change(self):
         # A death or a marriage changes both the head set and the name at once,
         # which defeats the first two matching rules. Rebuilding the household
-        # under a new id would drop its email, which the report has no source
-        # for.
+        # under a new id would move every member to a new household and leave
+        # anything keyed on the old one - a hand-entered address - behind.
         plan, members, households = self.build()
         self.pdf_import.commit(plan, members, households)
 
@@ -817,7 +807,7 @@ class TestImportPlan(DataDirTestCase):
                       if h.name == 'Andreason, Austin & Coral')
         original_id = target.household_id
         target.name = 'Andreason, Coral'
-        target.email = 'andreason@example.com'
+        target.address = '12 Hand Entered Ln\nRiverton UT'
         stored_hh.save()
         for m in stored_m.members:
             if m.household_id == original_id and m.first_name == 'Austin':
@@ -830,7 +820,6 @@ class TestImportPlan(DataDirTestCase):
         rebuilt = next(h for h in self.models.HouseholdDatabase().households
                        if h.name == 'Andreason, Austin & Coral')
         self.assertEqual(rebuilt.household_id, original_id)
-        self.assertEqual(rebuilt.email, 'andreason@example.com')
 
     def test_a_member_phone_entered_by_hand_is_kept(self):
         # Some people have no phone on the report but a number you tracked down.

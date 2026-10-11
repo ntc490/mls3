@@ -273,8 +273,9 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
 
     Step 3 catches the case the first two miss: when a head changes, through a
     death or a marriage, both the head set and the name change at once. Without
-    it the household is rebuilt from scratch under a new id, and anything stored
-    on it with no source in the report - its email address - is silently lost.
+    it the household is rebuilt from scratch under a new id, so every member
+    moves to a new household and anything keyed on the old id - an address
+    entered by hand, for instance - is left behind.
 
     Returns a lookup of incoming household name -> assigned id and members.
     """
@@ -324,15 +325,12 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
             if existing:
                 if existing.name != record.name:
                     fields['name'] = (existing.name, record.name)
-                # An absent address or phone on the report means "not printed",
-                # not "deleted" - nine households in a typical report have no
-                # phone and some have no address. Blanking a number entered by
-                # hand because the church does not have it would be wrong, and
-                # is how member phones are already treated.
+                # An absent address on the report means "not printed", not
+                # "deleted", so an address entered by hand is kept. The report's
+                # household phone is ignored entirely - MLS3 tracks contact
+                # details on the member, not the household.
                 if address and existing.address != address:
                     fields['address'] = (existing.address, address)
-                if record.phone and existing.phone != record.phone:
-                    fields['phone'] = (existing.phone, record.phone)
             if fields:
                 plan.household_changes.append(HouseholdChange(
                     action=UPDATE, name=record.name, household_id=household_id,
@@ -665,8 +663,6 @@ def _apply_households(plan: ImportPlan, households_db: HouseholdDatabase) -> Non
                 household_id=change.household_id,
                 name=change.record.name,
                 address=change.record.address,
-                phone=change.record.phone,
-                email='',
             ))
         else:
             household = households_db.get_by_id(change.household_id)
@@ -674,12 +670,9 @@ def _apply_households(plan: ImportPlan, households_db: HouseholdDatabase) -> Non
                 continue
             household.name = change.record.name
             # Only overwrite what the report actually carries - see the matching
-            # comment in _plan_households. email has no source in the report at
-            # all, so it is never touched.
+            # comment in _plan_households.
             if change.record.address:
                 household.address = change.record.address
-            if change.record.phone:
-                household.phone = change.record.phone
 
 
 def _apply_members(plan: ImportPlan, members_db: MemberDatabase) -> None:
