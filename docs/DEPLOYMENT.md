@@ -41,8 +41,17 @@ pkg install git
 # Install Termux:API tools
 pkg install termux-api
 
+# Install poppler (provides pdftotext, used by the PDF import)
+pkg install poppler
+
 # Grant storage access
 termux-setup-storage
+```
+
+Check that `pdftotext` is on the path - the Import page needs it:
+
+```bash
+pdftotext -v
 ```
 
 ### 3. Clone or Copy the Project
@@ -91,9 +100,21 @@ cp data/message_templates.yaml ~/mls3-data/message_templates.yaml
 
 ### 3. Import Your Member Data
 
-You have two options:
+**Option A: the Import page (recommended)**
 
-**Option A: Use the import script**
+On the church website, print two reports to PDF and save them to the phone:
+
+- the **member list** (default columns are fine - the Address column is not needed)
+- the **household report** (the one with a Household Members column)
+
+Then open MLS3, go to **Import**, choose both PDFs, review what would change, and
+confirm. A backup is taken before anything is written, and the same page can
+restore it.
+
+This is the only way to get household structure and parent/child relationships,
+which the member list alone does not contain.
+
+**Option B: the import script**
 1. Download CSV from your church website
 2. Copy it to Termux storage
 3. Run:
@@ -102,7 +123,13 @@ source venv/bin/activate
 python utils/import_members.py ~/storage/shared/Downloads/church_export.csv
 ```
 
-**Option B: Edit manually**
+The same PDF import is also available from the command line:
+```bash
+python utils/pdf_import.py member-list.pdf household-report.pdf          # preview
+python utils/pdf_import.py member-list.pdf household-report.pdf --apply  # import
+```
+
+**Option C: Edit manually**
 ```bash
 # Edit members.csv directly
 nano ~/mls3-data/members.csv

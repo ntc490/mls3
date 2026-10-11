@@ -2,7 +2,11 @@
 MLS3 - Member Leadership Scheduling System
 Flask application entry point
 """
+import tempfile
+from pathlib import Path
+
 from flask import Flask, render_template, jsonify, request, redirect, url_for
+from werkzeug.utils import secure_filename
 from datetime import datetime, date, timedelta
 
 import config
@@ -14,6 +18,7 @@ from utils.google_calendar import (
     get_calendar_service, CalendarSync, is_calendar_enabled, is_online
 )
 from utils.version import get_version
+from utils import backup, pdf_import
 
 
 app = Flask(__name__)
@@ -1740,6 +1745,141 @@ def send_direct_sms(member_id):
         'phone': member.phone,
         'member_name': member.display_name
     })
+
+
+@app.route('/import')
+def import_page():
+    """Import members and households from the two church PDF reports."""
+    return render_template(
+        'import.html',
+        backups=[s.to_dict() for s in backup.list_snapshots()],
+    )
+
+
+@app.route('/api/import/preview', methods=['POST'])
+def api_import_preview():
+    """
+    Parse both uploaded reports and report exactly what would change.
+
+    Writes nothing. The uploads are held in a temporary directory only for the
+    life of this request.
+    """
+    uploads = [f for f in request.files.getlist('reports') if f and f.filename]
+    if len(uploads) != 2:
+        return jsonify({
+            'ok': False,
+            'errors': ['Please choose both the member list and the household report.'],
+        }), 400
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            paths = _save_uploads(uploads, Path(tmp))
+        except ValueError as e:
+            return jsonify({'ok': False, 'errors': [str(e)]}), 400
+
+        identified = pdf_import.identify_reports(paths)
+        if identified['errors']:
+            return jsonify({'ok': False, 'errors': identified['errors']}), 400
+        if not identified['member'] or not identified['household']:
+            return jsonify({
+                'ok': False,
+                'errors': ['Both the member list and the household report are needed.'],
+            }), 400
+
+        plan = pdf_import.build_plan(
+            identified['member'], identified['household'], members_db, households_db
+        )
+        payload = plan.to_dict()
+        payload['changes_anything'] = plan.changes_anything
+
+        # The plan holds parsed report objects, so it cannot be stashed in the
+        # session. Re-parsing on commit is cheap and guarantees the commit acts
+        # on the files actually uploaded rather than on stale state.
+        return jsonify(payload), (200 if plan.errors == [] else 400)
+
+
+@app.route('/api/import/commit', methods=['POST'])
+def api_import_commit():
+    """Back up, then apply the import."""
+    uploads = [f for f in request.files.getlist('reports') if f and f.filename]
+    if len(uploads) != 2:
+        return jsonify({
+            'ok': False,
+            'errors': ['Please choose both the member list and the household report.'],
+        }), 400
+
+    with tempfile.TemporaryDirectory() as tmp:
+        try:
+            paths = _save_uploads(uploads, Path(tmp))
+        except ValueError as e:
+            return jsonify({'ok': False, 'errors': [str(e)]}), 400
+
+        identified = pdf_import.identify_reports(paths)
+        if identified['errors'] or not identified['member'] or not identified['household']:
+            return jsonify({
+                'ok': False,
+                'errors': identified['errors'] or ['Both reports are needed.'],
+            }), 400
+
+        plan = pdf_import.build_plan(
+            identified['member'], identified['household'], members_db, households_db
+        )
+        if plan.errors:
+            return jsonify({'ok': False, 'errors': plan.errors}), 400
+
+        try:
+            result = pdf_import.commit(plan, members_db, households_db)
+        except (ValueError, OSError) as e:
+            return jsonify({'ok': False, 'errors': [str(e)]}), 500
+
+    return jsonify({
+        'ok': True,
+        'counts': result['counts'],
+        'backup': result['backup'],
+        'warnings': result['warnings'],
+    })
+
+
+@app.route('/api/import/restore', methods=['POST'])
+def api_import_restore():
+    """Roll the whole dataset back to a chosen backup."""
+    timestamp = (request.json or {}).get('timestamp', '')
+    if not timestamp:
+        return jsonify({'ok': False, 'error': 'No backup was chosen.'}), 400
+
+    try:
+        snapshot = backup.restore(timestamp)
+    except (ValueError, OSError) as e:
+        return jsonify({'ok': False, 'error': str(e)}), 400
+
+    # The in-memory databases still hold the pre-restore data.
+    members_db.load()
+    households_db.load()
+    assignments_db.load()
+    appointments_db.load()
+
+    return jsonify({
+        'ok': True,
+        'restored': snapshot.to_dict(),
+        'members': len(members_db.members),
+        'households': len(households_db.households),
+    })
+
+
+def _save_uploads(uploads, directory: Path):
+    """Write uploaded files to a temp directory, rejecting anything but PDFs."""
+    paths = []
+    for index, upload in enumerate(uploads):
+        name = secure_filename(upload.filename) or f'report{index}.pdf'
+        if not name.lower().endswith('.pdf'):
+            raise ValueError(f"{upload.filename} is not a PDF. "
+                             f"Print each report to PDF and upload those files.")
+        path = directory / f"{index}_{name}"
+        upload.save(path)
+        if path.stat().st_size == 0:
+            raise ValueError(f"{upload.filename} is empty.")
+        paths.append(path)
+    return paths
 
 
 @app.template_filter('format_date')

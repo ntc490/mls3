@@ -30,6 +30,7 @@ class Member:
     flag: str = ""  # Color flags: comma-separated list like 'red,yellow,blue' or empty
     aka: str = ""  # Also known as / preferred name (e.g., "Mike" instead of "Michael")
     household_id: Optional[int] = None  # Links member to household
+    household_role: str = ""  # 'head' or 'dependent' within the household
 
     @property
     def full_name(self):
@@ -348,7 +349,8 @@ class MemberDatabase:
                     skip_until=row.get('skip_until') if row.get('skip_until') else None,
                     flag=row.get('flag', ''),
                     aka=row.get('aka', ''),
-                    household_id=household_id
+                    household_id=household_id,
+                    household_role=row.get('household_role', '')
                 )
                 self.members.append(member)
 
@@ -361,7 +363,7 @@ class MemberDatabase:
                 'member_id', 'first_name', 'last_name', 'gender', 'phone',
                 'birthday', 'recommend_expiration', 'last_prayer_date',
                 'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka',
-                'household_id'
+                'household_id', 'household_role'
             ]
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -446,15 +448,21 @@ class MemberDatabase:
 
     def get_parents(self, member_id: int, households_db=None) -> List['Member']:
         """
-        Get parent(s) for a member using household.name data.
+        Get parent(s) for a member: the heads of their household.
 
-        IMPORTANT: This ONLY uses household.name to identify parents.
-        No fallback method is used - if household data is unavailable or
-        doesn't match, an empty list is returned.
+        The church household report marks heads of household explicitly, and the
+        PDF import stores that in Member.household_role. That is used whenever
+        it is available.
+
+        Falls back to parsing household.name for members imported before
+        household_role existed. The fallback is weaker on two counts: it matches
+        people by first-name string, so it misses a head whose surname differs
+        from the household name, and it uses age 18 as a stand-in for
+        parenthood, which does not hold - adult children commonly live at home.
 
         Args:
             member_id: ID of the member
-            households_db: HouseholdDatabase to look up parent names (required)
+            households_db: HouseholdDatabase, required only for the fallback
 
         Returns:
             List of parent Member objects (empty if household data unavailable)
@@ -463,7 +471,23 @@ class MemberDatabase:
         if not member or not member.household_id:
             return []
 
-        # Require household database - no fallback
+        household_members = [
+            m for m in self.members
+            if m.household_id == member.household_id
+            and m.member_id != member_id
+            and m.active
+        ]
+
+        heads = [m for m in household_members if m.household_role == 'head']
+        if heads:
+            return heads
+
+        # This member's household predates household_role - fall back to the
+        # household name. Only do so when nobody in the household has a role,
+        # otherwise an absent role is a genuine "not a head".
+        if any(m.household_role for m in household_members) or member.household_role:
+            return []
+
         if not households_db:
             return []
 
@@ -471,25 +495,14 @@ class MemberDatabase:
         if not household or not household.name:
             return []
 
-        # Parse parent names from household.name
-        # Format: "LastName, FirstName1 & FirstName2" or "LastName, FirstName"
         parent_first_names = self._parse_parent_names(household.name)
-
         if not parent_first_names:
             return []
 
-        # Find members matching these first names in the household
-        # Only match adults to avoid matching children with same names
-        parents = []
-        for m in self.members:
-            if (m.household_id == member.household_id and
-                m.member_id != member_id and
-                m.active and
-                not m.is_minor and
-                m.first_name in parent_first_names):
-                parents.append(m)
-
-        return parents
+        return [
+            m for m in household_members
+            if not m.is_minor and m.first_name in parent_first_names
+        ]
 
     def _parse_parent_names(self, household_name: str) -> set:
         """

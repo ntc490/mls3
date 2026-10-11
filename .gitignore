@@ -37,6 +37,8 @@ instance/
 .webassets-cache
 
 # Production Data (NEVER COMMIT)
+# Church report PDFs hold real names, birth dates, phones and addresses.
+*.pdf
 data/members.csv
 data/households.csv
 data/credentials.json

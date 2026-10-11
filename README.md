@@ -168,6 +168,39 @@ python app.py
 
 ### Importing Church Data
 
+#### **Import from PDF reports (recommended)**
+
+The **Import** page reads the two reports printed from the church website, so
+nothing depends on which browser copied the text.
+
+Print both to PDF and save them to the phone:
+
+- the **member list** &mdash; default columns are fine; the Address column is not needed
+- the **household report** &mdash; the one with a *Household Members* column
+
+Then open **Import**, choose both files (either order &mdash; they're identified
+automatically), review the summary, and confirm. A full backup is taken before
+anything is written, and the same page restores it.
+
+The household report is what supplies household structure and, from its
+indentation, who is a head of household versus a dependent. The member list alone
+cannot tell you that.
+
+Members no longer on the reports are marked inactive rather than deleted, so their
+prayer history, notes and flags survive; they are reactivated automatically if they
+appear again. Prayer history, `dont_ask_prayer`, notes, flags, AKA and skip-until
+are never overwritten by an import.
+
+Requires `pdftotext` (Termux: `pkg install poppler`). Also available from the
+command line:
+
+```bash
+python utils/pdf_import.py member-list.pdf household-report.pdf          # preview
+python utils/pdf_import.py member-list.pdf household-report.pdf --apply  # import
+```
+
+#### **Import from TSV (legacy)**
+
 The import utility supports multiple modes for managing member data:
 
 #### **Import Member Data**
