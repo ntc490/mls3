@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Recover Data - MLS3{% endblock %}
+
+{% block content %}
+<div class="import-page">
+    <h1>Your data needs attention</h1>
+
+    <div class="import-error">
+        <strong>MLS3 did not load your data</strong>
+        <ul><li>{{ problem }}</li></ul>
+    </div>
+
+    <p class="import-intro">
+        Nothing has been changed or lost. The rest of the app stays closed until
+        this is sorted out, so that incomplete data is never shown as if it were
+        complete. Restoring a backup below replaces the data files with that
+        copy; the current files are backed up first, so this is reversible.
+    </p>
+
+    <section class="import-step">
+        <h2>Restore a backup</h2>
+        <ul class="backup-list" id="backupList">
+            {% for item in backups %}
+            <li class="backup-item">
+                <div class="backup-meta">
+                    <strong>{{ item.label }}</strong>
+                    <span class="text-muted">{{ item.reason or 'Backup' }}</span>
+                    <span class="text-muted backup-counts">
+                        {{ item.counts.get('members.csv', 0) }} members,
+                        {{ item.counts.get('households.csv', 0) }} households
+                    </span>
+                    {% if not item.restorable %}
+                    <span class="backup-bad">
+                        Can't be restored &mdash;
+                        {{ item.incomplete_reason or item.verify_problems|join('; ') }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if item.restorable %}
+                <button class="btn btn-primary btn-restore"
+                        data-timestamp="{{ item.timestamp }}"
+                        data-label="{{ item.label }}">Restore</button>
+                {% endif %}
+            </li>
+            {% else %}
+            <li class="text-muted">
+                There are no backups to restore from. The data files are in
+                <code>{{ data_dir }}</code> if you want to inspect or repair
+                them by hand.
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+
+<div id="confirmDialog" class="modal">
+    <div class="modal-content modal-narrow">
+        <div class="modal-header">
+            <h2 id="confirmTitle">Are you sure?</h2>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="confirmYes">Yes, do it</button>
+            <button class="btn btn-secondary" id="confirmNo">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/import.js') }}"></script>
+{% endblock %}

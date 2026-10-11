@@ -12,25 +12,75 @@ from datetime import datetime, date, timedelta
 import config
 from models import (
     MemberDatabase, PrayerAssignmentDatabase, MessageTemplates,
-    AppointmentTypesDatabase, AppointmentDatabase, HouseholdDatabase
+    AppointmentTypesDatabase, AppointmentDatabase, HouseholdDatabase,
+    DataIntegrityError
 )
 from utils.google_calendar import (
     get_calendar_service, CalendarSync, is_calendar_enabled, is_online
 )
 from utils.version import get_version
-from utils import backup, pdf_import
+from utils import backup, check_data, pdf_import
 
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = config.SECRET_KEY
 
-# Initialize data models
-members_db = MemberDatabase()
-households_db = HouseholdDatabase()
-assignments_db = PrayerAssignmentDatabase()
-templates = MessageTemplates()
-appointment_types_db = AppointmentTypesDatabase()
-appointments_db = AppointmentDatabase()
+# Set when the data on disk could not be trusted at startup. While this holds a
+# message, every page redirects to /recovery so a damaged file is never served
+# as if it were complete - half a ward looks entirely normal on screen.
+DATA_PROBLEM = None
+
+# Endpoints that must keep working while the data is in doubt.
+RECOVERY_ENDPOINTS = {'recovery_page', 'api_import_restore', 'api_data_check', 'static'}
+
+
+def _init_databases():
+    """
+    Load the data files, refusing to start normally if any is damaged.
+
+    A failure here is recoverable: the backups are intact, so the app comes up
+    in recovery mode with empty in-memory data and offers to restore one.
+    """
+    global members_db, households_db, assignments_db, appointments_db
+    global templates, appointment_types_db, DATA_PROBLEM
+
+    DATA_PROBLEM = None
+    try:
+        members_db = MemberDatabase()
+        households_db = HouseholdDatabase()
+        assignments_db = PrayerAssignmentDatabase()
+        appointments_db = AppointmentDatabase()
+    except DataIntegrityError as e:
+        DATA_PROBLEM = str(e)
+        # Point the placeholders at paths that do not exist, so they load empty
+        # and a stray write could not overwrite the real files.
+        quarantine = config.DATA_DIR / '__recovery__'
+        members_db = MemberDatabase(csv_path=quarantine / 'members.csv')
+        households_db = HouseholdDatabase(csv_path=quarantine / 'households.csv')
+        assignments_db = PrayerAssignmentDatabase(csv_path=quarantine / 'prayer_assignments.csv')
+        appointments_db = AppointmentDatabase(csv_path=quarantine / 'appointments.csv')
+
+    templates = MessageTemplates()
+    appointment_types_db = AppointmentTypesDatabase()
+
+    # An import killed between its two renames may have left members and
+    # households disagreeing with each other.
+    if DATA_PROBLEM is None:
+        DATA_PROBLEM = pdf_import.check_interrupted_import()
+
+
+_init_databases()
+
+
+@app.before_request
+def guard_damaged_data():
+    """Send every page to /recovery while the data is in doubt."""
+    if DATA_PROBLEM is None or request.endpoint in RECOVERY_ENDPOINTS:
+        return None
+    if request.path.startswith('/api/'):
+        return jsonify({'ok': False, 'error': DATA_PROBLEM,
+                        'recovery': url_for('recovery_page')}), 503
+    return redirect(url_for('recovery_page'))
 
 
 # Context processor to make version available in all templates
@@ -1747,6 +1797,40 @@ def send_direct_sms(member_id):
     })
 
 
+@app.route('/recovery')
+def recovery_page():
+    """
+    Shown when the data on disk could not be trusted at startup.
+
+    Nothing else is reachable until a backup is restored, so a damaged file is
+    never presented as a complete one.
+    """
+    if DATA_PROBLEM is None:
+        return redirect(url_for('index'))
+
+    return render_template(
+        'recovery.html',
+        problem=DATA_PROBLEM,
+        data_dir=str(config.DATA_DIR),
+        backups=[s.to_dict() for s in backup.list_snapshots()],
+    )
+
+
+@app.route('/api/data/check')
+def api_data_check():
+    """Run the integrity check over the current data."""
+    if DATA_PROBLEM:
+        return jsonify({'ok': False, 'errors': [DATA_PROBLEM], 'warnings': [],
+                        'counts': {}})
+    try:
+        report = check_data.check(members_db, households_db,
+                                  assignments_db, appointments_db)
+    except DataIntegrityError as e:
+        return jsonify({'ok': False, 'errors': [str(e)], 'warnings': [],
+                        'counts': {}})
+    return jsonify(report.to_dict())
+
+
 @app.route('/import')
 def import_page():
     """Import members and households from the two church PDF reports."""
@@ -1836,6 +1920,8 @@ def api_import_commit():
         'ok': True,
         'counts': result['counts'],
         'backup': result['backup'],
+        'backup_after': result['backup_after'],
+        'integrity': result['integrity'],
         'warnings': result['warnings'],
     })
 
@@ -1852,11 +1938,17 @@ def api_import_restore():
     except (ValueError, OSError) as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
 
-    # The in-memory databases still hold the pre-restore data.
-    members_db.load()
-    households_db.load()
-    assignments_db.load()
-    appointments_db.load()
+    # A restore resolves an interrupted import, and the in-memory databases
+    # still hold the pre-restore data, so reload everything from scratch. This
+    # also clears recovery mode if the restored files are sound.
+    pdf_import.clear_interrupted_import()
+    try:
+        _init_databases()
+    except DataIntegrityError as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+    if DATA_PROBLEM:
+        return jsonify({'ok': False, 'error': DATA_PROBLEM}), 500
 
     return jsonify({
         'ok': True,

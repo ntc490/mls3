@@ -421,6 +421,7 @@ Private project for personal church use.
 ## Documentation
 
 - **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Complete Termux deployment guide
+- **[docs/DATA-SAFETY.md](docs/DATA-SAFETY.md)** - How the data files are protected, and what to do if something looks wrong
 - **[docs/TESTING.md](docs/TESTING.md)** - Testing checklist for verification
 - **[docs/GOOGLE_CALENDAR_SETUP.md](docs/GOOGLE_CALENDAR_SETUP.md)** - Google Calendar integration setup
 - **[docs/COMPLETION_TRACKING_PLAN.md](docs/COMPLETION_TRACKING_PLAN.md)** - Future: Completion tracking system

@@ -3,13 +3,178 @@ Data models for MLS3
 Handles CSV-based data persistence for members and prayer assignments
 """
 import csv
+import os
+import threading
+from contextlib import contextmanager
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, date
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 import yaml
 
 import config
+
+
+class DataIntegrityError(Exception):
+    """
+    A data file is damaged and was not loaded.
+
+    Raised instead of quietly loading part of a file. Half a ward looks normal
+    on screen, which is far worse than a clear failure: the app can offer to
+    restore a backup, but it cannot notice that 180 people are missing.
+    """
+
+
+# ---------------------------------------------------------------------------
+# Durable writes
+#
+# Every data file is written to a temporary file in the same directory, flushed
+# all the way to disk, and then moved into place with os.replace, which is
+# atomic on POSIX. A process killed at any point leaves either the complete old
+# file or the complete new one - never a half-written one.
+#
+# This matters because MLS3 runs in Termux: Android kills background processes
+# whenever it wants, and a plain open(path, 'w') is destructive from the moment
+# it truncates until the last byte lands. The same mechanism also survives a
+# full disk, since the failure happens while writing the temporary file and the
+# original is left untouched.
+# ---------------------------------------------------------------------------
+
+def _fsync_dir(directory: Path) -> None:
+    """Flush a directory entry so a rename survives power loss."""
+    try:
+        fd = os.open(directory, os.O_RDONLY)
+    except OSError:
+        return
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass            # some filesystems do not allow this; the rename still holds
+    finally:
+        os.close(fd)
+
+
+def _staged_path(path: Path) -> Path:
+    return path.with_name(path.name + '.tmp')
+
+
+@contextmanager
+def staged_write(path: Path, newline: str = '', encoding: str = 'utf-8'):
+    """
+    Write a file's new contents to disk without publishing them yet.
+
+    Yields the open file. On a clean exit the data is fully flushed to the
+    staging file and the staging path is left for publish() to move into place.
+    On any exception the staging file is removed.
+
+    Used when several files have to change together - see publish().
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    staged = _staged_path(path)
+
+    handle = open(staged, 'w', newline=newline, encoding=encoding)
+    try:
+        yield handle
+        handle.flush()
+        os.fsync(handle.fileno())
+    except BaseException:
+        handle.close()
+        staged.unlink(missing_ok=True)
+        raise
+    else:
+        handle.close()
+
+
+def publish(staged: List[Tuple[Path, Path]]) -> None:
+    """
+    Move staged files into place, back to back.
+
+    Two renames cannot be one atomic operation, but each is atomic on its own
+    and the gap between them is microseconds with no I/O in it, which is as
+    close to a multi-file commit as a CSV store gets.
+    """
+    for staged_path, final_path in staged:
+        os.replace(staged_path, final_path)
+    for _, final_path in staged:
+        _fsync_dir(final_path.parent)
+
+
+@contextmanager
+def atomic_write(path: Path, newline: str = '', encoding: str = 'utf-8'):
+    """Write one file durably: staged, flushed, then moved into place."""
+    path = Path(path)
+    with staged_write(path, newline=newline, encoding=encoding) as handle:
+        yield handle
+    publish([(_staged_path(path), path)])
+
+
+def _require_complete_file(path: Path) -> None:
+    """
+    Refuse a file whose last row was cut off.
+
+    Every row the csv writer produces ends with a line terminator, so a file
+    that does not end with one stopped partway through being written or copied.
+    Atomic writes make this impossible for MLS3's own saves; this catches a bad
+    copy, failing storage, or an interrupted manual edit.
+
+    Truncation exactly on a row boundary cannot be detected this way - that is
+    what the count comparison in utils/check_data.py is for.
+    """
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return
+    if size == 0:
+        raise DataIntegrityError(
+            f"{path.name} is empty. Restore a backup."
+        )
+    with open(path, 'rb') as f:
+        f.seek(-1, os.SEEK_END)
+        if f.read(1) not in (b'\n', b'\r'):
+            raise DataIntegrityError(
+                f"{path.name} ends in the middle of a row, so it was cut off "
+                f"while being written or copied. Restore a backup rather than "
+                f"using it."
+            )
+
+
+def _require_columns(path: Path, reader: csv.DictReader, required: List[str]) -> None:
+    """Refuse a file whose header is missing columns we depend on."""
+    present = set(reader.fieldnames or [])
+    missing = [name for name in required if name not in present]
+    if missing:
+        raise DataIntegrityError(
+            f"{path.name} is missing the column(s) {', '.join(missing)}. "
+            f"The file looks damaged or is from a different program. "
+            f"Restore a backup rather than importing over it."
+        )
+
+
+def _int_field(path: Path, row: dict, column: str, line: int) -> int:
+    """Read an integer column, naming the file and line when it is unreadable."""
+    raw = (row.get(column) or '').strip()
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        raise DataIntegrityError(
+            f"{path.name} line {line}: {column} should be a number but is "
+            f"{raw!r}. The file is probably truncated or damaged - restore a backup."
+        )
+
+
+def _check_unique(path: Path, ids: List[int], column: str) -> None:
+    seen, duplicates = set(), []
+    for value in ids:
+        if value in seen:
+            duplicates.append(value)
+        seen.add(value)
+    if duplicates:
+        shown = ', '.join(str(d) for d in sorted(set(duplicates))[:5])
+        raise DataIntegrityError(
+            f"{path.name} has more than one row with the same {column} "
+            f"({shown}). Restore a backup."
+        )
 
 
 @dataclass
@@ -244,40 +409,60 @@ class HouseholdDatabase:
     def __init__(self, csv_path: Path = None):
         self.csv_path = csv_path or config.HOUSEHOLDS_CSV
         self.households: List[Household] = []
+        # Flask serves requests on threads, so two handlers can save at once.
+        self._lock = threading.Lock()
         self.load()
 
+    FIELDNAMES = ['household_id', 'name', 'address', 'phone', 'email']
+
     def load(self):
-        """Load households from CSV file"""
+        """Load households from CSV, refusing a damaged file."""
         self.households = []
 
         if not self.csv_path.exists():
             # File doesn't exist yet - this is OK, we'll create it on save
             return
 
+        _require_complete_file(self.csv_path)
+
         with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                household = Household(
-                    household_id=int(row['household_id']),
-                    name=row['name'],
-                    address=row['address'],
-                    phone=row['phone'],
-                    email=row['email']
-                )
-                self.households.append(household)
+            _require_columns(self.csv_path, reader, ['household_id', 'name'])
+            for line, row in enumerate(reader, start=2):
+                self.households.append(Household(
+                    household_id=_int_field(self.csv_path, row, 'household_id', line),
+                    name=row.get('name') or '',
+                    address=row.get('address') or '',
+                    phone=row.get('phone') or '',
+                    email=row.get('email') or ''
+                ))
+
+        _check_unique(self.csv_path,
+                      [h.household_id for h in self.households], 'household_id')
+
+    def _write_rows(self, handle) -> None:
+        writer = csv.DictWriter(handle, fieldnames=self.FIELDNAMES)
+        writer.writeheader()
+        for household in self.households:
+            writer.writerow(asdict(household))
 
     def save(self):
-        """Save households to CSV file"""
-        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        """Save households durably."""
+        with self._lock:
+            with atomic_write(self.csv_path) as f:
+                self._write_rows(f)
 
-        with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = ['household_id', 'name', 'address', 'phone', 'email']
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
+    def stage(self) -> Tuple[Path, Path]:
+        """
+        Write the new contents without publishing them.
 
-            for household in self.households:
-                row = asdict(household)
-                writer.writerow(row)
+        Returns (staged path, final path) for publish(), so households and
+        members can be committed together.
+        """
+        with self._lock:
+            with staged_write(self.csv_path) as f:
+                self._write_rows(f)
+        return _staged_path(self.csv_path), self.csv_path
 
     def get_by_id(self, household_id: int) -> Optional[Household]:
         """Get household by ID"""
@@ -310,9 +495,17 @@ class HouseholdDatabase:
 class MemberDatabase:
     """Manages member data from CSV"""
 
+    FIELDNAMES = [
+        'member_id', 'first_name', 'last_name', 'gender', 'phone',
+        'birthday', 'recommend_expiration', 'last_prayer_date',
+        'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka',
+        'household_id', 'household_role'
+    ]
+
     def __init__(self, csv_path: Path = None):
         self.csv_path = csv_path or config.MEMBERS_CSV
         self.members: List[Member] = []
+        self._lock = threading.Lock()
         self.load()
 
     def load(self):
@@ -323,9 +516,13 @@ class MemberDatabase:
             # File doesn't exist yet - this is OK, we'll create it on save
             return
 
+        _require_complete_file(self.csv_path)
+
         with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            for row in reader:
+            _require_columns(self.csv_path, reader,
+                             ['member_id', 'first_name', 'last_name'])
+            for line, row in enumerate(reader, start=2):
                 # Parse household_id if present
                 household_id = None
                 if row.get('household_id') and row['household_id']:
@@ -334,43 +531,49 @@ class MemberDatabase:
                     except ValueError:
                         household_id = None
 
+                # Columns are read with .get so a file written by an older
+                # version, or one missing an optional column, still loads. The
+                # columns we cannot do without are checked above.
                 member = Member(
-                    member_id=int(row['member_id']),
-                    first_name=row['first_name'],
-                    last_name=row['last_name'],
-                    gender=row['gender'],
-                    phone=row['phone'],
-                    birthday=row['birthday'],
-                    recommend_expiration=row['recommend_expiration'],
-                    last_prayer_date=row['last_prayer_date'] if row['last_prayer_date'] else None,
-                    dont_ask_prayer=row['dont_ask_prayer'].lower() == 'true',
-                    active=row['active'].lower() == 'true',
-                    notes=row['notes'],
-                    skip_until=row.get('skip_until') if row.get('skip_until') else None,
-                    flag=row.get('flag', ''),
-                    aka=row.get('aka', ''),
+                    member_id=_int_field(self.csv_path, row, 'member_id', line),
+                    first_name=row.get('first_name') or '',
+                    last_name=row.get('last_name') or '',
+                    gender=row.get('gender') or '',
+                    phone=row.get('phone') or '',
+                    birthday=row.get('birthday') or '',
+                    recommend_expiration=row.get('recommend_expiration') or '',
+                    last_prayer_date=row.get('last_prayer_date') or None,
+                    dont_ask_prayer=(row.get('dont_ask_prayer') or '').lower() == 'true',
+                    active=(row.get('active') or 'true').lower() == 'true',
+                    notes=row.get('notes') or '',
+                    skip_until=row.get('skip_until') or None,
+                    flag=row.get('flag') or '',
+                    aka=row.get('aka') or '',
                     household_id=household_id,
-                    household_role=row.get('household_role', '')
+                    household_role=row.get('household_role') or ''
                 )
                 self.members.append(member)
 
+        _check_unique(self.csv_path, [m.member_id for m in self.members], 'member_id')
+
+    def _write_rows(self, handle) -> None:
+        writer = csv.DictWriter(handle, fieldnames=self.FIELDNAMES)
+        writer.writeheader()
+        for member in self.members:
+            writer.writerow(asdict(member))
+
     def save(self):
-        """Save members to CSV file"""
-        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        """Save members durably."""
+        with self._lock:
+            with atomic_write(self.csv_path) as f:
+                self._write_rows(f)
 
-        with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = [
-                'member_id', 'first_name', 'last_name', 'gender', 'phone',
-                'birthday', 'recommend_expiration', 'last_prayer_date',
-                'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka',
-                'household_id', 'household_role'
-            ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for member in self.members:
-                row = asdict(member)
-                writer.writerow(row)
+    def stage(self) -> Tuple[Path, Path]:
+        """Write the new contents without publishing them. See publish()."""
+        with self._lock:
+            with staged_write(self.csv_path) as f:
+                self._write_rows(f)
+        return _staged_path(self.csv_path), self.csv_path
 
     def get_by_id(self, member_id: int) -> Optional[Member]:
         """Get member by ID"""
@@ -576,49 +779,63 @@ class MemberDatabase:
 class PrayerAssignmentDatabase:
     """Manages prayer assignment data from CSV"""
 
+    FIELDNAMES = [
+        'assignment_id', 'member_id', 'date', 'prayer_type', 'state',
+        'created_date', 'last_updated', 'completed_date'
+    ]
+
     def __init__(self, csv_path: Path = None):
         self.csv_path = csv_path or config.PRAYER_ASSIGNMENTS_CSV
         self.assignments: List[PrayerAssignment] = []
+        self._lock = threading.Lock()
         self.load()
 
     def load(self):
-        """Load assignments from CSV file"""
+        """Load assignments from CSV, refusing a damaged file."""
         self.assignments = []
 
         if not self.csv_path.exists():
             print(f"Warning: Prayer assignments CSV not found at {self.csv_path}")
             return
 
+        _require_complete_file(self.csv_path)
+
         with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                assignment = PrayerAssignment(
-                    assignment_id=int(row['assignment_id']),
-                    member_id=int(row['member_id']),
-                    date=row['date'],
-                    prayer_type=row['prayer_type'],
-                    state=row['state'],
-                    created_date=row['created_date'],
-                    last_updated=row['last_updated'],
-                    completed_date=row['completed_date'] if row['completed_date'] else None
-                )
-                self.assignments.append(assignment)
+            _require_columns(self.csv_path, reader, ['assignment_id', 'member_id'])
+            for line, row in enumerate(reader, start=2):
+                self.assignments.append(PrayerAssignment(
+                    assignment_id=_int_field(self.csv_path, row, 'assignment_id', line),
+                    member_id=_int_field(self.csv_path, row, 'member_id', line),
+                    date=row.get('date') or '',
+                    prayer_type=row.get('prayer_type') or '',
+                    state=row.get('state') or '',
+                    created_date=row.get('created_date') or '',
+                    last_updated=row.get('last_updated') or '',
+                    completed_date=row.get('completed_date') or None
+                ))
+
+        _check_unique(self.csv_path,
+                      [a.assignment_id for a in self.assignments], 'assignment_id')
+
+    def _write_rows(self, handle) -> None:
+        writer = csv.DictWriter(handle, fieldnames=self.FIELDNAMES)
+        writer.writeheader()
+        for assignment in self.assignments:
+            writer.writerow(asdict(assignment))
 
     def save(self):
-        """Save assignments to CSV file"""
-        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        """Save assignments durably."""
+        with self._lock:
+            with atomic_write(self.csv_path) as f:
+                self._write_rows(f)
 
-        with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = [
-                'assignment_id', 'member_id', 'date', 'prayer_type', 'state',
-                'created_date', 'last_updated', 'completed_date'
-            ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for assignment in self.assignments:
-                row = asdict(assignment)
-                writer.writerow(row)
+    def stage(self) -> Tuple[Path, Path]:
+        """Write the new contents without publishing them. See publish()."""
+        with self._lock:
+            with staged_write(self.csv_path) as f:
+                self._write_rows(f)
+        return _staged_path(self.csv_path), self.csv_path
 
     def get_by_id(self, assignment_id: int) -> Optional[PrayerAssignment]:
         """Get assignment by ID"""
@@ -792,54 +1009,69 @@ class AppointmentTypesDatabase:
 class AppointmentDatabase:
     """Manages appointment data from CSV"""
 
+    FIELDNAMES = [
+        'appointment_id', 'member_id', 'appointment_type', 'datetime_utc',
+        'duration_minutes', 'conductor', 'state', 'created_date',
+        'last_updated', 'completed_date', 'google_event_id', 'notes'
+    ]
+
     def __init__(self, csv_path: Path = None):
         self.csv_path = csv_path or config.APPOINTMENTS_CSV
         self.appointments: List[Appointment] = []
+        self._lock = threading.Lock()
         self.load()
 
     def load(self):
-        """Load appointments from CSV file"""
+        """Load appointments from CSV, refusing a damaged file."""
         self.appointments = []
 
         if not self.csv_path.exists():
             print(f"Warning: Appointments CSV not found at {self.csv_path}")
             return
 
+        _require_complete_file(self.csv_path)
+
         with open(self.csv_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                appointment = Appointment(
-                    appointment_id=int(row['appointment_id']),
-                    member_id=int(row['member_id']),
-                    appointment_type=row['appointment_type'],
-                    datetime_utc=row['datetime_utc'],
-                    duration_minutes=int(row['duration_minutes']),
-                    conductor=row['conductor'],
-                    state=row['state'],
-                    created_date=row['created_date'],
-                    last_updated=row['last_updated'],
-                    completed_date=row['completed_date'] if row['completed_date'] else None,
-                    google_event_id=row.get('google_event_id') if row.get('google_event_id') else None,
-                    notes=row.get('notes') if row.get('notes') else None
-                )
-                self.appointments.append(appointment)
+            _require_columns(self.csv_path, reader,
+                             ['appointment_id', 'member_id', 'datetime_utc'])
+            for line, row in enumerate(reader, start=2):
+                self.appointments.append(Appointment(
+                    appointment_id=_int_field(self.csv_path, row, 'appointment_id', line),
+                    member_id=_int_field(self.csv_path, row, 'member_id', line),
+                    appointment_type=row.get('appointment_type') or '',
+                    datetime_utc=row.get('datetime_utc') or '',
+                    duration_minutes=_int_field(self.csv_path, row, 'duration_minutes', line),
+                    conductor=row.get('conductor') or '',
+                    state=row.get('state') or '',
+                    created_date=row.get('created_date') or '',
+                    last_updated=row.get('last_updated') or '',
+                    completed_date=row.get('completed_date') or None,
+                    google_event_id=row.get('google_event_id') or None,
+                    notes=row.get('notes') or None
+                ))
+
+        _check_unique(self.csv_path,
+                      [a.appointment_id for a in self.appointments], 'appointment_id')
+
+    def _write_rows(self, handle) -> None:
+        writer = csv.DictWriter(handle, fieldnames=self.FIELDNAMES)
+        writer.writeheader()
+        for appointment in self.appointments:
+            writer.writerow(asdict(appointment))
 
     def save(self):
-        """Save appointments to CSV file"""
-        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        """Save appointments durably."""
+        with self._lock:
+            with atomic_write(self.csv_path) as f:
+                self._write_rows(f)
 
-        with open(self.csv_path, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = [
-                'appointment_id', 'member_id', 'appointment_type', 'datetime_utc',
-                'duration_minutes', 'conductor', 'state', 'created_date',
-                'last_updated', 'completed_date', 'google_event_id', 'notes'
-            ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for appointment in self.appointments:
-                row = asdict(appointment)
-                writer.writerow(row)
+    def stage(self) -> Tuple[Path, Path]:
+        """Write the new contents without publishing them. See publish()."""
+        with self._lock:
+            with staged_write(self.csv_path) as f:
+                self._write_rows(f)
+        return _staged_path(self.csv_path), self.csv_path
 
     def get_by_id(self, appointment_id: int) -> Optional[Appointment]:
         """Get appointment by ID"""

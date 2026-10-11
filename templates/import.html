@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Import - MLS3{% endblock %}
+
+{% block content %}
+<div class="import-page">
+    <h1>Import</h1>
+    <p class="import-intro">
+        Print both reports from the church website as PDFs, then choose them here.
+        Nothing is changed until you confirm, and a backup is saved first.
+    </p>
+
+    <section class="import-step" id="step-choose">
+        <h2>1. Choose the two reports</h2>
+        <label class="file-picker" for="reportFiles">
+            <input type="file" id="reportFiles" accept="application/pdf,.pdf" multiple>
+            <span id="filePickerLabel">Tap to choose PDFs</span>
+        </label>
+        <ul class="file-list" id="fileList"></ul>
+        <p class="import-hint">
+            The member list and the household report. It doesn't matter which order
+            you pick them &mdash; they're identified automatically.
+        </p>
+        <button class="btn btn-primary" id="previewBtn" disabled>Check these reports</button>
+    </section>
+
+    <section class="import-step" id="step-preview" hidden>
+        <h2>2. Review</h2>
+        <div id="previewBody"></div>
+        <div class="import-actions">
+            <button class="btn btn-primary" id="importBtn">Import</button>
+            <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+        </div>
+    </section>
+
+    <section class="import-step" id="step-done" hidden>
+        <h2>Done</h2>
+        <div id="doneBody"></div>
+    </section>
+
+    <section class="import-step" id="step-check">
+        <h2>Check the data</h2>
+        <p class="import-hint">
+            Looks for members in households that no longer exist, appointments for
+            people who have gone, records lost since the last backup, and similar.
+        </p>
+        <button class="btn btn-secondary" id="checkBtn">Run a check</button>
+        <div id="checkBody"></div>
+    </section>
+
+    <section class="import-step" id="step-backups">
+        <h2>Backups</h2>
+        <p class="import-hint">
+            Every import saves one first. Restoring puts members, households,
+            prayer assignments and appointments back as they were.
+        </p>
+        <ul class="backup-list" id="backupList">
+            {% for item in backups %}
+            <li class="backup-item">
+                <div class="backup-meta">
+                    <strong>{{ item.label }}</strong>
+                    <span class="text-muted">{{ item.reason or 'Backup' }}</span>
+                    <span class="text-muted backup-counts">
+                        {{ item.counts.get('members.csv', 0) }} members,
+                        {{ item.counts.get('households.csv', 0) }} households
+                    </span>
+                    {% if not item.restorable %}
+                    <span class="backup-bad">
+                        Can't be restored &mdash;
+                        {{ item.incomplete_reason or item.verify_problems|join('; ') }}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if item.restorable %}
+                <button class="btn btn-secondary btn-restore"
+                        data-timestamp="{{ item.timestamp }}"
+                        data-label="{{ item.label }}">Restore</button>
+                {% endif %}
+            </li>
+            {% else %}
+            <li class="text-muted">No backups yet.</li>
+            {% endfor %}
+        </ul>
+    </section>
+</div>
+
+<div id="confirmDialog" class="modal">
+    <div class="modal-content modal-narrow">
+        <div class="modal-header">
+            <h2 id="confirmTitle">Are you sure?</h2>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" id="confirmYes">Yes, do it</button>
+            <button class="btn btn-secondary" id="confirmNo">Cancel</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/import.js') }}"></script>
+{% endblock %}
