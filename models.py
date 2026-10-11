@@ -196,6 +196,15 @@ class Member:
     aka: str = ""  # Also known as / preferred name (e.g., "Mike" instead of "Michael")
     household_id: Optional[int] = None  # Links member to household
     household_role: str = ""  # 'head' or 'dependent' within the household
+    # Two separate facts, deliberately kept apart:
+    #   in_ward - owned by the import. Are they on the ward's records at all?
+    #             Someone who moves away is in_ward=False and disappears from
+    #             the UI entirely; nothing in the app shows them.
+    #   active  - owned by the user, set from the Members page. Are they
+    #             church-active and worth scheduling? An import never writes it.
+    # Conflating the two meant moving out of the ward and back in silently
+    # undid the user's own judgement about someone.
+    in_ward: bool = True
 
     @property
     def full_name(self):
@@ -499,7 +508,7 @@ class MemberDatabase:
         'member_id', 'first_name', 'last_name', 'gender', 'phone',
         'birthday', 'recommend_expiration', 'last_prayer_date',
         'dont_ask_prayer', 'active', 'notes', 'skip_until', 'flag', 'aka',
-        'household_id', 'household_role'
+        'household_id', 'household_role', 'in_ward'
     ]
 
     def __init__(self, csv_path: Path = None):
@@ -550,7 +559,11 @@ class MemberDatabase:
                     flag=row.get('flag') or '',
                     aka=row.get('aka') or '',
                     household_id=household_id,
-                    household_role=row.get('household_role') or ''
+                    household_role=row.get('household_role') or '',
+                    # Defaults to True so a database written before this
+                    # column existed stays fully visible; the next import
+                    # sets it authoritatively.
+                    in_ward=(row.get('in_ward') or 'true').lower() == 'true'
                 )
                 self.members.append(member)
 
@@ -593,7 +606,9 @@ class MemberDatabase:
         Returns:
             List of active members matching the filters
         """
-        result = [m for m in self.members if m.active]
+        # Both facts matter here: someone who has left the ward cannot be
+        # asked, and someone church-inactive should not be asked.
+        result = [m for m in self.members if m.in_ward and m.active]
         if gender:
             result = [m for m in result if m.gender == gender]
         if prayer_eligible_only:
@@ -606,7 +621,7 @@ class MemberDatabase:
         results = []
 
         for member in self.members:
-            if member.active:
+            if member.in_ward and member.active:
                 full_name = member.full_name.lower()
                 if query in full_name:
                     results.append(member)
@@ -674,11 +689,14 @@ class MemberDatabase:
         if not member or not member.household_id:
             return []
 
+        # Filtered on in_ward, not active: whether a parent attends church has
+        # nothing to do with whether they are the person to contact about their
+        # child. Only having left the ward removes them.
         household_members = [
             m for m in self.members
             if m.household_id == member.household_id
             and m.member_id != member_id
-            and m.active
+            and m.in_ward
         ]
 
         heads = [m for m in household_members if m.household_role == 'head']
@@ -748,7 +766,8 @@ class MemberDatabase:
         Returns:
             List of Member objects in the household
         """
-        return [m for m in self.members if m.household_id == household_id]
+        return [m for m in self.members
+                if m.household_id == household_id and m.in_ward]
 
     def get_children(self, member_id: int) -> List['Member']:
         """
@@ -764,13 +783,14 @@ class MemberDatabase:
         if not member or not member.household_id:
             return []
 
-        # Find all minors in the same household
+        # Filtered on in_ward, not active, for the same reason as get_parents:
+        # a child's church attendance does not change whose child they are.
         children = []
         for m in self.members:
             if (m.household_id == member.household_id and
                 m.member_id != member_id and
                 m.is_minor and
-                m.active):
+                m.in_ward):
                 children.append(m)
 
         return children

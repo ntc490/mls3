@@ -98,7 +98,8 @@ def check(members_db: MemberDatabase = None,
 
     counts = {
         'members': len(members),
-        'active_members': sum(1 for m in members if m.active),
+        'in_ward': sum(1 for m in members if m.in_ward),
+        'active_members': sum(1 for m in members if m.in_ward and m.active),
         'households': len(households),
         'assignments': len(assignments_db.assignments),
         'appointments': len(appointments_db.appointments),
@@ -149,10 +150,10 @@ def check(members_db: MemberDatabase = None,
                                 f"{len(nameless)} member(s) have no name at all."))
 
     # Below here nothing is broken, but something is probably worth a look.
-    bad_genders = [m for m in members if m.active and m.gender not in ('M', 'F')]
+    bad_genders = [m for m in members if m.in_ward and m.gender not in ('M', 'F')]
     if bad_genders:
         problems.append(Problem(WARNING, _listing(
-            f"{len(bad_genders)} active member(s) have no gender recorded",
+            f"{len(bad_genders)} member(s) in the ward have no gender recorded",
             [m.full_name for m in bad_genders])))
 
     bad_dates = [
@@ -168,11 +169,11 @@ def check(members_db: MemberDatabase = None,
             f"{len(bad_dates)} date(s) are not in YYYY-MM-DD form",
             [f"{m.full_name}: {field} = {value!r}" for m, field, value in bad_dates])))
 
-    occupied = {m.household_id for m in members if m.active and m.household_id}
+    occupied = {m.household_id for m in members if m.in_ward and m.household_id}
     headless = [
         h for h in households
         if h.household_id in occupied
-        and not any(m.household_id == h.household_id and m.active
+        and not any(m.household_id == h.household_id and m.in_ward
                     and m.household_role == 'head' for m in members)
     ]
     if headless:

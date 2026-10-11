@@ -531,7 +531,7 @@ class TestImportPlan(DataDirTestCase):
         self.assertEqual(plan.errors, [])
         counts = plan.counts
         self.assertEqual(counts['add'], EXPECTED_PEOPLE)
-        self.assertEqual(counts['deactivate'], len(members.members))
+        self.assertEqual(counts['left_ward'], len(members.members))
 
     def test_commit_then_reimport_changes_nothing(self):
         plan, members, households = self.build()
@@ -558,19 +558,19 @@ class TestImportPlan(DataDirTestCase):
 
         stored = self.models.MemberDatabase()
         stored_households = self.models.HouseholdDatabase()
-        active = [m for m in stored.members if m.active]
+        in_ward = [m for m in stored.members if m.in_ward]
 
-        self.assertEqual(len(active), EXPECTED_PEOPLE)
-        self.assertEqual(sum(1 for m in active if m.household_role == 'head'),
+        self.assertEqual(len(in_ward), EXPECTED_PEOPLE)
+        self.assertEqual(sum(1 for m in in_ward if m.household_role == 'head'),
                          EXPECTED_HEADS)
-        self.assertEqual(sum(1 for m in active if m.household_role == 'dependent'),
+        self.assertEqual(sum(1 for m in in_ward if m.household_role == 'dependent'),
                          EXPECTED_DEPENDENTS)
-        self.assertFalse([m for m in active if m.household_id is None])
+        self.assertFalse([m for m in in_ward if m.household_id is None])
 
-        # Every household on the report is stored, and every active member sits
-        # in one of them. Households that predate the import are left alone -
-        # deactivated members still point at them - so the stored total may be
-        # higher than the report's.
+        # Every household on the report is stored, and everyone in the ward
+        # sits in one of them. Households that predate the import are left
+        # alone - members who have left still point at them - so the stored
+        # total may be higher than the report's.
         from utils.pdf_household_list import parse_household_list
         reported = {h.name for h in parse_household_list(HOUSEHOLD_PDF).households}
         stored_names = {h.name for h in stored_households.households}
@@ -579,7 +579,7 @@ class TestImportPlan(DataDirTestCase):
         reported_ids = {h.household_id for h in stored_households.households
                         if h.name in reported}
         self.assertEqual(len(reported_ids), EXPECTED_HOUSEHOLDS)
-        self.assertTrue(all(m.household_id in reported_ids for m in active))
+        self.assertTrue(all(m.household_id in reported_ids for m in in_ward))
 
     def test_adult_children_are_not_treated_as_parents(self):
         plan, members, households = self.build()
@@ -613,7 +613,10 @@ class TestImportPlan(DataDirTestCase):
 
         self.assertEqual(first, second)
 
-    def test_absent_members_are_deactivated_not_deleted(self):
+    def test_absent_members_leave_the_ward_but_keep_everything(self):
+        # Absence from the reports means they are off the ward's records, which
+        # is all the import may conclude. The row stays, the history stays, and
+        # `active` - the user's own judgement - is not touched.
         before = self.models.MemberDatabase()
         original_ids = {m.member_id for m in before.members}
         kept = before.get_by_id(min(original_ids))
@@ -621,6 +624,7 @@ class TestImportPlan(DataDirTestCase):
         kept.notes = 'keep me'
         kept.flag = 'blue'
         kept.dont_ask_prayer = True
+        kept.active = True
         before.save()
 
         plan, members, households = self.build()
@@ -629,11 +633,31 @@ class TestImportPlan(DataDirTestCase):
         after = self.models.MemberDatabase()
         survivor = after.get_by_id(kept.member_id)
         self.assertIsNotNone(survivor, 'an absent member was deleted')
-        self.assertFalse(survivor.active)
+        self.assertFalse(survivor.in_ward, 'should be off the ward records')
+        self.assertTrue(survivor.active, 'the import wrote the user\'s own flag')
         self.assertEqual(survivor.last_prayer_date, '2026-01-11')
         self.assertEqual(survivor.notes, 'keep me')
         self.assertEqual(survivor.flag, 'blue')
         self.assertTrue(survivor.dont_ask_prayer)
+
+    def test_someone_out_of_the_ward_is_hidden_from_every_list(self):
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored = self.models.MemberDatabase()
+        gone = next(m for m in stored.members if m.in_ward)
+        gone.in_ward = False
+        stored.save()
+
+        stored = self.models.MemberDatabase()
+        self.assertNotIn(gone.member_id,
+                         [m.member_id for m in stored.get_active_members()])
+        self.assertNotIn(gone.member_id,
+                         [m.member_id for m in stored.search(gone.first_name)])
+        if gone.household_id:
+            self.assertNotIn(gone.member_id,
+                             [m.member_id for m in
+                              stored.get_household_members(gone.household_id)])
 
     def test_a_manually_deactivated_member_is_left_deactivated(self):
         # `active` is the user's own flag, set from the Members page to control
@@ -644,7 +668,7 @@ class TestImportPlan(DataDirTestCase):
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        someone = next(m for m in stored.members if m.active)
+        someone = next(m for m in stored.members if m.in_ward)
         someone.active = False
         stored.save()
 
@@ -654,20 +678,33 @@ class TestImportPlan(DataDirTestCase):
         after = self.models.MemberDatabase().get_by_id(someone.member_id)
         self.assertFalse(after.active, 'the import turned a member back on')
 
-    def test_an_inactive_member_still_on_the_reports_is_reported(self):
-        # Left alone, but said out loud - they may have moved back, or may be
-        # deliberately hidden. Only the user knows which.
+    def test_moving_out_and_back_preserves_the_active_flag(self):
+        # The case that motivated splitting the flag: someone moves out of the
+        # ward while church-inactive, then moves back. They should come back
+        # exactly as the user last judged them, not quietly reinstated.
         plan, members, households = self.build()
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        someone = next(m for m in stored.members if m.active)
-        someone.active = False
+        wanderer = next(m for m in stored.members if m.in_ward)
+        wanderer.active = False          # the user's judgement
+        wanderer.in_ward = False         # and then they move away
+        wanderer.last_prayer_date = '2026-02-02'
         stored.save()
 
-        plan2, _, _ = self.build()
-        self.assertTrue(any('marked inactive' in w for w in plan2.warnings),
-                        plan2.warnings)
+        # The reports still list them, so the next import brings them back.
+        plan2, members2, households2 = self.build()
+        returning = [c for c in plan2.member_changes
+                     if c.member_id == wanderer.member_id]
+        self.assertEqual(len(returning), 1)
+        self.assertEqual(returning[0].fields.get('in_ward'), ('False', 'True'))
+        self.assertNotIn('active', returning[0].fields)
+
+        self.pdf_import.commit(plan2, members2, households2)
+        after = self.models.MemberDatabase().get_by_id(wanderer.member_id)
+        self.assertTrue(after.in_ward, 'should be back on the records')
+        self.assertFalse(after.active, 'the import reinstated them')
+        self.assertEqual(after.last_prayer_date, '2026-02-02')
 
     def test_two_strangers_sharing_a_birthday_are_not_fused(self):
         # Gender and birth date alone are not an identity. Without a name
@@ -678,7 +715,7 @@ class TestImportPlan(DataDirTestCase):
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        victim = next(m for m in stored.members if m.active and m.birthday)
+        victim = next(m for m in stored.members if m.in_ward and m.birthday)
         victim.first_name, victim.last_name = 'Totally', 'Departed'
         victim.notes = 'a different human being'
         stored.save()
@@ -686,7 +723,7 @@ class TestImportPlan(DataDirTestCase):
         plan2, _, _ = self.build()
         self.assertEqual(plan2.by_action(self.pdf_import.RENAME), [])
         self.assertEqual(plan2.counts['add'], 1)
-        self.assertEqual(plan2.counts['deactivate'], 1)
+        self.assertEqual(plan2.counts['left_ward'], 1)
 
     def test_a_misspelt_surname_is_still_a_rename(self):
         self._assert_rename(lambda m: setattr(m, 'last_name', m.last_name + 'ff'))
@@ -703,14 +740,14 @@ class TestImportPlan(DataDirTestCase):
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        target = next(m for m in stored.members if m.active and m.birthday)
+        target = next(m for m in stored.members if m.in_ward and m.birthday)
         mutate(target)
         stored.save()
 
         plan2, _, _ = self.build()
         self.assertEqual(len(plan2.by_action(self.pdf_import.RENAME)), 1)
         self.assertEqual(plan2.counts['add'], 0)
-        self.assertEqual(plan2.counts['deactivate'], 0)
+        self.assertEqual(plan2.counts['left_ward'], 0)
 
     def test_two_members_with_the_same_name_are_reported(self):
         # Only one of them can be matched to a report row, so the other is
@@ -719,7 +756,7 @@ class TestImportPlan(DataDirTestCase):
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        first, second = [m for m in stored.members if m.active][:2]
+        first, second = [m for m in stored.members if m.in_ward][:2]
         second.first_name, second.last_name = first.first_name, first.last_name
         stored.save()
 
@@ -821,14 +858,14 @@ class TestImportPlan(DataDirTestCase):
     def test_absent_members_are_still_deactivated(self):
         # The flag is only ever turned off by absence from the reports.
         plan, members, households = self.build()
-        self.assertEqual(plan.counts['deactivate'], len(members.members))
+        self.assertEqual(plan.counts['left_ward'], len(members.members))
 
     def test_mls3_data_survives_an_update(self):
         plan, members, households = self.build()
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        someone = next(m for m in stored.members if m.active)
+        someone = next(m for m in stored.members if m.in_ward)
         someone.last_prayer_date = '2026-02-01'
         someone.notes = 'likes mornings'
         someone.aka = 'Bud'
@@ -855,7 +892,7 @@ class TestImportPlan(DataDirTestCase):
         self.pdf_import.commit(plan, members, households)
 
         stored = self.models.MemberDatabase()
-        someone = next(m for m in stored.members if m.active and m.birthday)
+        someone = next(m for m in stored.members if m.in_ward and m.birthday)
         original_id = someone.member_id
         someone.last_name = someone.last_name + 'ff'
         someone.last_prayer_date = '2026-03-08'
@@ -865,7 +902,7 @@ class TestImportPlan(DataDirTestCase):
         plan2, members2, households2 = self.build()
         self.assertEqual(len(plan2.by_action(self.pdf_import.RENAME)), 1)
         self.assertEqual(plan2.counts['add'], 0)
-        self.assertEqual(plan2.counts['deactivate'], 0)
+        self.assertEqual(plan2.counts['left_ward'], 0)
 
         self.pdf_import.commit(plan2, members2, households2)
         after = self.models.MemberDatabase()

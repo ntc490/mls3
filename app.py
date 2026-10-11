@@ -364,9 +364,14 @@ def members_list():
         except ValueError:
             return None
 
-    # Create member dicts with age
+    # Create member dicts with age.
+    # Anyone no longer on the ward's records is left out entirely - not
+    # filterable, just absent. Their row stays in members.csv so nothing is
+    # lost if they come back.
     all_members = []
     for m in members_db.members:
+        if not m.in_ward:
+            continue
         member_dict = {
             'member_id': m.member_id,
             'full_name': m.full_name,

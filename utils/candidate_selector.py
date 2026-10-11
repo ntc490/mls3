@@ -37,7 +37,8 @@ def get_next_candidates(
     # Get all active members of specified gender who are prayer eligible (8+ years old)
     eligible = [
         m for m in members_db.members
-        if m.active and m.gender == gender and not m.dont_ask_prayer and m.is_prayer_eligible
+        if m.in_ward and m.active and m.gender == gender
+        and not m.dont_ask_prayer and m.is_prayer_eligible
     ]
 
     # Exclude members with skip_until date in the future
@@ -158,7 +159,9 @@ def find_member_by_fuzzy_search(
     # Search in full name
     results = []
     for member in members_db.members:
-        if not member.active:
+        # Someone off the ward's records cannot be scheduled, and someone
+        # church-inactive should not be offered as a candidate.
+        if not member.in_ward or not member.active:
             continue
 
         if gender and member.gender != gender:

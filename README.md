@@ -186,12 +186,24 @@ The household report is what supplies household structure and, from its
 indentation, who is a head of household versus a dependent. The member list alone
 cannot tell you that.
 
-Members no longer on the reports are marked inactive rather than deleted, so their
-prayer history, notes and flags survive and they can be switched back on if they
-return. An import never switches anyone back on by itself: the active flag is
-yours, set from the Members page, and someone you hid deliberately stays hidden.
-If an inactive member is still on the reports, the import says so and leaves them
-alone.
+**Two separate flags, deliberately kept apart:**
+
+- **`in_ward`** is owned by the import. Present in the reports means in the ward;
+  absent means they have moved away. Anyone out of the ward disappears from the
+  app entirely - not a filter you can toggle, just gone - while their row, prayer
+  history, notes and flags all stay put.
+- **`active`** is yours, set from the Members page. It means church-active and
+  worth scheduling. **An import never writes it.**
+
+That separation is what makes the common case work: someone who stops attending,
+moves out of the ward, and later moves back comes back exactly as you last judged
+them, rather than being quietly reinstated. Equally, someone who stops attending
+while still living in the boundaries stays visible and simply isn't offered as a
+candidate.
+
+Household relationships - who a minor's parents are - follow `in_ward`, not
+`active`. Whether a parent attends church has nothing to do with whether they are
+the person to text about their child.
 
 Prayer history, `dont_ask_prayer`, notes, flags, AKA and skip-until are never
 overwritten by an import. Neither is anything the reports leave blank: if someone

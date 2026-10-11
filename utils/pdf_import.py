@@ -11,9 +11,13 @@ gets written.
 
 Preserved across every import: prayer history, dont_ask_prayer, notes, flags,
 aka, skip_until, recommend_expiration - and the active flag, which belongs to the
-user. People absent from the new reports are deactivated, never deleted, but
-nobody is switched back on by an import: being inactive is a decision made from
-the Members page, not something the church reports can speak to.
+user and is never written here at all.
+
+The import owns `in_ward` instead: present in the reports means in_ward=True,
+absent means in_ward=False, and someone out of the ward disappears from the UI
+without their row or their history being touched. Keeping the two apart is what
+lets a person move out, move back, and still be whatever the user last judged
+them to be - church-active or not.
 
 Usage:
     plan = build_plan(Path('members.pdf'), Path('households.pdf'),
@@ -45,7 +49,7 @@ IMPORTED_FIELDS = ('first_name', 'last_name', 'gender', 'phone', 'birthday')
 ADD = 'add'
 UPDATE = 'update'
 RENAME = 'rename'
-DEACTIVATE = 'deactivate'
+LEFT_WARD = 'left_ward'
 UNCHANGED = 'unchanged'
 
 
@@ -107,7 +111,7 @@ class ImportPlan:
     @property
     def counts(self) -> Dict[str, int]:
         counts = {a: len(self.by_action(a))
-                  for a in (ADD, UPDATE, RENAME, DEACTIVATE, UNCHANGED)}
+                  for a in (ADD, UPDATE, RENAME, LEFT_WARD, UNCHANGED)}
         counts['households'] = len(self.household_changes)
         counts['people'] = len(self.member_report.members) if self.member_report else 0
         counts['total_households'] = (
@@ -397,7 +401,6 @@ def _plan_members(plan: ImportPlan, members_db: MemberDatabase,
 
     matched_ids = set()
     adds: List[MemberRecord] = []
-    inactive_but_listed: List[str] = []
 
     for record in plan.member_report.members:
         existing = existing_by_key.get(record.key)
@@ -408,38 +411,25 @@ def _plan_members(plan: ImportPlan, members_db: MemberDatabase,
             continue
 
         matched_ids.add(existing.member_id)
-        if not existing.active:
-            inactive_but_listed.append(record.name)
         change = _diff_member(existing, record, household_id, role)
         change.household_name = household_name
         plan.member_changes.append(change)
 
-    # Someone marked inactive who is still on the reports is reported rather
-    # than quietly switched back on: they may have moved back, or they may be
-    # someone deliberately hidden from the lists. Only the user knows which.
-    if inactive_but_listed:
-        plan.warnings.append(
-            f"{len(inactive_but_listed)} member(s) are on the reports but are "
-            f"marked inactive here, and have been left that way: "
-            f"{_sample(inactive_but_listed)}. Turn them back on from the "
-            f"Members page if they should be active again."
-        )
-
-    # Anyone in the database but not in the reports is deactivated, never
-    # deleted: their prayer history, notes and flags stay intact, so they can
-    # be turned back on if they return.
-    deactivations: List[Member] = [
+    # Anyone in the database but not in the reports has left the ward. Their
+    # row, prayer history, notes and flags all stay; only in_ward changes, so
+    # they vanish from the UI and come back intact if they return.
+    departures: List[Member] = [
         m for m in members_db.members
         if m.member_id not in matched_ids
         and normalize_name(f"{m.last_name}, {m.first_name}") not in incoming_keys
-        and m.active
+        and m.in_ward
     ]
 
-    renames = _match_renames(adds, deactivations)
+    renames = _match_renames(adds, departures)
 
     for record, existing in renames:
         adds.remove(record)
-        deactivations.remove(existing)
+        departures.remove(existing)
         matched_ids.add(existing.member_id)
         household_id, role, household_name = placement.get(record.key, (None, '', ''))
         change = _diff_member(existing, record, household_id, role)
@@ -459,12 +449,12 @@ def _plan_members(plan: ImportPlan, members_db: MemberDatabase,
             },
         ))
 
-    for existing in deactivations:
+    for existing in departures:
         plan.member_changes.append(MemberChange(
-            action=DEACTIVATE,
+            action=LEFT_WARD,
             name=f"{existing.last_name}, {existing.first_name}",
             member_id=existing.member_id,
-            fields={'active': ('True', 'False')},
+            fields={'in_ward': ('True', 'False')},
         ))
 
 
@@ -490,10 +480,12 @@ def _diff_member(existing: Member, record: MemberRecord,
     if role and existing.household_role != role:
         fields['household_role'] = (existing.household_role, role)
 
-    # `active` is deliberately not touched here. It is the user's own flag -
-    # set from the Members page to control who shows up in lists - and an
-    # import has no business overriding that just because the church still
-    # lists the person. Only absence from the reports deactivates anyone.
+    # Back on the ward's records after being off them. `active` is still not
+    # touched: whatever the user last judged about this person stands, so
+    # someone who moved away church-inactive comes back church-inactive.
+    if not existing.in_ward:
+        fields['in_ward'] = ('False', 'True')
+
     action = UPDATE if fields else UNCHANGED
 
     return MemberChange(
@@ -503,7 +495,7 @@ def _diff_member(existing: Member, record: MemberRecord,
 
 
 def _match_renames(adds: List[MemberRecord],
-                   deactivations: List[Member]) -> List[Tuple[MemberRecord, Member]]:
+                   departures: List[Member]) -> List[Tuple[MemberRecord, Member]]:
     """
     Spot people whose name changed rather than people coming and going.
 
@@ -518,7 +510,7 @@ def _match_renames(adds: List[MemberRecord],
     arriving are fused, and the newcomer silently inherits the member id, prayer
     history, notes and flags of someone who left.
     """
-    if not adds or not deactivations:
+    if not adds or not departures:
         return []
 
     def signature(gender: str, birthday: str) -> Optional[Tuple[str, str]]:
@@ -531,7 +523,7 @@ def _match_renames(adds: List[MemberRecord],
             incoming.setdefault(key, []).append(record)
 
     outgoing: Dict[Tuple[str, str], List[Member]] = {}
-    for member in deactivations:
+    for member in departures:
         key = signature(member.gender, member.birthday)
         if key:
             outgoing.setdefault(key, []).append(member)
@@ -704,6 +696,9 @@ def _apply_members(plan: ImportPlan, members_db: MemberDatabase) -> None:
                 phone=record.phone,
                 birthday=record.birth_date,
                 recommend_expiration='',
+                # A brand new member is on the records and presumed worth
+                # scheduling until the user says otherwise.
+                in_ward=True,
                 active=True,
                 household_id=change.household_id,
                 household_role=change.role,
@@ -715,8 +710,11 @@ def _apply_members(plan: ImportPlan, members_db: MemberDatabase) -> None:
         if member is None:
             continue
 
-        if change.action == DEACTIVATE:
-            member.active = False
+        if change.action == LEFT_WARD:
+            # Off the records, so out of the UI - but `active` is the user's
+            # own judgement and is left exactly as they set it, so moving back
+            # in later restores them unchanged.
+            member.in_ward = False
             continue
 
         record = change.record
@@ -734,6 +732,8 @@ def _apply_members(plan: ImportPlan, members_db: MemberDatabase) -> None:
             member.household_id = change.household_id
         if change.role:
             member.household_role = change.role
+        # Present in the reports, so on the records - whatever they were before.
+        member.in_ward = True
 
 
 def run_cli(member_pdf: Path, household_pdf: Path, apply_changes: bool) -> int:
@@ -751,7 +751,7 @@ def run_cli(member_pdf: Path, household_pdf: Path, apply_changes: bool) -> int:
     counts = plan.counts
     print(f"{counts['people']} people, {counts['total_households']} households")
     print(f"  add {counts[ADD]}, update {counts[UPDATE]}, rename {counts[RENAME]}, "
-          f"deactivate {counts[DEACTIVATE]}, unchanged {counts[UNCHANGED]}")
+          f"left ward {counts[LEFT_WARD]}, unchanged {counts[UNCHANGED]}")
 
     if not apply_changes:
         print("(dry run - nothing written; pass --apply to import)")

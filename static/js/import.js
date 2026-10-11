@@ -26,7 +26,7 @@
         add: 'New',
         update: 'Updated',
         rename: 'Name corrected',
-        deactivate: 'No longer listed',
+        left_ward: 'No longer in the ward',
     };
 
     const FIELD_LABELS = {
@@ -38,6 +38,7 @@
         household_id: 'household',
         household_role: 'role in household',
         active: 'active',
+        in_ward: 'in the ward',
         name: 'name',
         address: 'address',
     };
@@ -68,7 +69,7 @@
             ['add', 'new'],
             ['update', 'updated'],
             ['rename', 'name corrected'],
-            ['deactivate', 'no longer listed'],
+            ['left_ward', 'no longer in the ward'],
             ['unchanged', 'unchanged'],
         ].filter(([key]) => counts[key]);
 
@@ -76,7 +77,7 @@
             return '';
         }
         return '<ul class="import-tally">' + rows.map(function ([key, label]) {
-            const sign = key === 'deactivate' ? '−' : (key === 'add' ? '+' : '~');
+            const sign = key === 'left_ward' ? '−' : (key === 'add' ? '+' : '~');
             const cls = key === 'unchanged' ? 'text-muted' : '';
             return `<li class="${cls}"><span class="tally-count">${sign}${counts[key]}</span> ${label}</li>`;
         }).join('') + '</ul>';
@@ -192,7 +193,7 @@
 
         parts.push(tally(counts));
 
-        ['add', 'rename', 'update', 'deactivate'].forEach(function (action) {
+        ['add', 'rename', 'update', 'left_ward'].forEach(function (action) {
             const rows = (data.members || []).filter(m => m.action === action);
             if (rows.length) {
                 parts.push(detailGroup(ACTION_LABELS[action], rows));

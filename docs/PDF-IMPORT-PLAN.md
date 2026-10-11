@@ -279,16 +279,28 @@ result page showing the backup id and a Restore button.
 
 Commit applies the plan and links households in the same operation:
 
-- **Absent members are deactivated**, never deleted. Their record, prayer history,
-  notes and flags are kept intact.
-- **Nobody is switched back on by an import.** `active` is the user's own flag,
-  set from the Members page to control who appears in lists, so an import that
-  reactivated everyone the church still lists would silently undo that - and on a
-  342-person import nobody would spot it. An inactive member who is still on the
-  reports is reported as a warning and left alone.
-- No UI change is needed for this: `templates/members_list.html:16` already
-  defaults the members page to `Active: Yes`, so deactivated people leave the
-  default view and stay reachable through the filter.
+- **`in_ward` and `active` are separate fields.** `in_ward` is owned by the
+  import: present in the reports means True, absent means False. `active` is
+  owned by the user and the import never writes it.
+
+  They started as one flag, which was wrong in both directions: moving out of the
+  ward and back in silently undid the user's own judgement about someone, and a
+  member hidden by hand was reinstated by the next import. The two facts are
+  independent - a person can stop attending while still living in the boundaries,
+  or move away while remaining church-inactive - so one boolean cannot carry
+  both.
+- **Out-of-ward members are hidden everywhere, with no filter to bring them
+  back.** The members list, search, candidate selection and household lookups all
+  exclude them. Their row stays in `members.csv`, so nothing is lost if they
+  return.
+- **Scheduling needs both** (`in_ward AND active`); **household relationships need
+  only `in_ward`**, because a parent's church attendance has no bearing on whether
+  they are the contact for their child.
+- **Absent members keep everything.** Row, prayer history, notes, flags, `aka`,
+  `skip_until` - only `in_ward` changes.
+- **Migration is implicit.** `in_ward` defaults to True when the column is absent,
+  so a database written before it stays fully visible and the first import sets it
+  authoritatively.
 
 ### Household identity across imports
 
