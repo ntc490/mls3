@@ -26,7 +26,6 @@
         add: 'New',
         update: 'Updated',
         rename: 'Name corrected',
-        reactivate: 'Returning',
         deactivate: 'No longer listed',
     };
 
@@ -69,7 +68,6 @@
             ['add', 'new'],
             ['update', 'updated'],
             ['rename', 'name corrected'],
-            ['reactivate', 'returning'],
             ['deactivate', 'no longer listed'],
             ['unchanged', 'unchanged'],
         ].filter(([key]) => counts[key]);
@@ -194,7 +192,7 @@
 
         parts.push(tally(counts));
 
-        ['add', 'rename', 'reactivate', 'update', 'deactivate'].forEach(function (action) {
+        ['add', 'rename', 'update', 'deactivate'].forEach(function (action) {
             const rows = (data.members || []).filter(m => m.action === action);
             if (rows.length) {
                 parts.push(detailGroup(ACTION_LABELS[action], rows));

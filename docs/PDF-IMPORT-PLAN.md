@@ -277,13 +277,15 @@ A typical import is a dozen lines. Full detail stays one tap away.
 "This will change N records. A backup will be saved first. Import?" → commit →
 result page showing the backup id and a Restore button.
 
-Commit uses the existing `merge_members()` (utils/import_members.py:173) with
-`activate_present=True, deactivate_absent=True`, then links households in the same
-operation:
+Commit applies the plan and links households in the same operation:
 
 - **Absent members are deactivated**, never deleted. Their record, prayer history,
   notes and flags are kept intact.
-- **Returning members are reactivated** automatically on a later import.
+- **Nobody is switched back on by an import.** `active` is the user's own flag,
+  set from the Members page to control who appears in lists, so an import that
+  reactivated everyone the church still lists would silently undo that - and on a
+  342-person import nobody would spot it. An inactive member who is still on the
+  reports is reported as a warning and left alone.
 - No UI change is needed for this: `templates/members_list.html:16` already
   defaults the members page to `Active: Yes`, so deactivated people leave the
   default view and stay reachable through the filter.
@@ -364,8 +366,28 @@ that carries any error.
 **Renames are detected and applied as updates.** A corrected spelling would
 otherwise read as one arrival plus one departure, stranding that person's prayer
 history on a deactivated row. A match on birth date plus gender, unambiguous in
-both directions, is treated as the same person. Case-only changes never reach this
-path, because names are matched case-insensitively to begin with.
+both directions **and sharing either the first or the last name**, is treated as
+the same person. The name condition is not optional: gender and birth date alone
+are not an identity, and without it one person leaving and an unrelated person of
+the same gender and birthday arriving are fused, handing the newcomer the
+departed member's id, prayer history, notes and flags. Case-only changes never
+reach this path, because names are matched case-insensitively to begin with.
+
+**The import only writes what the reports actually carry.** A blank phone or
+address means "not printed", not "deleted", so hand-entered values survive. The
+`active` flag is never written at all except to deactivate someone absent from
+the reports - see the note below. Phone numbers are normalised to `801-419-2648`
+on parse, both so they are safe in an SMS URI and so the first import does not
+show a phone change for every member in the ward.
+
+**Households are matched on heads, then name, then member overlap.** The third
+rule exists because a death or a marriage changes the head set and the name at
+the same time, which defeats the first two; without it the household is rebuilt
+under a new id and its email - which no report supplies - is lost.
+
+**Two members with the same name are reported, not guessed at.** Only one of them
+can be matched to a report row, so the other would be silently skipped by every
+import.
 
 **Households that predate an import are left in place.** They are not deleted even
 when every member has moved on, because deactivated members still point at them.

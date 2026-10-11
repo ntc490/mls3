@@ -137,9 +137,9 @@ class TestMemberList(unittest.TestCase):
         self.assertIsNotNone(matti, 'a straddling record went missing')
 
         self.assertEqual(julianna.birth_date, '2011-09-19')
-        self.assertEqual(julianna.phone, '(801) 514-2646')
+        self.assertEqual(julianna.phone, '801-514-2646')
         self.assertEqual(matti.birth_date, '2007-08-09')
-        self.assertEqual(matti.phone, '(385) 612-3363')
+        self.assertEqual(matti.phone, '385-612-3363')
 
         # Fused records show up as doubled values in a single field.
         for member in self.report.members:
@@ -152,6 +152,49 @@ class TestMemberList(unittest.TestCase):
     def test_no_duplicate_people(self):
         keys = [m.key for m in self.report.members]
         self.assertEqual(len(keys), len(set(keys)))
+
+
+@needs_pdftotext
+@needs_member_pdf
+class TestPhoneNormalization(unittest.TestCase):
+    """
+    Phone numbers are put into one form at parse time.
+
+    Parentheses and spaces have to be percent-encoded in an SMS URI, and
+    without this every number in the ward changes format on the first import,
+    burying the few that genuinely changed.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from utils.pdf_member_list import parse_member_list
+        cls.report = parse_member_list(MEMBER_PDF)
+
+    def test_no_phone_contains_a_bracket_or_a_space(self):
+        for member in self.report.members:
+            self.assertNotIn('(', member.phone, member.name)
+            self.assertNotIn(')', member.phone, member.name)
+            self.assertNotIn(' ', member.phone, member.name)
+
+    def test_numbers_keep_their_digits(self):
+        phones = [m.phone for m in self.report.members if m.phone]
+        self.assertTrue(phones)
+        for phone in phones:
+            self.assertRegex(phone, r'^[\d-]+$')
+
+    def test_the_form_matches_the_existing_convention(self):
+        known = {m.name: m.phone for m in self.report.members}
+        self.assertEqual(known.get('Anderson, Barbara'), '801-419-2648')
+
+    def test_an_international_number_is_not_forced_into_a_us_shape(self):
+        # One number in the sample ward is "027 618 2094".
+        from utils.pdf_tables import normalize_phone
+        self.assertEqual(normalize_phone('027 618 2094'), '027-618-2094')
+
+    def test_an_already_normalized_number_is_unchanged(self):
+        from utils.pdf_tables import normalize_phone
+        self.assertEqual(normalize_phone('801-555-0101'), '801-555-0101')
+        self.assertEqual(normalize_phone(''), '')
 
 
 @needs_pdftotext
@@ -592,7 +635,11 @@ class TestImportPlan(DataDirTestCase):
         self.assertEqual(survivor.flag, 'blue')
         self.assertTrue(survivor.dont_ask_prayer)
 
-    def test_returning_members_are_reactivated(self):
+    def test_a_manually_deactivated_member_is_left_deactivated(self):
+        # `active` is the user's own flag, set from the Members page to control
+        # who appears in lists. An import must not switch someone back on just
+        # because the church still lists them - that silently undoes the
+        # decision, and on a 342-person import nobody would notice.
         plan, members, households = self.build()
         self.pdf_import.commit(plan, members, households)
 
@@ -602,12 +649,179 @@ class TestImportPlan(DataDirTestCase):
         stored.save()
 
         plan2, members2, households2 = self.build()
-        reactivations = [c.name for c in plan2.by_action(self.pdf_import.REACTIVATE)]
-        self.assertEqual(len(reactivations), 1)
-
         self.pdf_import.commit(plan2, members2, households2)
-        self.assertTrue(self.models.MemberDatabase()
-                        .get_by_id(someone.member_id).active)
+
+        after = self.models.MemberDatabase().get_by_id(someone.member_id)
+        self.assertFalse(after.active, 'the import turned a member back on')
+
+    def test_an_inactive_member_still_on_the_reports_is_reported(self):
+        # Left alone, but said out loud - they may have moved back, or may be
+        # deliberately hidden. Only the user knows which.
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored = self.models.MemberDatabase()
+        someone = next(m for m in stored.members if m.active)
+        someone.active = False
+        stored.save()
+
+        plan2, _, _ = self.build()
+        self.assertTrue(any('marked inactive' in w for w in plan2.warnings),
+                        plan2.warnings)
+
+    def test_two_strangers_sharing_a_birthday_are_not_fused(self):
+        # Gender and birth date alone are not an identity. Without a name
+        # check, one person leaving and an unrelated person of the same gender
+        # and birthday arriving are merged, and the newcomer silently inherits
+        # the member id, prayer history, notes and flags of someone who left.
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored = self.models.MemberDatabase()
+        victim = next(m for m in stored.members if m.active and m.birthday)
+        victim.first_name, victim.last_name = 'Totally', 'Departed'
+        victim.notes = 'a different human being'
+        stored.save()
+
+        plan2, _, _ = self.build()
+        self.assertEqual(plan2.by_action(self.pdf_import.RENAME), [])
+        self.assertEqual(plan2.counts['add'], 1)
+        self.assertEqual(plan2.counts['deactivate'], 1)
+
+    def test_a_misspelt_surname_is_still_a_rename(self):
+        self._assert_rename(lambda m: setattr(m, 'last_name', m.last_name + 'ff'))
+
+    def test_a_married_name_is_still_a_rename(self):
+        # Surname replaced outright, first name intact.
+        self._assert_rename(lambda m: setattr(m, 'last_name', 'Zimmerman'))
+
+    def test_a_misspelt_first_name_is_still_a_rename(self):
+        self._assert_rename(lambda m: setattr(m, 'first_name', m.first_name + 'e'))
+
+    def _assert_rename(self, mutate):
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored = self.models.MemberDatabase()
+        target = next(m for m in stored.members if m.active and m.birthday)
+        mutate(target)
+        stored.save()
+
+        plan2, _, _ = self.build()
+        self.assertEqual(len(plan2.by_action(self.pdf_import.RENAME)), 1)
+        self.assertEqual(plan2.counts['add'], 0)
+        self.assertEqual(plan2.counts['deactivate'], 0)
+
+    def test_two_members_with_the_same_name_are_reported(self):
+        # Only one of them can be matched to a report row, so the other is
+        # silently skipped by every import unless it is called out.
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored = self.models.MemberDatabase()
+        first, second = [m for m in stored.members if m.active][:2]
+        second.first_name, second.last_name = first.first_name, first.last_name
+        stored.save()
+
+        plan2, _, _ = self.build()
+        self.assertTrue(any('more than one member' in w for w in plan2.warnings),
+                        plan2.warnings)
+
+    def test_a_household_phone_entered_by_hand_is_kept(self):
+        # Eight households in a typical report have no phone. An absent value
+        # means "not printed", not "deleted".
+        from utils.pdf_household_list import parse_household_list
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        phoneless = [h.name for h in parse_household_list(HOUSEHOLD_PDF).households
+                     if not h.phone]
+        self.assertTrue(phoneless, 'expected some households with no phone')
+
+        stored = self.models.HouseholdDatabase()
+        target = next(h for h in stored.households if h.name == phoneless[0])
+        target.phone = '801-555-9999'
+        stored.save()
+
+        plan2, members2, households2 = self.build()
+        self.pdf_import.commit(plan2, members2, households2)
+
+        after = next(h for h in self.models.HouseholdDatabase().households
+                     if h.name == phoneless[0])
+        self.assertEqual(after.phone, '801-555-9999')
+
+    def test_a_household_address_entered_by_hand_is_kept(self):
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored = self.models.HouseholdDatabase()
+        target = next(h for h in stored.households if h.name == 'Barton, Linda')
+        target.address = '12 Hand Entered Ln\nRiverton UT'
+        stored.save()
+
+        plan2, members2, households2 = self.build()
+        self.pdf_import.commit(plan2, members2, households2)
+
+        after = next(h for h in self.models.HouseholdDatabase().households
+                     if h.name == 'Barton, Linda')
+        self.assertEqual(after.address, '12 Hand Entered Ln\nRiverton UT')
+
+    def test_a_household_keeps_its_id_and_email_through_a_head_change(self):
+        # A death or a marriage changes both the head set and the name at once,
+        # which defeats the first two matching rules. Rebuilding the household
+        # under a new id would drop its email, which the report has no source
+        # for.
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        stored_hh = self.models.HouseholdDatabase()
+        stored_m = self.models.MemberDatabase()
+        target = next(h for h in stored_hh.households
+                      if h.name == 'Andreason, Austin & Coral')
+        original_id = target.household_id
+        target.name = 'Andreason, Coral'
+        target.email = 'andreason@example.com'
+        stored_hh.save()
+        for m in stored_m.members:
+            if m.household_id == original_id and m.first_name == 'Austin':
+                m.household_role = 'dependent'
+        stored_m.save()
+
+        plan2, members2, households2 = self.build()
+        self.pdf_import.commit(plan2, members2, households2)
+
+        rebuilt = next(h for h in self.models.HouseholdDatabase().households
+                       if h.name == 'Andreason, Austin & Coral')
+        self.assertEqual(rebuilt.household_id, original_id)
+        self.assertEqual(rebuilt.email, 'andreason@example.com')
+
+    def test_a_member_phone_entered_by_hand_is_kept(self):
+        # Some people have no phone on the report but a number you tracked down.
+        from utils.pdf_member_list import parse_member_list
+        plan, members, households = self.build()
+        self.pdf_import.commit(plan, members, households)
+
+        no_phone = [m.name for m in parse_member_list(MEMBER_PDF_NO_ADDRESS).members
+                    if not m.phone]
+        self.assertTrue(no_phone, 'expected some people with no phone')
+
+        last, first = [p.strip() for p in no_phone[0].split(',', 1)]
+        stored = self.models.MemberDatabase()
+        target = next(m for m in stored.members
+                      if m.last_name == last and m.first_name == first)
+        target.phone = '801-555-1234'
+        stored.save()
+
+        plan2, members2, households2 = self.build()
+        self.pdf_import.commit(plan2, members2, households2)
+
+        after = self.models.MemberDatabase().get_by_id(target.member_id)
+        self.assertEqual(after.phone, '801-555-1234')
+
+    def test_absent_members_are_still_deactivated(self):
+        # The flag is only ever turned off by absence from the reports.
+        plan, members, households = self.build()
+        self.assertEqual(plan.counts['deactivate'], len(members.members))
 
     def test_mls3_data_survives_an_update(self):
         plan, members, households = self.build()

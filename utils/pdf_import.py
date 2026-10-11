@@ -10,8 +10,10 @@ The preview and the commit share one ImportPlan, so what you confirm is what
 gets written.
 
 Preserved across every import: prayer history, dont_ask_prayer, notes, flags,
-aka, skip_until and recommend_expiration. People absent from the new reports are
-deactivated, never deleted.
+aka, skip_until, recommend_expiration - and the active flag, which belongs to the
+user. People absent from the new reports are deactivated, never deleted, but
+nobody is switched back on by an import: being inactive is a decision made from
+the Members page, not something the church reports can speak to.
 
 Usage:
     plan = build_plan(Path('members.pdf'), Path('households.pdf'),
@@ -44,7 +46,6 @@ ADD = 'add'
 UPDATE = 'update'
 RENAME = 'rename'
 DEACTIVATE = 'deactivate'
-REACTIVATE = 'reactivate'
 UNCHANGED = 'unchanged'
 
 
@@ -106,7 +107,7 @@ class ImportPlan:
     @property
     def counts(self) -> Dict[str, int]:
         counts = {a: len(self.by_action(a))
-                  for a in (ADD, UPDATE, RENAME, DEACTIVATE, REACTIVATE, UNCHANGED)}
+                  for a in (ADD, UPDATE, RENAME, DEACTIVATE, UNCHANGED)}
         counts['households'] = len(self.household_changes)
         counts['people'] = len(self.member_report.members) if self.member_report else 0
         counts['total_households'] = (
@@ -247,8 +248,10 @@ def _cross_check(plan: ImportPlan) -> None:
 
 
 def _sample(keys: List[str], limit: int = 3) -> str:
-    shown = ', '.join(keys[:limit])
-    return shown if len(keys) <= limit else f"{shown} and {len(keys) - limit} more"
+    # Separated with semicolons: the names are "Last, First", so commas between
+    # them read as more names.
+    shown = '; '.join(keys[:limit])
+    return shown if len(keys) <= limit else f"{shown}; and {len(keys) - limit} more"
 
 
 def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
@@ -258,8 +261,16 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
 
     Household IDs must stay stable, because members point at them. Names do not:
     "Butterfield, Chad" becomes "Butterfield, Chad & Debbie" when a spouse is
-    added. So households are matched on who their heads are first, and only then
-    by name.
+    added. Matching therefore tries, in order:
+
+    1. the set of heads - the most stable identity;
+    2. the household name;
+    3. the household most of these people already belong to.
+
+    Step 3 catches the case the first two miss: when a head changes, through a
+    death or a marriage, both the head set and the name change at once. Without
+    it the household is rebuilt from scratch under a new id, and anything stored
+    on it with no source in the report - its email address - is silently lost.
 
     Returns a lookup of incoming household name -> assigned id and members.
     """
@@ -277,6 +288,12 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
         normalize_name(h.name): h.household_id for h in households_db.households
     }
 
+    # Where each person currently lives, for step 3.
+    current_household: Dict[str, int] = {
+        normalize_name(f"{m.last_name}, {m.first_name}"): m.household_id
+        for m in members_db.members if m.household_id
+    }
+
     next_id = households_db.get_next_id()
     assigned: Dict[str, dict] = {}
     claimed = set()
@@ -286,6 +303,9 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
         if household_id is None or household_id in claimed:
             candidate = existing_by_name.get(normalize_name(record.name))
             household_id = candidate if candidate not in claimed else None
+
+        if household_id is None:
+            household_id = _household_of_most_members(record, current_household, claimed)
 
         address = record.address
         if household_id is None:
@@ -300,9 +320,14 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
             if existing:
                 if existing.name != record.name:
                     fields['name'] = (existing.name, record.name)
-                if existing.address != address:
+                # An absent address or phone on the report means "not printed",
+                # not "deleted" - nine households in a typical report have no
+                # phone and some have no address. Blanking a number entered by
+                # hand because the church does not have it would be wrong, and
+                # is how member phones are already treated.
+                if address and existing.address != address:
                     fields['address'] = (existing.address, address)
-                if existing.phone != record.phone:
+                if record.phone and existing.phone != record.phone:
                     fields['phone'] = (existing.phone, record.phone)
             if fields:
                 plan.household_changes.append(HouseholdChange(
@@ -316,6 +341,29 @@ def _plan_households(plan: ImportPlan, households_db: HouseholdDatabase,
     return assigned
 
 
+def _household_of_most_members(record: HouseholdRecord,
+                               current_household: Dict[str, int],
+                               claimed: set) -> Optional[int]:
+    """
+    The existing household that most of this one's people already belong to.
+
+    Requires a strict majority, so two households merging does not let one
+    quietly absorb the other's identity, and ignores any household already
+    matched to a different incoming one.
+    """
+    tally: Dict[int, int] = {}
+    for person in record.members:
+        existing_id = current_household.get(person.key)
+        if existing_id is not None and existing_id not in claimed:
+            tally[existing_id] = tally.get(existing_id, 0) + 1
+
+    if not tally:
+        return None
+
+    best_id, best_count = max(tally.items(), key=lambda kv: kv[1])
+    return best_id if best_count * 2 > len(record.members) else None
+
+
 def _plan_members(plan: ImportPlan, members_db: MemberDatabase,
                   household_plan: Dict[str, dict]) -> None:
     """Work out the per-member changes."""
@@ -325,13 +373,31 @@ def _plan_members(plan: ImportPlan, members_db: MemberDatabase,
         for person in info['record'].members:
             placement[person.key] = (info['household_id'], person.role, name)
 
-    existing_by_key = {
-        normalize_name(f"{m.last_name}, {m.first_name}"): m for m in members_db.members
-    }
+    # Two members whose names normalize alike would collapse into one entry
+    # here, leaving the other invisible to every import - never matched, never
+    # deactivated, silently skipped. It cannot be resolved automatically, so say
+    # so rather than pick one.
+    existing_by_key: Dict[str, Member] = {}
+    collisions: List[str] = []
+    for member in members_db.members:
+        key = normalize_name(f"{member.last_name}, {member.first_name}")
+        if key in existing_by_key:
+            collisions.append(f"{member.last_name}, {member.first_name}")
+        existing_by_key[key] = member
+
+    if collisions:
+        plan.warnings.append(
+            f"{len(collisions)} name(s) belong to more than one member here: "
+            f"{_sample(sorted(set(collisions)))}. Only one of each can be matched "
+            f"to the reports, so the others were left untouched. Give them "
+            f"distinct names, or merge them, on the Members page."
+        )
+
     incoming_keys = {m.key for m in plan.member_report.members}
 
     matched_ids = set()
     adds: List[MemberRecord] = []
+    inactive_but_listed: List[str] = []
 
     for record in plan.member_report.members:
         existing = existing_by_key.get(record.key)
@@ -342,13 +408,26 @@ def _plan_members(plan: ImportPlan, members_db: MemberDatabase,
             continue
 
         matched_ids.add(existing.member_id)
+        if not existing.active:
+            inactive_but_listed.append(record.name)
         change = _diff_member(existing, record, household_id, role)
         change.household_name = household_name
         plan.member_changes.append(change)
 
+    # Someone marked inactive who is still on the reports is reported rather
+    # than quietly switched back on: they may have moved back, or they may be
+    # someone deliberately hidden from the lists. Only the user knows which.
+    if inactive_but_listed:
+        plan.warnings.append(
+            f"{len(inactive_but_listed)} member(s) are on the reports but are "
+            f"marked inactive here, and have been left that way: "
+            f"{_sample(inactive_but_listed)}. Turn them back on from the "
+            f"Members page if they should be active again."
+        )
+
     # Anyone in the database but not in the reports is deactivated, never
-    # deleted: their prayer history, notes and flags stay intact and they are
-    # reactivated automatically if they appear in a later import.
+    # deleted: their prayer history, notes and flags stay intact, so they can
+    # be turned back on if they return.
     deactivations: List[Member] = [
         m for m in members_db.members
         if m.member_id not in matched_ids
@@ -411,10 +490,11 @@ def _diff_member(existing: Member, record: MemberRecord,
     if role and existing.household_role != role:
         fields['household_role'] = (existing.household_role, role)
 
+    # `active` is deliberately not touched here. It is the user's own flag -
+    # set from the Members page to control who shows up in lists - and an
+    # import has no business overriding that just because the church still
+    # lists the person. Only absence from the reports deactivates anyone.
     action = UPDATE if fields else UNCHANGED
-    if not existing.active:
-        fields['active'] = ('False', 'True')
-        action = REACTIVATE
 
     return MemberChange(
         action=action, name=record.name, member_id=existing.member_id,
@@ -427,10 +507,16 @@ def _match_renames(adds: List[MemberRecord],
     """
     Spot people whose name changed rather than people coming and going.
 
-    A corrected spelling ("Deangelis" -> "DeAngelis") otherwise reads as one new
+    A corrected spelling ("Deangelo" -> "DeAngelis") otherwise reads as one new
     member plus one departure, which would strand that person's prayer history
-    on a deactivated record. Birth date plus gender identifies them, and the
-    match must be unambiguous in both directions before it is trusted.
+    on a deactivated record.
+
+    Three things must hold: same gender and birth date, an unambiguous one-to-one
+    match on that signature, and part of the name still intact. The last one
+    matters - gender and birth date alone are not an identity. Without it, one
+    person leaving and an unrelated person of the same gender and birthday
+    arriving are fused, and the newcomer silently inherits the member id, prayer
+    history, notes and flags of someone who left.
     """
     if not adds or not deactivations:
         return []
@@ -454,8 +540,23 @@ def _match_renames(adds: List[MemberRecord],
     for key, records in incoming.items():
         candidates = outgoing.get(key, [])
         if len(records) == 1 and len(candidates) == 1:
-            pairs.append((records[0], candidates[0]))
+            if _shares_a_name(records[0], candidates[0]):
+                pairs.append((records[0], candidates[0]))
     return pairs
+
+
+def _shares_a_name(record: MemberRecord, member: Member) -> bool:
+    """
+    Whether these two could plausibly be the same person under a new name.
+
+    A rename is a corrected spelling or a marriage, so one half of the name
+    survives: "Deangelo, Moriah" -> "DeAngelis, Moriah" keeps the first name,
+    "Smith, Jane" -> "Jones, Jane" keeps the first name, and a misspelt first
+    name keeps the surname. Two different people sharing a birthday keep
+    neither.
+    """
+    return (normalize_name(record.first_name) == normalize_name(member.first_name)
+            or normalize_name(record.last_name) == normalize_name(member.last_name))
 
 
 def commit(plan: ImportPlan, members_db: MemberDatabase,
@@ -580,9 +681,13 @@ def _apply_households(plan: ImportPlan, households_db: HouseholdDatabase) -> Non
             if household is None:
                 continue
             household.name = change.record.name
-            household.address = change.record.address
-            household.phone = change.record.phone
-            # email has no source in the household report; keep what we have.
+            # Only overwrite what the report actually carries - see the matching
+            # comment in _plan_households. email has no source in the report at
+            # all, so it is never touched.
+            if change.record.address:
+                household.address = change.record.address
+            if change.record.phone:
+                household.phone = change.record.phone
 
 
 def _apply_members(plan: ImportPlan, members_db: MemberDatabase) -> None:
@@ -629,7 +734,6 @@ def _apply_members(plan: ImportPlan, members_db: MemberDatabase) -> None:
             member.household_id = change.household_id
         if change.role:
             member.household_role = change.role
-        member.active = True
 
 
 def run_cli(member_pdf: Path, household_pdf: Path, apply_changes: bool) -> int:
@@ -647,8 +751,7 @@ def run_cli(member_pdf: Path, household_pdf: Path, apply_changes: bool) -> int:
     counts = plan.counts
     print(f"{counts['people']} people, {counts['total_households']} households")
     print(f"  add {counts[ADD]}, update {counts[UPDATE]}, rename {counts[RENAME]}, "
-          f"reactivate {counts[REACTIVATE]}, deactivate {counts[DEACTIVATE]}, "
-          f"unchanged {counts[UNCHANGED]}")
+          f"deactivate {counts[DEACTIVATE]}, unchanged {counts[UNCHANGED]}")
 
     if not apply_changes:
         print("(dry run - nothing written; pass --apply to import)")

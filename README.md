@@ -187,9 +187,21 @@ indentation, who is a head of household versus a dependent. The member list alon
 cannot tell you that.
 
 Members no longer on the reports are marked inactive rather than deleted, so their
-prayer history, notes and flags survive; they are reactivated automatically if they
-appear again. Prayer history, `dont_ask_prayer`, notes, flags, AKA and skip-until
-are never overwritten by an import.
+prayer history, notes and flags survive and they can be switched back on if they
+return. An import never switches anyone back on by itself: the active flag is
+yours, set from the Members page, and someone you hid deliberately stays hidden.
+If an inactive member is still on the reports, the import says so and leaves them
+alone.
+
+Prayer history, `dont_ask_prayer`, notes, flags, AKA and skip-until are never
+overwritten by an import. Neither is anything the reports leave blank: if someone
+has no phone on the report but you tracked one down yourself, yours is kept. The
+same goes for household phones and addresses.
+
+Phone numbers are normalised to `801-419-2648` rather than the report's
+`(801) 419-2648`, because brackets and spaces have to be percent-encoded in an
+SMS link, and because otherwise every number in the ward would appear to change
+on the first import.
 
 Requires `pdftotext` (Termux: `pkg install poppler`). Also available from the
 command line:

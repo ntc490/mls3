@@ -321,6 +321,30 @@ def normalize_name(name: str) -> str:
     return re.sub(r'\s+', ' ', name).strip().lower()
 
 
+def normalize_phone(value: str) -> str:
+    """
+    Put a report phone number into the form the rest of MLS3 uses.
+
+        (801) 419-2648  ->  801-419-2648
+
+    Two reasons. Parentheses and spaces have to be percent-encoded in an SMS
+    URI - "(801) 419-2648" reaches Android as "smsto:%28801%29%20419-2648" -
+    and without this every number in the ward changes format on the first
+    import, burying the handful that genuinely changed in a diff of hundreds.
+
+    Only parentheses are removed and runs of whitespace become dashes, so the
+    report's own grouping survives and an international number such as
+    "027 618 2094" becomes "027-618-2094" rather than being forced into a
+    US-shaped pattern.
+    """
+    if not value:
+        return ''
+    cleaned = value.replace('(', '').replace(')', '')
+    cleaned = re.sub(r'\s+', '-', cleaned.strip())
+    cleaned = re.sub(r'-{2,}', '-', cleaned)
+    return cleaned.strip('-')
+
+
 def print_date(words: List[Word]) -> str:
     """
     The report's generation date, printed at the bottom-left of every page.

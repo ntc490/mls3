@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from utils.pdf_tables import (
     Word, add_edge_bands, assign_to_cells, extract_rows, extract_words,
     fill_row_gaps, find_header_row, footer_top, join_cell, label_columns,
-    normalize_name, print_date,
+    normalize_name, normalize_phone, print_date,
 )
 
 # Header text (lowercased) -> internal field name.
@@ -290,7 +290,7 @@ def _build_record(raw: dict, warnings: List[str]) -> Optional[MemberRecord]:
         name=name,
         gender=parse_gender(raw.get('gender', '')),
         birth_date=birth_iso,
-        phone=raw.get('phone', '').strip(),
+        phone=normalize_phone(raw.get('phone', '')),
         printed_age=printed_age,
         raw_birth_date=birth_raw,
     )

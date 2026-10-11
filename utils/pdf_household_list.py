@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.pdf_tables import (
     Word, extract_rows, extract_words, find_header_row, footer_top,
-    normalize_name, print_date,
+    normalize_name, normalize_phone, print_date,
 )
 
 # The household-name line sits a few points above its first member line, so rows
@@ -138,7 +138,7 @@ def parse_household_list(pdf_path: Path) -> HouseholdListReport:
                 report.households.append(current)
             elif household_text and current is not None:
                 if not current.phone and PHONE_RE.match(household_text):
-                    current.phone = household_text
+                    current.phone = normalize_phone(household_text)
                 else:
                     address_lines.append(household_text)
 
