@@ -10,6 +10,11 @@ from typing import Optional, List, Dict, Tuple
 from models import Member, MessageTemplates, MemberDatabase, HouseholdDatabase
 import config
 
+# The file Tasker watches. This path has to match the Tasker profile exactly or
+# nothing is sent and nothing reports an error - MLS3 writes the file happily
+# either way.
+TASKER_QUEUE_FILE = '/sdcard/tasker_sms.txt'
+
 
 def get_sms_info(activity: str, template_name: str, member: Member,
                  templates: MessageTemplates, members_db: MemberDatabase = None,
@@ -158,15 +163,25 @@ def expand_and_send(activity: str, template_name: str, member: Member,
 
 def send_sms_intent(phone_number: str, message: str) -> bool:
     """
-    Opens Android SMS app with pre-filled message using termux-open-url.
-    User must manually press send.
+    Queue a message for Tasker to send.
+
+    Writes "<phone>\\n<message>" to the file Tasker watches. Tasker fires an
+    android.intent.action.SENDTO, which opens a messaging app with the message
+    pre-filled; the user still presses send.
+
+    Which app that is belongs to Tasker, not here: with no package on the
+    intent Android uses the default SMS app, and naming a package sends to that
+    app specifically. Nothing in MLS3 needs to know either way.
+
+    (The name is historical - this queues a message rather than launching the
+    intent itself.)
 
     Args:
         phone_number: Phone number to send to
         message: Pre-filled message text
 
     Returns:
-        True if intent was launched successfully, False otherwise
+        True if the message was queued, False otherwise
     """
     # Print debug output if enabled
     if config.DEBUG_SMS:
@@ -198,13 +213,13 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
         try:
             content = f"{phone_number}\\n{message}"
 
-            with open('/sdcard/tasker_sms.txt', 'w') as f:
+            with open(TASKER_QUEUE_FILE, 'w') as f:
                 f.write(content)
 
             return True
 
         except Exception as e:
-            print(f"ERROR: Failed to queue SMS to Tasker: {e}")
+            print(f"ERROR: Failed to queue SMS to {TASKER_QUEUE_FILE}: {e}")
             return False
 
     except Exception as e:

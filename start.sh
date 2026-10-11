@@ -99,16 +99,11 @@ fi
 info "Activating virtual environment..."
 source venv/bin/activate
 
-# Check for termux-open-url if not in debug mode
-if [ "$DEBUG_SMS" = false ]; then
-    if ! command -v termux-open-url &> /dev/null; then
-        error "termux-open-url not found!"
-        echo "Please install termux-api:"
-        echo "  pkg install termux-api"
-        echo ""
-        echo "Also install Termux:API from F-Droid"
-        exit 1
-    fi
+# Warn if pdftotext is missing - only the Import page needs it, so this is
+# not fatal.
+if ! command -v pdftotext &> /dev/null; then
+    warn "pdftotext not found - the Import page will not work."
+    warn "Install it with:  pkg install poppler"
 fi
 
 # Display startup info
