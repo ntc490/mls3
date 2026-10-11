@@ -4,7 +4,8 @@ How MLS3 protects the CSV files, and what to do when something looks wrong.
 
 MLS3 runs in Termux on a phone. Android kills background processes whenever it
 needs the memory, batteries die, and storage fails. The data store is four CSV
-files, so everything below is about making those files hard to lose.
+files the app writes, plus two YAML files it only reads, so everything below is
+about making those files hard to lose.
 
 ## The problem this solves
 
@@ -115,9 +116,27 @@ around its writes.
 
 ## Backups
 
-`$MLS3_DATA_DIR/backups/<timestamp>/` holds all four CSVs plus a `manifest.json`
-recording when, why, how many rows of each, and whether the snapshot verified.
-Roughly 56 KB per snapshot for a 350-member ward.
+`$MLS3_DATA_DIR/backups/<timestamp>/` holds everything MLS3 reads, plus a
+`manifest.json` recording when, why, how many records of each, and whether the
+snapshot verified. Roughly 60 KB per snapshot for a 350-member ward.
+
+| file | why |
+|---|---|
+| `members.csv` | |
+| `households.csv` | |
+| `prayer_assignments.csv` | |
+| `appointments.csv` | |
+| `message_templates.yaml` | hand-edited, so more likely to be broken by a slip than the CSVs |
+| `appointment_types.yaml` | same |
+
+`credentials.json` and `token.pickle` are deliberately left out: both are secrets
+and both are regenerable - re-download from Google Cloud, re-authorize - so
+copying them into up to 30 snapshot directories would multiply the exposure for
+nothing.
+
+Everything MLS3 reads at runtime is under `MLS3_DATA_DIR`; `config.py` builds
+every path from it. The only files read from the repo are the example CSVs used
+to seed a new data directory, and those are in git.
 
 ```bash
 python utils/backup.py                      # list, with status
@@ -151,7 +170,7 @@ recorded in its manifest. `backup.py` shows a status per snapshot:
 | status | meaning |
 |---|---|
 | `verified` | every file parsed when the snapshot was taken |
-| `damaged` | a file did not parse - restoring it would not help |
+| `damaged` | a file did not parse - restoring it would not help. Covers a malformed or empty YAML as well as a damaged CSV |
 | `incomplete` | no manifest, or a file the manifest lists is missing |
 | `unverified` | taken before this check existed; allowed, but unproven |
 

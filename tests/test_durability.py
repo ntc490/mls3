@@ -32,7 +32,8 @@ class DataDirTestCase(unittest.TestCase):
         os.environ['MLS3_DATA_DIR'] = str(self.tmp)
 
         for name in ('members.csv', 'households.csv',
-                     'prayer_assignments.csv', 'appointments.csv'):
+                     'prayer_assignments.csv', 'appointments.csv',
+                     'message_templates.yaml', 'appointment_types.yaml'):
             source = ROOT / 'data' / name
             if source.exists():
                 shutil.copy(source, self.tmp / name)
@@ -462,6 +463,61 @@ class TestBackupTrustworthiness(DataDirTestCase):
         self.backup.prune(keep=2)
         remaining = {s.timestamp for s in self.backup.list_snapshots()}
         self.assertIn(last_good.timestamp, remaining)
+
+    def test_hand_edited_yaml_is_covered(self):
+        # Templates and appointment types are hand-edited, so they are more
+        # likely to be broken by a slip than the CSVs and need the same
+        # point-in-time restore.
+        snapshot = self.backup.create(reason='test')
+        self.assertIn('message_templates.yaml', snapshot.files)
+        self.assertIn('appointment_types.yaml', snapshot.files)
+        self.assertTrue((snapshot.path / 'message_templates.yaml').exists())
+        self.assertTrue((snapshot.path / 'appointment_types.yaml').exists())
+        self.assertIs(snapshot.verified, True)
+
+    def test_secrets_are_deliberately_not_backed_up(self):
+        # Both are regenerable, and copying them into every snapshot would
+        # multiply the exposure for nothing.
+        covered = self.backup.data_files()
+        self.assertNotIn('credentials.json', covered)
+        self.assertNotIn('token.pickle', covered)
+
+    def test_yaml_counts_are_parsed_not_line_counted(self):
+        snapshot = self.backup.create(reason='test')
+        self.assertEqual(snapshot.counts['appointment_types.yaml'],
+                         len(self.models.AppointmentTypesDatabase().types))
+
+    def test_a_snapshot_over_a_broken_template_is_refused(self):
+        (self.tmp / 'message_templates.yaml').write_text(
+            "prayer:\n  invite: 'unterminated\n   bad: [[[\n")
+
+        snapshot = self.backup.create(reason='over broken template')
+        self.assertIs(snapshot.verified, False)
+        self.assertFalse(snapshot.restorable)
+        self.assertTrue(any('message_templates.yaml' in p
+                            for p in snapshot.verify_problems))
+        with self.assertRaises(ValueError):
+            self.backup.restore(snapshot.timestamp)
+
+    def test_an_empty_template_file_is_reported_plainly(self):
+        # It parses to None and then fails deep inside the loader, which makes
+        # for a baffling message unless it is caught up front.
+        (self.tmp / 'message_templates.yaml').write_text('')
+
+        snapshot = self.backup.create(reason='over empty template')
+        self.assertIs(snapshot.verified, False)
+        self.assertIn('message_templates.yaml: is empty', snapshot.verify_problems)
+
+    def test_restoring_brings_templates_back(self):
+        path = self.tmp / 'message_templates.yaml'
+        original = path.read_text()
+        snapshot = self.backup.create(reason='test')
+
+        path.write_text('prayer:\n  invite: "wrecked"\n')
+        self.backup.restore(snapshot.timestamp)
+
+        self.assertEqual(path.read_text(), original)
+        self.assertEqual(len(self.models.MessageTemplates().templates), 3)
 
     def test_retention_is_thirty(self):
         self.assertEqual(self.backup.RETENTION, 30)

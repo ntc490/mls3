@@ -12,6 +12,8 @@ Snapshots live in $MLS3_DATA_DIR/backups/<YYYYMMDD_HHMMSS>/ (gitignored):
     households.csv
     prayer_assignments.csv
     appointments.csv
+    message_templates.yaml
+    appointment_types.yaml
     manifest.json      what it was, when, why, and whether it verified
 
 They sit inside the data directory on purpose: when that directory is synced to
@@ -61,12 +63,24 @@ def backup_root() -> Path:
 
 
 def data_files() -> Dict[str, Path]:
-    """The files a snapshot covers, by name."""
+    """
+    The files a snapshot covers, by name.
+
+    The YAML files are hand-edited, which makes them more likely to be broken by
+    a slip than the CSVs are, so they need point-in-time restore just as much.
+
+    Deliberately excluded: credentials.json and token.pickle. Both are secrets
+    and both are regenerable - re-download from Google Cloud, re-authorize - so
+    copying them into up to RETENTION snapshot directories would multiply the
+    exposure for nothing.
+    """
     return {
         'members.csv': config.MEMBERS_CSV,
         'households.csv': config.HOUSEHOLDS_CSV,
         'prayer_assignments.csv': config.PRAYER_ASSIGNMENTS_CSV,
         'appointments.csv': config.APPOINTMENTS_CSV,
+        'message_templates.yaml': config.MESSAGE_TEMPLATES_YAML,
+        'appointment_types.yaml': config.APPOINTMENT_TYPES_YAML,
     }
 
 
@@ -151,16 +165,21 @@ def _verify(directory: Path, names: List[str]) -> Tuple[bool, List[str], Dict[st
     """
     # Imported lazily: models is a heavier import and this keeps `backup` usable
     # from contexts that only need to list snapshots.
+    import yaml
     from models import (
-        AppointmentDatabase, DataIntegrityError, HouseholdDatabase,
-        MemberDatabase, PrayerAssignmentDatabase,
+        AppointmentDatabase, AppointmentTypesDatabase, DataIntegrityError,
+        HouseholdDatabase, MemberDatabase, MessageTemplates,
+        PrayerAssignmentDatabase,
     )
 
+    # file -> (loader, the argument it takes the path as, what to count)
     loaders = {
-        'members.csv': (MemberDatabase, 'members'),
-        'households.csv': (HouseholdDatabase, 'households'),
-        'prayer_assignments.csv': (PrayerAssignmentDatabase, 'assignments'),
-        'appointments.csv': (AppointmentDatabase, 'appointments'),
+        'members.csv': (MemberDatabase, 'csv_path', 'members'),
+        'households.csv': (HouseholdDatabase, 'csv_path', 'households'),
+        'prayer_assignments.csv': (PrayerAssignmentDatabase, 'csv_path', 'assignments'),
+        'appointments.csv': (AppointmentDatabase, 'csv_path', 'appointments'),
+        'message_templates.yaml': (MessageTemplates, 'yaml_path', 'templates'),
+        'appointment_types.yaml': (AppointmentTypesDatabase, 'yaml_path', 'types'),
     }
 
     problems: List[str] = []
@@ -170,13 +189,23 @@ def _verify(directory: Path, names: List[str]) -> Tuple[bool, List[str], Dict[st
         loader = loaders.get(name)
         if loader is None:
             continue
-        cls, attribute = loader
+        cls, path_argument, attribute = loader
+        copied = directory / name
         try:
-            db = cls(csv_path=directory / name)
-            counts[name] = len(getattr(db, attribute))
+            # An empty YAML file parses to None and then fails deep inside the
+            # loader, which makes for a baffling message. Say it plainly.
+            if name.endswith('.yaml') and not copied.read_text().strip():
+                problems.append(f"{name}: is empty")
+                continue
+            loaded = cls(**{path_argument: copied})
+            counts[name] = len(getattr(loaded, attribute))
         except DataIntegrityError as e:
             problems.append(f"{name}: {e}")
-        except (OSError, ValueError) as e:
+        except yaml.YAMLError as e:
+            problems.append(f"{name}: is not valid YAML ({e})")
+        # An empty or wrongly shaped YAML file surfaces as AttributeError or
+        # KeyError from the loader rather than as a YAML error.
+        except (OSError, ValueError, AttributeError, KeyError, TypeError) as e:
             problems.append(f"{name}: could not be read back ({e})")
 
     return (not problems), problems, counts
@@ -218,7 +247,12 @@ def create(reason: str = '', notes: Dict[str, str] = None) -> Optional[Snapshot]
         reason=reason,
         created=now.isoformat(timespec='seconds'),
         files=sorted(present),
-        counts=parsed_counts or {name: _row_count(path) for name, path in present.items()},
+        # Parsed record counts, falling back to raw row counts only for CSVs if
+        # nothing could be parsed at all - a line count of a YAML file would be
+        # meaningless.
+        counts=parsed_counts or {name: _row_count(path)
+                                 for name, path in present.items()
+                                 if name.endswith('.csv')},
         notes=dict(notes or {}),
         verified=verified,
         verify_problems=problems,
