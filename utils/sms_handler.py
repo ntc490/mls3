@@ -1,14 +1,22 @@
 """
 SMS Handler for MLS3
 
-Generates SMS messages from templates and sends them via Tasker.
+Generates SMS messages from templates and opens them in the default SMS app,
+via termux-am (default) or Tasker (MLS3_TASKER_SMS=true).
 Automatically routes messages to parents for minors.
 """
+import os
+import subprocess
 from datetime import date
 from typing import Optional, List, Dict, Tuple
 
 from models import Member, MessageTemplates, MemberDatabase, HouseholdDatabase
 import config
+
+# Termux's own bin directory. The server may run inside proot-distro, where it
+# isn't on PATH - and termux-am calls termux-am-socket by bare name, so the
+# directory has to be on PATH for the child process too.
+TERMUX_BIN = '/data/data/com.termux/files/usr/bin'
 
 # The file Tasker watches. This path has to match the Tasker profile exactly or
 # nothing is sent and nothing reports an error - MLS3 writes the file happily
@@ -153,7 +161,6 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         print(f"ERROR: {result['error']}")
         return (False, result['error'])
 
-    # Send via Tasker
     if member.is_minor:
         print(f"Member {member.full_name} is a minor - routing to parents")
 
@@ -163,18 +170,13 @@ def expand_and_send(activity: str, template_name: str, member: Member,
 
 def send_sms_intent(phone_number: str, message: str) -> bool:
     """
-    Queue a message for Tasker to send.
+    Open the default SMS app with a message pre-filled; the user still presses
+    send.
 
-    Writes "<phone>\\n<message>" to the file Tasker watches. Tasker fires an
-    android.intent.action.SENDTO, which opens a messaging app with the message
-    pre-filled; the user still presses send.
-
-    Which app that is belongs to Tasker, not here: with no package on the
-    intent Android uses the default SMS app, and naming a package sends to that
-    app specifically. Nothing in MLS3 needs to know either way.
-
-    (The name is historical - this queues a message rather than launching the
-    intent itself.)
+    By default this fires android.intent.action.SENDTO itself through
+    termux-am. With MLS3_TASKER_SMS=true it queues the message for Tasker,
+    which fires the same intent. Either way the intent names no package, so
+    Android picks the default SMS app.
 
     Args:
         phone_number: Phone number to send to
@@ -194,7 +196,7 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
         if config.DISABLE_SMS:
             print("Status: SMS DISABLED - not actually sent")
         else:
-            print("Status: Sending via Tasker...")
+            print(f"Status: Sending via {'Tasker' if config.TASKER_SMS else 'termux-am'}...")
         print("="*60 + "\n")
 
     # Skip actual SMS sending if disabled (for desktop testing)
@@ -207,23 +209,59 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
             print(f"ERROR: Cannot send SMS - phone number is empty")
             return False
 
-        # Write to Tasker file queue
-        # Tasker monitors this file and sends SMS when modified
-        # Format: phone_number\nmessage (literal backslash-n as delimiter)
-        try:
-            content = f"{phone_number}\\n{message}"
-
-            with open(TASKER_QUEUE_FILE, 'w') as f:
-                f.write(content)
-
-            return True
-
-        except Exception as e:
-            print(f"ERROR: Failed to queue SMS to {TASKER_QUEUE_FILE}: {e}")
-            return False
+        if config.TASKER_SMS:
+            return _queue_for_tasker(phone_number, message)
+        return _open_with_termux_am(phone_number, message)
 
     except Exception as e:
         print(f"ERROR: Unexpected error sending SMS: {e}")
+        return False
+
+
+def _open_with_termux_am(phone_number: str, message: str) -> bool:
+    """
+    Fire the SENDTO intent directly with termux-am.
+
+    Needs the Termux:API app, and Termux allowed to display over other apps -
+    without that, Android silently refuses to open an activity while another
+    app is in front.
+    """
+    env = dict(os.environ)
+    env['PATH'] = f"{TERMUX_BIN}:{env.get('PATH', '')}"
+    cmd = [
+        f"{TERMUX_BIN}/termux-am", 'start',
+        '-a', 'android.intent.action.SENDTO',
+        '-d', f"smsto:{phone_number}",
+        '--es', 'sms_body', message,
+    ]
+
+    try:
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"ERROR: Failed to run termux-am: {e}")
+        return False
+
+    # am reports some failures ("Error: Activity not started ...") on stdout
+    # with a zero exit status, so check the output as well.
+    output = (result.stdout + result.stderr).strip()
+    if result.returncode != 0 or 'Error' in output:
+        print(f"ERROR: termux-am failed (exit {result.returncode}): {output}")
+        return False
+
+    return True
+
+
+def _queue_for_tasker(phone_number: str, message: str) -> bool:
+    """
+    Write "<phone>\\n<message>" (literal backslash-n as delimiter) to the file
+    Tasker watches; Tasker fires the SENDTO intent when the file changes.
+    """
+    try:
+        with open(TASKER_QUEUE_FILE, 'w') as f:
+            f.write(f"{phone_number}\\n{message}")
+        return True
+    except Exception as e:
+        print(f"ERROR: Failed to queue SMS to {TASKER_QUEUE_FILE}: {e}")
         return False
 
 

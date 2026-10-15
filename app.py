@@ -1714,7 +1714,7 @@ def api_expand_template():
 @app.route('/api/queue-sms', methods=['POST'])
 def api_queue_sms():
     """
-    Queue SMS for sending via Tasker.
+    Open SMS in the default messaging app (termux-am or Tasker).
     Used by composer for ad-hoc messages.
 
     Request JSON:
@@ -1735,7 +1735,6 @@ def api_queue_sms():
     if not phone or not message:
         return jsonify({'error': 'Missing phone or message'}), 400
 
-    # Send via Tasker
     success = send_sms_intent(phone, message)
 
     if success:
