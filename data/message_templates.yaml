@@ -12,7 +12,7 @@ pleasantries:
 
 prayer:
   invite: "Hi {name|blue?formal:casual}, would you be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for you?"
-  invite_parent: "Hi {parent_greeting}, would {child_name} be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for them?"
+  invite_parent: "Hi {parent_greeting}, would {child_name} be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for {him}?"
   reminder: "Hi {name|blue?formal:casual}, reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
   reminder_parent: "Hi {parent_greeting}, reminder that {child_name} is scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
   thank_you: "Thanks {name|blue?formal:casual} for agreeing to say the {prayer_type} prayer on {date}!"
@@ -70,7 +70,7 @@ appointments:
   Baptismal_reminder_parent: "Hi {parent_greeting}, reminder that {child_name} has a Baptismal interview {smart_date} at {time} with Bishop"
 
   Annual youth_invite: "Hi {name|blue?formal:casual}, could you meet with Bishop for your annual youth interview on {date} at {time}?"
-  Annual youth_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for their annual youth interview on {date} at {time}?"
+  Annual youth_invite_parent: "Hi {parent_greeting}, could {child_name} meet with Bishop for {his} annual youth interview on {date} at {time}?"
   Annual youth_reminder: "Hi {name|blue?formal:casual}, sending you a reminder for your annual youth interview {smart_date} at {time} with Bishop"
   Annual youth_reminder_parent: "Hi {parent_greeting}, sending you a reminder for {child_name}'s annual youth interview {smart_date} at {time} with Bishop"
 
@@ -114,6 +114,6 @@ adhoc:
   checkin_parent: "Hi {parent_greeting}, {random:casual_greeting}Just wanted to check in and see how you and {child_name} are doing."
 
   birthday: "Hi {name|blue?formal:casual}, Happy Birthday! Hope you have a wonderful day!"
-  birthday_parent: "Hi {parent_greeting}, Happy Birthday to {child_name}! Hope they have a wonderful day!"
+  birthday_parent: "Hi {parent_greeting}, Happy Birthday to {child_name}! Hope {he} has a wonderful day!"
 
 

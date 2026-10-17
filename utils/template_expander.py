@@ -17,6 +17,8 @@ class SmartTemplateExpander:
     - {smart_date} - Today/tomorrow/formatted date
     - {random:list_name} - Random selection from list
     - {simple_variable} - Standard variable substitution
+    - {he} {him} {his} - Pronouns for the member, from their recorded gender.
+      In a _parent template the member is the child being talked about.
     """
 
     # Regex patterns
@@ -189,6 +191,16 @@ class SmartTemplateExpander:
         # Unknown variable/transform
         return f"{{{var_name}}}"  # Return unchanged
 
+    PRONOUNS = {
+        'M': {'he': 'he', 'him': 'him', 'his': 'his'},
+        'F': {'he': 'she', 'him': 'her', 'his': 'her'},
+    }
+    UNKNOWN_PRONOUNS = {'he': 'he/she', 'him': 'him/her', 'his': 'his/her'}
+
+    def _pronouns(self, member) -> Dict[str, str]:
+        """{he}, {him} and {his} for the member's recorded gender"""
+        return self.PRONOUNS.get(member.gender, self.UNKNOWN_PRONOUNS)
+
     def _expand_simple_variables(self, text: str, member, appointment, extra_vars: Dict) -> str:
         """Expand {simple_variable} using standard substitution"""
         import config
@@ -200,6 +212,7 @@ class SmartTemplateExpander:
             'member_name': member.display_name,  # For backward compatibility
             'full_name': member.full_name,
         }
+        context.update(self._pronouns(member))
 
         # Add appointment/assignment variables if present
         if appointment:

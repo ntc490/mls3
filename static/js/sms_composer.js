@@ -7,7 +7,8 @@
 const STANDARD_VARS = [
     'name', 'first_name', 'last_name', 'member_name', 'full_name',
     'date', 'smart_date', 'time', 'conductor', 'prayer_type',
-    'appointment_type', 'parent_greeting', 'child_name'
+    'appointment_type', 'parent_greeting', 'child_name',
+    'he', 'him', 'his'
 ];
 
 // Store the original template text for re-expansion
