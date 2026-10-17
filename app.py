@@ -1093,6 +1093,30 @@ def api_get_household(household_id):
     })
 
 
+@app.route('/api/members/<int:member_id>/household-heads')
+def api_get_member_household_heads(member_id):
+    """
+    Who a household appointment for this member would be for.
+
+    Returns heads (may be empty), their name together, whether the member is
+    one of them, and whether all of them are active - the scheduler uses the
+    last two to decide whether "Whole household" starts checked.
+    """
+    from utils.template_expander import display_names
+
+    member = members_db.get_by_id(member_id)
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+
+    heads = members_db.get_heads(member.household_id, households_db)
+    return jsonify({
+        'heads': [{'member_id': h.member_id, 'name': h.full_name} for h in heads],
+        'name': display_names(heads) if heads else '',
+        'member_is_head': any(h.member_id == member_id for h in heads),
+        'all_active': all(h.active for h in heads),
+    })
+
+
 @app.route('/api/members/<int:member_id>/household')
 def api_get_member_household(member_id):
     """Get household information for a specific member"""
@@ -1162,7 +1186,8 @@ def get_appointment_types():
         {
             'name': t.name,
             'default_duration': t.default_duration,
-            'default_conductor': t.default_conductor
+            'default_conductor': t.default_conductor,
+            'default_household': t.default_household
         }
         for t in appointment_types_db.get_all()
     ]

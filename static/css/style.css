@@ -1706,6 +1706,15 @@ input:checked + .slider:before {
     margin-bottom: 1.5rem;
 }
 
+/* "Whole household" under the member field */
+.form-group label.household-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0 0;
+    font-weight: normal;
+}
+
 /* Autocomplete styles */
 .autocomplete-wrapper {
     position: relative;

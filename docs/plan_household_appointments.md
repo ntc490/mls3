@@ -63,12 +63,13 @@ skipped; it's an error only if none have one.
 - The appointment appears in every head's history, not just the picked member's.
 
 ## Defaults
-`appointment_types.yaml` gains `default_household: true` for Family and Tithing.
-The scheduler shows a "Whole household - David and Lisa Smith" checkbox only
-when the picked member's household has two or more heads, and checks it by
-default when the type has `default_household` and:
-- the picked member is a head, and
-- every head is active (an inactive spouse or a single member leaves it off).
+`appointment_types.yaml` gains `default_household`. The scheduler shows a
+"Whole household - David and Lisa Smith" checkbox only when the picked
+member's household has two or more heads, and starts it checked when:
+- `default_household: true` (Family) - always.
+- `default_household: active_heads` (Tithing) - the picked member is a head
+  and every head is active, so an inactive spouse or a single member leaves it
+  off.
 
 ## Build order (one commit each)
 1. Pronoun tokens and the three template fixes, with tests

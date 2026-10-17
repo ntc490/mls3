@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from models import (  # noqa: E402
-    AppointmentDatabase, Household, HouseholdDatabase, Member, MemberDatabase,
+    AppointmentDatabase, AppointmentTypesDatabase, Household, HouseholdDatabase, Member, MemberDatabase,
     MessageTemplates
 )
 from utils.sms_handler import get_sms_info  # noqa: E402
@@ -260,6 +260,26 @@ class TestHistoryAndNames(TempDirTestCase):
                 appointment, self.david, name='David and Lisa Smith')
         body = service.events().insert.call_args.kwargs['body']
         self.assertEqual(body['summary'], '? David and Lisa Smith - Family')
+
+
+class TestHouseholdDefaults(TempDirTestCase):
+
+    def test_shipped_types_default_family_and_tithing_to_the_household(self):
+        types = AppointmentTypesDatabase(ROOT / 'data' / 'appointment_types.yaml')
+        defaults = {t.name: t.default_household for t in types.get_all()
+                    if t.default_household}
+        self.assertEqual(defaults, {'Family': 'always', 'Tithing': 'active_heads'})
+
+    def test_unrecognised_values_are_off(self):
+        path = self.tmp / 'types.yaml'
+        path.write_text(
+            'appointment_types:\n'
+            '  - {name: A, default_duration: 5, default_conductor: Bishop, default_household: maybe}\n'
+            '  - {name: B, default_duration: 5, default_conductor: Bishop, default_household: false}\n'
+            '  - {name: C, default_duration: 5, default_conductor: Bishop}\n',
+            encoding='utf-8')
+        types = AppointmentTypesDatabase(path)
+        self.assertEqual([t.default_household for t in types.get_all()], ['', '', ''])
 
 
 if __name__ == '__main__':

@@ -18,6 +18,7 @@ appointment_types:
   - name: "Family"
     default_duration: 30
     default_conductor: "Counselor"
+    default_household: true
 
   - name: "Ecclesiastical endorsement"
     default_duration: 15
@@ -62,3 +63,5 @@ appointment_types:
   - name: "Tithing"
     default_duration: 10
     default_conductor: "Bishop"
+    # Only a head whose spouse is also active - otherwise they come alone
+    default_household: active_heads

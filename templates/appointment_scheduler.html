@@ -23,6 +23,10 @@
                     <input type="hidden" id="selectedMemberId">
                     <div id="memberResults" class="autocomplete-results"></div>
                 </div>
+                <label id="householdOption" class="household-option" style="display: none;">
+                    <input type="checkbox" id="householdCheckbox">
+                    Whole household &mdash; <span id="householdName"></span>
+                </label>
             </div>
 
             <div class="form-group">
@@ -100,5 +104,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/appointment_scheduler.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/appointment_scheduler.js') }}?v=4"></script>
 {% endblock %}

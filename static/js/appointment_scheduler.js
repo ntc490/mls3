@@ -4,6 +4,7 @@
  */
 
 let appointmentTypes = [];
+let householdHeads = null;  // From /api/members/<id>/household-heads, when it has 2+ heads
 let selectedConductor = null;
 let memberId = null;
 let appointmentId = null;
@@ -179,6 +180,7 @@ function setupMemberAutocomplete() {
         if (hiddenInput.value) {
             // Only clear if the text doesn't match the selected member
             hiddenInput.value = '';
+            loadHouseholdOption(null);
         }
     });
 
@@ -189,6 +191,7 @@ function setupMemberAutocomplete() {
         clearBtn.style.display = 'none';
         document.getElementById('memberInfoBtn').style.display = 'none';
         resultsDiv.classList.remove('show');
+        loadHouseholdOption(null);
         searchInput.focus();
 
         // Validate form to update button states
@@ -284,6 +287,8 @@ function selectMember(id, name) {
     // Update memberId variable
     memberId = id;
 
+    loadHouseholdOption(id);
+
     // Validate form to update button states
     validateForm();
 }
@@ -311,6 +316,8 @@ async function loadMemberById(id) {
 
         // Update the global memberId variable
         memberId = id;
+
+        await loadHouseholdOption(id);
 
         // Validate form to update button states
         validateForm();
@@ -362,6 +369,7 @@ async function loadAppointmentForEdit(apptId) {
         document.getElementById('appointmentTime').value = appt.time;
         document.getElementById('duration').value = appt.duration_minutes;
         document.getElementById('appointmentNotes').value = appt.notes || '';
+        await loadHouseholdOption(appt.member_id, appt.household);
 
         // Set conductor
         selectConductor(appt.conductor);
@@ -404,6 +412,7 @@ function makeFormReadOnly() {
     document.getElementById('appointmentDate').disabled = true;
     document.getElementById('appointmentTime').disabled = true;
     document.getElementById('duration').disabled = true;
+    document.getElementById('householdCheckbox').disabled = true;
 
     // Disable conductor buttons
     document.getElementById('conductorBishop').disabled = true;
@@ -437,6 +446,7 @@ async function loadAppointmentTypes() {
             option.textContent = type.name;
             option.dataset.duration = type.default_duration;
             option.dataset.conductor = type.default_conductor;
+            option.dataset.household = type.default_household || '';
             select.appendChild(option);
         });
 
@@ -604,6 +614,7 @@ function setupEventListeners() {
     document.getElementById('appointmentTime').addEventListener('input', markDirty);
     document.getElementById('duration').addEventListener('input', markDirty);
     document.getElementById('appointmentNotes').addEventListener('input', markDirty);
+    document.getElementById('householdCheckbox').addEventListener('change', markDirty);
 
     // Form validation - enable/disable save and invite buttons
     document.getElementById('memberSearch').addEventListener('input', validateForm);
@@ -826,6 +837,68 @@ function onAppointmentTypeChange(event) {
 
     // Pre-select conductor (but allow override)
     selectConductor(defaultConductor);
+
+    applyHouseholdDefault();
+}
+
+/**
+ * Show "Whole household" for a member whose household has two or more heads.
+ * savedValue is the appointment's own setting when editing; otherwise the
+ * appointment type's default applies.
+ */
+async function loadHouseholdOption(id, savedValue) {
+    const option = document.getElementById('householdOption');
+    const checkbox = document.getElementById('householdCheckbox');
+    householdHeads = null;
+    option.style.display = 'none';
+    checkbox.checked = false;
+    if (!id) return;
+
+    let info;
+    try {
+        const response = await fetch(`/api/members/${id}/household-heads`);
+        if (!response.ok) return;
+        info = await response.json();
+    } catch (error) {
+        console.error('Error loading household:', error);
+        return;
+    }
+
+    // Another member may have been picked while this was loading
+    if (String(document.getElementById('selectedMemberId').value) !== String(id)) return;
+    if (info.heads.length < 2) return;
+
+    householdHeads = info;
+    document.getElementById('householdName').textContent = info.name;
+    option.style.display = '';
+    checkbox.checked = savedValue !== undefined ? Boolean(savedValue) : householdDefault();
+}
+
+/**
+ * Whether the selected appointment type starts as a household appointment
+ */
+function householdDefault() {
+    if (!householdHeads) return false;
+    const selected = document.getElementById('appointmentType').selectedOptions[0];
+    const mode = selected ? selected.dataset.household : '';
+    if (mode === 'always') return true;
+    if (mode === 'active_heads') return householdHeads.member_is_head && householdHeads.all_active;
+    return false;
+}
+
+function applyHouseholdDefault() {
+    if (householdHeads) {
+        document.getElementById('householdCheckbox').checked = householdDefault();
+    }
+}
+
+/**
+ * The household setting to save, or undefined (left out, so unchanged) when
+ * the option isn't shown
+ */
+function householdValue() {
+    if (!householdHeads) return isEditMode ? undefined : false;
+    return document.getElementById('householdCheckbox').checked;
 }
 
 /**
@@ -883,7 +956,8 @@ async function updateAppointment() {
         duration_minutes: parseInt(duration),
         conductor: selectedConductor,
         timezone: getBrowserTimezone(),
-        notes: notes || ''  // Send empty string instead of null so backend knows to clear it
+        notes: notes || '',  // Send empty string instead of null so backend knows to clear it
+        household: householdValue()
     };
 
     try {
@@ -1127,7 +1201,8 @@ async function saveAppointment(initialState) {
                     duration_minutes: parseInt(duration),
                     conductor: selectedConductor,
                     timezone: getBrowserTimezone(),
-                    notes: document.getElementById('appointmentNotes').value || ''
+                    notes: document.getElementById('appointmentNotes').value || '',
+                    household: householdValue()
                 })
             });
 
@@ -1165,7 +1240,8 @@ async function saveAppointment(initialState) {
                     duration_minutes: parseInt(duration),
                     conductor: selectedConductor,
                     timezone: getBrowserTimezone(),
-                    notes: document.getElementById('appointmentNotes').value || ''
+                    notes: document.getElementById('appointmentNotes').value || '',
+                    household: householdValue()
                 })
             });
 

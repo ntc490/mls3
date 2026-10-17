@@ -317,6 +317,11 @@ class AppointmentType:
     name: str
     default_duration: int
     default_conductor: str
+    # When the scheduler starts with "Whole household" checked:
+    #   'always'       - whenever the member's household has two or more heads
+    #   'active_heads' - only when the member is a head and every head is active
+    #   ''             - never
+    default_household: str = ''
 
 
 @dataclass
@@ -1034,8 +1039,18 @@ class AppointmentTypesDatabase:
                 self.types.append(AppointmentType(
                     name=item['name'],
                     default_duration=item['default_duration'],
-                    default_conductor=item['default_conductor']
+                    default_conductor=item['default_conductor'],
+                    default_household=self._household_default(item.get('default_household'))
                 ))
+
+    @staticmethod
+    def _household_default(value) -> str:
+        """YAML true means 'always'; 'active_heads' stays; anything else is off"""
+        if value is True:
+            return 'always'
+        if value == 'active_heads':
+            return 'active_heads'
+        return ''
 
     def get_all(self) -> List[AppointmentType]:
         """Get all appointment types"""
