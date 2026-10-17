@@ -11,7 +11,8 @@ Type" with the other participants in Notes - needs no schema change and is not
 part of this plan.
 
 ## Data
-- `appointments.csv` gains one optional column, `household` (`1` or empty).
+- `appointments.csv` gains one optional column, `household` (`True`/`False`,
+  like the member booleans).
 - `member_id` stays the person picked; the household and its heads are looked
   up when needed, so names follow a re-import.
 - Older files load unchanged - a missing column means "not a household

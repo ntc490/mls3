@@ -334,6 +334,9 @@ class Appointment:
     completed_date: Optional[str] = None
     google_event_id: Optional[str] = None  # Google Calendar event ID for sync
     notes: Optional[str] = None  # Optional notes (location, calling info, etc.)
+    # For the heads of member_id's household rather than member_id alone.
+    # The heads are looked up when needed, so they follow a re-import.
+    household: bool = False
 
     @property
     def datetime_obj_utc(self) -> datetime:
@@ -691,30 +694,48 @@ class MemberDatabase:
         if not member or not member.household_id:
             return []
 
+        return [h for h in self.get_heads(member.household_id, households_db)
+                if h.member_id != member_id]
+
+    def get_heads(self, household_id: int, households_db=None) -> List['Member']:
+        """
+        Get the heads of a household - the parents, or the couple.
+
+        Uses Member.household_role when the household has it, otherwise falls
+        back to the household name; see get_parents() for the trade-offs.
+
+        Args:
+            household_id: ID of the household
+            households_db: HouseholdDatabase, required only for the fallback
+
+        Returns:
+            List of head Member objects (empty if household data unavailable)
+        """
+        if not household_id:
+            return []
+
         # Filtered on in_ward, not active: whether a parent attends church has
         # nothing to do with whether they are the person to contact about their
         # child. Only having left the ward removes them.
         household_members = [
             m for m in self.members
-            if m.household_id == member.household_id
-            and m.member_id != member_id
-            and m.in_ward
+            if m.household_id == household_id and m.in_ward
         ]
 
         heads = [m for m in household_members if m.household_role == 'head']
         if heads:
             return heads
 
-        # This member's household predates household_role - fall back to the
-        # household name. Only do so when nobody in the household has a role,
-        # otherwise an absent role is a genuine "not a head".
-        if any(m.household_role for m in household_members) or member.household_role:
+        # This household predates household_role - fall back to the household
+        # name. Only do so when nobody in the household has a role, otherwise
+        # an absent role is a genuine "not a head".
+        if any(m.household_role for m in household_members):
             return []
 
         if not households_db:
             return []
 
-        household = households_db.get_by_id(member.household_id)
+        household = households_db.get_by_id(household_id)
         if not household or not household.name:
             return []
 
@@ -1034,7 +1055,8 @@ class AppointmentDatabase:
     FIELDNAMES = [
         'appointment_id', 'member_id', 'appointment_type', 'datetime_utc',
         'duration_minutes', 'conductor', 'state', 'created_date',
-        'last_updated', 'completed_date', 'google_event_id', 'notes'
+        'last_updated', 'completed_date', 'google_event_id', 'notes',
+        'household'
     ]
 
     def __init__(self, csv_path: Path = None):
@@ -1070,7 +1092,8 @@ class AppointmentDatabase:
                     last_updated=row.get('last_updated') or '',
                     completed_date=row.get('completed_date') or None,
                     google_event_id=row.get('google_event_id') or None,
-                    notes=row.get('notes') or None
+                    notes=row.get('notes') or None,
+                    household=(row.get('household') or '').lower() == 'true'
                 ))
 
         _check_unique(self.csv_path,
@@ -1125,7 +1148,8 @@ class AppointmentDatabase:
         duration_minutes: int,
         conductor: str,
         timezone: str = None,
-        notes: str = None
+        notes: str = None,
+        household: bool = False
     ) -> Appointment:
         """
         Create a new appointment
@@ -1139,6 +1163,7 @@ class AppointmentDatabase:
             conductor: Conductor name
             timezone: IANA timezone string (e.g., 'America/Denver'). If None, uses HOME_TIMEZONE.
             notes: Optional notes (location, calling info, etc.)
+            household: For the heads of the member's household
         """
         try:
             from zoneinfo import ZoneInfo
@@ -1173,7 +1198,8 @@ class AppointmentDatabase:
             state="Draft",
             created_date=now,
             last_updated=now,
-            notes=notes
+            notes=notes,
+            household=household
         )
         self.appointments.append(appointment)
         self.save()
@@ -1200,7 +1226,8 @@ class AppointmentDatabase:
         duration_minutes: Optional[int] = None,
         conductor: Optional[str] = None,
         timezone: Optional[str] = None,
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        household: Optional[bool] = None
     ):
         """Update appointment details
 
@@ -1213,6 +1240,7 @@ class AppointmentDatabase:
             conductor: Optional new conductor
             timezone: Timezone for date/time interpretation. If None, uses HOME_TIMEZONE.
             notes: Optional notes (pass empty string to clear, None to leave unchanged)
+            household: Optional - for the heads of the member's household
         """
         try:
             from zoneinfo import ZoneInfo
@@ -1257,6 +1285,8 @@ class AppointmentDatabase:
                 appointment.conductor = conductor
             if notes is not None:
                 appointment.notes = notes if notes else None  # Convert empty string to None
+            if household is not None:
+                appointment.household = household
 
             appointment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
             self.save()
