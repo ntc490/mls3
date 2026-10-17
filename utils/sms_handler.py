@@ -31,7 +31,8 @@ def get_sms_info(activity: str, template_name: str, member: Member,
                  appointment=None, **kwargs) -> Dict:
     """
     Get SMS message and phone number(s) for a member.
-    Handles parent routing for minors automatically.
+    Handles parent routing for minors automatically, and a household
+    appointment goes to the heads of the member's household together.
 
     This is the shared logic used by all SMS functions - it just returns
     the message and phone without actually sending.
@@ -52,6 +53,28 @@ def get_sms_info(activity: str, template_name: str, member: Member,
             phone: str (if success)
             error: str (if not success)
     """
+    heads = household_heads(member, members_db, households_db, appointment)
+    if heads:
+        phones = []
+        for head in heads:
+            phone = (head.phone or '').strip()
+            if phone and phone not in phones:
+                phones.append(phone)
+
+        if not phones:
+            return {
+                'success': False,
+                'error': f"Nobody in the {member.last_name} household has a phone number on file"
+            }
+
+        message = templates.expand_smart(activity, template_name, member, appointment,
+                                         addressees=heads, **kwargs)
+        return {
+            'success': True,
+            'message': message,
+            'phone': ';'.join(phones)
+        }
+
     # Check if member is a minor and we should route to parents
     if member.is_minor:
         if not members_db:
@@ -120,6 +143,19 @@ def get_sms_info(activity: str, template_name: str, member: Member,
     }
 
 
+def household_heads(member: Member, members_db: MemberDatabase = None,
+                    households_db: HouseholdDatabase = None,
+                    appointment=None) -> List[Member]:
+    """
+    The heads a household appointment is for, or [] when it is for the member
+    alone - including a household appointment whose member no longer has a
+    household with heads, which falls back to the member.
+    """
+    if not getattr(appointment, 'household', False) or not members_db:
+        return []
+    return members_db.get_heads(member.household_id, households_db)
+
+
 def expand_and_send(activity: str, template_name: str, member: Member,
                     templates: MessageTemplates, members_db: MemberDatabase = None,
                     households_db: HouseholdDatabase = None,
@@ -150,7 +186,9 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         print(f"ERROR: {result['error']}")
         return (False, result['error'])
 
-    if member.is_minor:
+    if household_heads(member, members_db, households_db, appointment):
+        print(f"Household appointment - sending to the {member.last_name} household")
+    elif member.is_minor:
         print(f"Member {member.full_name} is a minor - routing to parents")
 
     success = send_sms_intent(result['phone'], result['message'])
