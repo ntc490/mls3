@@ -53,6 +53,57 @@ class TestPronouns(unittest.TestCase):
         self.assertEqual(text, 'Hope she has a great day, Anna!')
 
 
+class TestNamingSeveralPeople(unittest.TestCase):
+
+    def setUp(self):
+        self.david = member(1, 'David', 'Smith', 'M')
+        self.lisa = member(2, 'Lisa', 'Smith', 'F')
+        self.jones = member(3, 'Lisa', 'Jones', 'F')
+
+    def names(self, people, text='{name|blue?formal:casual}'):
+        return expand(text, people[0], addressees=people)
+
+    def test_one_person_reads_as_before(self):
+        self.assertEqual(self.names([self.david], '{name|x?formal:casual}'), 'David')
+        self.assertEqual(self.names([self.lisa], '{name|x?casual:formal}'), 'Sister Smith')
+        self.assertEqual(self.names([self.david], '{name|x?full:full} {full_name}'),
+                         'David Smith David Smith')
+
+    def test_a_couple_casually(self):
+        self.assertEqual(self.names([self.david, self.lisa]), 'David & Lisa')
+
+    def test_a_couple_formally_when_either_has_the_flag(self):
+        self.lisa.flag = 'blue'
+        self.assertEqual(self.names([self.david, self.lisa]), 'Brother and Sister Smith')
+
+    def test_a_couple_with_different_last_names_formally(self):
+        self.jones.flag = 'blue'
+        self.assertEqual(self.names([self.david, self.jones]),
+                         'Brother Smith and Sister Jones')
+
+    def test_full_names(self):
+        self.assertEqual(self.names([self.david, self.lisa], '{full_name}'),
+                         'David and Lisa Smith')
+        self.assertEqual(self.names([self.david, self.jones], '{full_name}'),
+                         'David Smith and Lisa Jones')
+
+    def test_the_husband_is_named_first_whatever_order_they_come_in(self):
+        self.assertEqual(self.names([self.lisa, self.david], '{full_name}'),
+                         'David and Lisa Smith')
+
+    def test_aka_is_used(self):
+        self.david.aka = 'Dave'
+        self.assertEqual(self.names([self.david, self.lisa], '{first_name}'), 'Dave & Lisa')
+
+    def test_parent_greeting_names_parents_with_different_last_names(self):
+        from utils.template_expander import greeting
+        self.jones.flag = 'blue'
+        self.assertEqual(greeting([self.david, self.jones]),
+                         'Brother Smith and Sister Jones')
+        self.assertEqual(greeting([self.jones]), 'Sister Jones')
+        self.assertEqual(greeting([self.david]), 'David')
+
+
 class TestShippedTemplates(unittest.TestCase):
     """The shipped templates should not talk about one child as 'they'."""
 

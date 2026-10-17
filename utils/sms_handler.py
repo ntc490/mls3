@@ -12,6 +12,7 @@ from typing import Optional, List, Dict, Tuple
 
 from models import Member, MessageTemplates, MemberDatabase, HouseholdDatabase
 import config
+from utils.template_expander import greeting
 
 # Termux's own bin directory. The server may run inside proot-distro, where it
 # isn't on PATH - and termux-am calls termux-am-socket by bare name, so the
@@ -80,19 +81,7 @@ def get_sms_info(activity: str, template_name: str, member: Member,
             }
 
         # Build parent greeting
-        any_formal = any(p.has_flag('blue') for p in parents)
-        if len(parents) == 1:
-            parent = parents[0]
-            if parent.has_flag('blue'):
-                title = 'Brother' if parent.gender == 'M' else 'Sister'
-                parent_greeting = f"{title} {parent.last_name}"
-            else:
-                parent_greeting = parent.display_name
-        elif any_formal:
-            parent_greeting = f"Brother and Sister {parents[0].last_name}"
-        else:
-            parent_names_casual = [p.display_name for p in parents]
-            parent_greeting = ' & '.join(parent_names_casual)
+        parent_greeting = greeting(parents)
 
         # Use parent template
         parent_template_name = f"{template_name}_parent"

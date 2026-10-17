@@ -1644,7 +1644,7 @@ def api_expand_template():
             "recipient": "John Smith" or "Brother and Sister Wilson"
         }
     """
-    from utils.template_expander import SmartTemplateExpander
+    from utils.template_expander import SmartTemplateExpander, greeting
 
     data = request.json
     member_id = data.get('member_id')
@@ -1677,21 +1677,8 @@ def api_expand_template():
             parents = members_db.get_parents(member_id, households_db)
 
             if parents:
-                # Build parent greeting (same logic as sms_handler.py)
-                any_formal = any(p.has_flag('blue') for p in parents)
-
-                if len(parents) == 1:
-                    parent = parents[0]
-                    if parent.has_flag('blue'):
-                        title = 'Brother' if parent.gender == 'M' else 'Sister'
-                        parent_greeting = f"{title} {parent.last_name}"
-                    else:
-                        parent_greeting = parent.display_name
-                elif any_formal:
-                    parent_greeting = f"Brother and Sister {parents[0].last_name}"
-                else:
-                    parent_names_casual = [p.display_name for p in parents]
-                    parent_greeting = ' & '.join(parent_names_casual)
+                # Build parent greeting (same as sms_handler.py)
+                parent_greeting = greeting(parents)
 
                 # Add parent-specific variables (auto-populated)
                 custom_vars['child_name'] = member.display_name

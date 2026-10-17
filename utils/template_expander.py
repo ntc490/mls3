@@ -5,7 +5,56 @@ Handles conditional flag-based expansions, smart dates, and random pleasantries
 import re
 import random
 from datetime import date
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+
+
+def _join(items: List[str], last_sep: str = ' and ') -> str:
+    """'A', 'A and B', 'A, B and C'"""
+    if len(items) <= 1:
+        return ''.join(items)
+    return ', '.join(items[:-1]) + last_sep + items[-1]
+
+
+def _by_last_name(people) -> List[tuple]:
+    """
+    [(last_name, [people...])] in order of first appearance, men first within
+    the whole list so a couple reads "David and Lisa", "Brother and Sister".
+    """
+    groups = {}
+    for p in sorted(people, key=lambda p: p.gender != 'M'):
+        groups.setdefault(p.last_name, []).append(p)
+    return list(groups.items())
+
+
+def formal_names(people) -> str:
+    """'Brother Smith', 'Brother and Sister Smith', 'Brother Smith and Sister Jones'"""
+    return _join([
+        f"{_join(['Brother' if p.gender == 'M' else 'Sister' for p in group])} {last}"
+        for last, group in _by_last_name(people)
+    ])
+
+
+def casual_names(people) -> str:
+    """'David', 'David & Lisa'"""
+    ordered = [p for _, group in _by_last_name(people) for p in group]
+    return _join([p.display_name for p in ordered], ' & ')
+
+
+def full_names(people) -> str:
+    """'David Smith', 'David and Lisa Smith', 'David Smith and Lisa Jones'"""
+    if len(people) == 1:
+        return people[0].full_name
+    return _join([
+        f"{_join([p.aka or p.first_name for p in group])} {last}"
+        for last, group in _by_last_name(people)
+    ])
+
+
+def greeting(people, flag: str = 'blue') -> str:
+    """How a message opens to these people - formal if any has the flag"""
+    if any(p.has_flag(flag) for p in people):
+        return formal_names(people)
+    return casual_names(people)
 
 
 class SmartTemplateExpander:
@@ -14,11 +63,16 @@ class SmartTemplateExpander:
 
     Supported syntax:
     - {variable|flag?transform:transform} - Conditional based on member flag
+      (true if any of the people addressed has the flag)
     - {smart_date} - Today/tomorrow/formatted date
     - {random:list_name} - Random selection from list
     - {simple_variable} - Standard variable substitution
     - {he} {him} {his} - Pronouns for the member, from their recorded gender.
       In a _parent template the member is the child being talked about.
+
+    Names ({name}, {first_name}, {full_name}...) cover everyone addressed,
+    which is just the member unless a list of people is given - the heads of a
+    household, say - in which case they read "David and Lisa Smith".
     """
 
     # Regex patterns
@@ -34,7 +88,8 @@ class SmartTemplateExpander:
         """
         self.templates = templates_obj
 
-    def expand(self, template_str: str, member, appointment=None, **kwargs) -> str:
+    def expand(self, template_str: str, member, appointment=None,
+               addressees=None, **kwargs) -> str:
         """
         Expand template with all smart variables.
 
@@ -42,25 +97,28 @@ class SmartTemplateExpander:
             template_str: Raw template string
             member: Member object
             appointment: Optional appointment/assignment object (for dates)
+            addressees: Optional list of Members the message names; defaults
+                to [member]
             **kwargs: Additional simple variables (e.g., conductor="Bishop")
 
         Returns:
             Fully expanded message string
         """
         result = template_str
+        people = list(addressees) if addressees else [member]
 
         # 1. Expand {random:list_name}
         result = self._expand_random_variables(result)
 
         # 2. Expand {smart_date|flag?transform:transform} or {smart_date}
         if appointment:
-            result = self._expand_smart_date_variables(result, member, appointment)
+            result = self._expand_smart_date_variables(result, people, appointment)
 
         # 3. Expand {variable|flag?transform:transform}
-        result = self._expand_conditional_variables(result, member, appointment, kwargs)
+        result = self._expand_conditional_variables(result, people, appointment, kwargs)
 
         # 4. Expand remaining {simple_variable}
-        result = self._expand_simple_variables(result, member, appointment, kwargs)
+        result = self._expand_simple_variables(result, member, people, appointment, kwargs)
 
         return result
 
@@ -75,7 +133,7 @@ class SmartTemplateExpander:
 
         return self.RANDOM_PATTERN.sub(replace_random, text)
 
-    def _expand_smart_date_variables(self, text: str, member, appointment) -> str:
+    def _expand_smart_date_variables(self, text: str, people, appointment) -> str:
         """Expand {smart_date} and {smart_date|flag?transform:transform}"""
         def replace_smart_date(match):
             flag = match.group(1)
@@ -87,7 +145,7 @@ class SmartTemplateExpander:
 
             # If conditional, apply transform
             if flag and true_transform and false_transform:
-                has_flag = member.has_flag(flag)
+                has_flag = any(p.has_flag(flag) for p in people)
                 transform = true_transform if has_flag else false_transform
                 return self._apply_date_transform(smart_date_value, appointment, transform)
 
@@ -142,7 +200,7 @@ class SmartTemplateExpander:
             # Unknown transform, return base value
             return base_value
 
-    def _expand_conditional_variables(self, text: str, member, appointment, extra_vars: Dict) -> str:
+    def _expand_conditional_variables(self, text: str, people, appointment, extra_vars: Dict) -> str:
         """Expand {variable|flag?transform:transform}"""
         def replace_conditional(match):
             var_name = match.group(1)
@@ -150,14 +208,14 @@ class SmartTemplateExpander:
             true_transform = match.group(3)
             false_transform = match.group(4)
 
-            has_flag = member.has_flag(flag)
+            has_flag = any(p.has_flag(flag) for p in people)
             transform = true_transform if has_flag else false_transform
 
-            return self._apply_transform(var_name, transform, member, appointment, extra_vars)
+            return self._apply_transform(var_name, transform, people, appointment, extra_vars)
 
         return self.CONDITIONAL_PATTERN.sub(replace_conditional, text)
 
-    def _apply_transform(self, var_name: str, transform: str, member, appointment, extra_vars: Dict) -> str:
+    def _apply_transform(self, var_name: str, transform: str, people, appointment, extra_vars: Dict) -> str:
         """Apply named transform to variable"""
         import config
 
@@ -165,17 +223,16 @@ class SmartTemplateExpander:
         if var_name == "name":
             if transform == "formal":
                 # "Brother/Sister LastName"
-                prefix = "Brother" if member.gender == "M" else "Sister"
-                return f"{prefix} {member.last_name}"
+                return formal_names(people)
             elif transform == "casual":
                 # First name only (uses display_name: AKA or first word)
-                return member.display_name
+                return casual_names(people)
             elif transform == "full":
                 # "FirstName LastName"
-                return member.full_name
+                return full_names(people)
             else:
                 # Unknown transform, default to casual
-                return member.display_name
+                return casual_names(people)
 
         # Date transforms (for variables other than smart_date)
         elif var_name == "date" and appointment:
@@ -201,16 +258,16 @@ class SmartTemplateExpander:
         """{he}, {him} and {his} for the member's recorded gender"""
         return self.PRONOUNS.get(member.gender, self.UNKNOWN_PRONOUNS)
 
-    def _expand_simple_variables(self, text: str, member, appointment, extra_vars: Dict) -> str:
+    def _expand_simple_variables(self, text: str, member, people, appointment, extra_vars: Dict) -> str:
         """Expand {simple_variable} using standard substitution"""
         import config
 
         # Build context dictionary
         context = {
-            'first_name': member.display_name,
-            'last_name': member.last_name,
-            'member_name': member.display_name,  # For backward compatibility
-            'full_name': member.full_name,
+            'first_name': casual_names(people),
+            'last_name': _join([last for last, _ in _by_last_name(people)]),
+            'member_name': casual_names(people),  # For backward compatibility
+            'full_name': full_names(people),
         }
         context.update(self._pronouns(member))
 
