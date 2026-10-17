@@ -299,7 +299,7 @@ class PrayerAssignment:
     assignment_id: int
     member_id: int
     date: str
-    prayer_type: str  # Opening, Closing, or Undecided
+    prayer_type: str  # Opening or Closing (older files may hold Undecided)
     state: str  # Draft, Invited, Accepted, Reminded, Completed
     created_date: str
     last_updated: str
@@ -824,8 +824,21 @@ class MemberDatabase:
         return children
 
 
+PRAYER_TYPES = ('Opening', 'Closing')
+
+
+def opposite_prayer_type(prayer_type: str) -> str:
+    return 'Closing' if prayer_type == 'Opening' else 'Opening'
+
+
 class PrayerAssignmentDatabase:
-    """Manages prayer assignment data from CSV"""
+    """
+    Manages prayer assignment data from CSV.
+
+    A Sunday has an opening and a closing prayer, so every assignment is one or
+    the other and two on the same Sunday are opposites. There used to be an
+    Undecided type; load() settles any left in the file.
+    """
 
     FIELDNAMES = [
         'assignment_id', 'member_id', 'date', 'prayer_type', 'state',
@@ -865,6 +878,25 @@ class PrayerAssignmentDatabase:
 
         _check_unique(self.csv_path,
                       [a.assignment_id for a in self.assignments], 'assignment_id')
+        self._settle_undecided()
+
+    def _settle_undecided(self) -> None:
+        """
+        Give each open assignment without a type the one its Sunday still needs.
+        Only in memory - it reaches the file with the next save. Completed ones
+        are history and left as they were.
+        """
+        for a in sorted(self.assignments, key=lambda a: a.assignment_id):
+            if a.state != 'Completed' and a.prayer_type not in PRAYER_TYPES:
+                a.prayer_type = self.prayer_type_for_new_slot(a.date, exclude_id=a.assignment_id)
+
+    def prayer_type_for_new_slot(self, date_str: str, exclude_id: Optional[int] = None) -> str:
+        """The opposite of what that Sunday already has, or Opening"""
+        for a in self.assignments:
+            if (a.date == date_str and a.assignment_id != exclude_id
+                    and a.prayer_type in PRAYER_TYPES):
+                return opposite_prayer_type(a.prayer_type)
+        return 'Opening'
 
     def _write_rows(self, handle) -> None:
         writer = csv.DictWriter(handle, fieldnames=self.FIELDNAMES)
@@ -915,14 +947,25 @@ class PrayerAssignmentDatabase:
         self,
         member_id: Optional[int],
         date: date,
-        prayer_type: str = "Undecided"
+        prayer_type: Optional[str] = None
     ) -> PrayerAssignment:
-        """Create a new prayer assignment"""
+        """
+        Create a new prayer assignment.
+
+        prayer_type is used if it is still free that Sunday; otherwise (or if
+        not given) the assignment gets the type the Sunday still needs.
+        """
         now = datetime.now().strftime(config.DATE_FORMAT)
+        date_str = date.strftime(config.DATE_FORMAT)
+        needed = self.prayer_type_for_new_slot(date_str)
+        taken = any(a.date == date_str and a.prayer_type == prayer_type
+                    for a in self.assignments)
+        if prayer_type not in PRAYER_TYPES or taken:
+            prayer_type = needed
         assignment = PrayerAssignment(
             assignment_id=self.get_next_id(),
             member_id=member_id or 0,  # 0 = no member selected yet
-            date=date.strftime(config.DATE_FORMAT),
+            date=date_str,
             prayer_type=prayer_type,
             state="Draft",
             created_date=now,
@@ -960,6 +1003,11 @@ class PrayerAssignmentDatabase:
                 assignment.prayer_type = prayer_type
             if date is not None:
                 assignment.date = date.strftime(config.DATE_FORMAT)
+                # Moved onto a Sunday that already has this prayer - take the other
+                if any(a.date == assignment.date and a.assignment_id != assignment_id
+                       and a.prayer_type == assignment.prayer_type
+                       for a in self.assignments):
+                    assignment.prayer_type = opposite_prayer_type(assignment.prayer_type)
 
             assignment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
             self.save()

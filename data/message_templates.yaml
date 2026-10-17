@@ -11,8 +11,8 @@ pleasantries:
     - "Quick reminder: "
 
 prayer:
-  invite: "Hi {name|blue?formal:casual}, would you be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for you?"
-  invite_parent: "Hi {parent_greeting}, would {child_name} be willing to say a prayer in sacrament meeting on {date}? Is opening or closing better for {him}?"
+  invite: "Hi {name|blue?formal:casual}, would you be willing to say the {prayer_type} prayer in sacrament meeting on {date}?"
+  invite_parent: "Hi {parent_greeting}, would {child_name} be willing to say the {prayer_type} prayer in sacrament meeting on {date}?"
   reminder: "Hi {name|blue?formal:casual}, reminder that you're scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
   reminder_parent: "Hi {parent_greeting}, reminder that {child_name} is scheduled for the {prayer_type} prayer in sacrament meeting {smart_date}. Thank you!"
   thank_you: "Thanks {name|blue?formal:casual} for agreeing to say the {prayer_type} prayer on {date}!"

@@ -13,7 +13,7 @@ import config
 from models import (
     MemberDatabase, PrayerAssignmentDatabase, MessageTemplates,
     AppointmentTypesDatabase, AppointmentDatabase, HouseholdDatabase,
-    DataIntegrityError
+    DataIntegrityError, PRAYER_TYPES, opposite_prayer_type
 )
 from utils.google_calendar import (
     get_calendar_service, CalendarSync, is_calendar_enabled, is_online
@@ -544,7 +544,7 @@ def api_create_assignment():
 
     member_id = data.get('member_id')  # Can be null initially
     date_str = data.get('date')
-    prayer_type = data.get('prayer_type', 'Undecided')
+    prayer_type = data.get('prayer_type')  # Used if still free that Sunday
 
     if not date_str:
         return jsonify({'error': 'Missing required field: date'}), 400
@@ -576,25 +576,24 @@ def api_update_assignment(assignment_id):
 
     # Handle updates with prayer type syncing
     if prayer_type:
+        if prayer_type not in PRAYER_TYPES:
+            return jsonify({'error': 'Prayer type must be Opening or Closing'}), 400
+
         # User is manually toggling prayer type
         assignment = assignments_db.get_by_id(assignment_id)
         if assignment:
             # Update this assignment
             assignments_db.update_assignment(assignment_id, prayer_type=prayer_type)
 
-            # If setting to Opening or Closing, set the other slot to the opposite
-            if prayer_type in ['Opening', 'Closing']:
-                same_date_assignments = assignments_db.get_assignments_for_date(
-                    datetime.strptime(assignment.date, config.DATE_FORMAT).date()
-                )
-                opposite_type = 'Closing' if prayer_type == 'Opening' else 'Opening'
-
-                for other in same_date_assignments:
-                    if other.assignment_id != assignment_id and other.state != 'Completed':
-                        # Always set other slot to the opposite type
-                        assignments_db.update_assignment(other.assignment_id, prayer_type=opposite_type)
-                        break
-            # If setting to Undecided, leave the other slot alone
+            # Set the other slot to the opposite
+            same_date_assignments = assignments_db.get_assignments_for_date(
+                datetime.strptime(assignment.date, config.DATE_FORMAT).date()
+            )
+            for other in same_date_assignments:
+                if other.assignment_id != assignment_id and other.state != 'Completed':
+                    assignments_db.update_assignment(
+                        other.assignment_id, prayer_type=opposite_prayer_type(prayer_type))
+                    break
     elif member_id is not None:
         # Assigning a member - keep prayer type as-is
         assignments_db.update_assignment(assignment_id, member_id=member_id)
@@ -1016,24 +1015,9 @@ def api_create_member_assignment(member_id):
         # Fill the existing empty slot - keep its prayer type
         assignments_db.update_assignment(empty_slot.assignment_id, member_id=member_id)
         assignment = assignments_db.get_by_id(empty_slot.assignment_id)
-    elif num_slots == 0:
-        # No slots exist - create first one as Undecided
-        assignment = assignments_db.create_assignment(member_id, target_date, 'Undecided')
-    elif num_slots == 1:
-        # One slot exists - check its prayer type
-        existing = active_assignments[0]
-
-        if existing.prayer_type == 'Undecided':
-            # Existing slot is Undecided - create new one as Undecided
-            new_prayer_type = 'Undecided'
-        elif existing.prayer_type == 'Opening':
-            # Existing slot is Opening - create new one as Closing
-            new_prayer_type = 'Closing'
-        else:  # Closing
-            # Existing slot is Closing - create new one as Opening
-            new_prayer_type = 'Opening'
-
-        assignment = assignments_db.create_assignment(member_id, target_date, new_prayer_type)
+    elif num_slots < 2:
+        # Takes whichever prayer the Sunday still needs
+        assignment = assignments_db.create_assignment(member_id, target_date)
     else:
         # Two slots exist but one is empty (already handled above)
         return jsonify({

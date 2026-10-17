@@ -193,7 +193,7 @@
     }
 
     // Open member selection modal
-    async function selectMember(assignmentId, currentMemberId, gender, slotNumber = null, targetDate = null, otherPrayerType = null) {
+    async function selectMember(assignmentId, currentMemberId, gender, slotNumber = null, targetDate = null, slotPrayerType = null) {
         // If no assignment exists, we'll need to create one when a member is selected
         // Store slot info for later
         if (assignmentId === null && slotNumber !== null) {
@@ -201,11 +201,10 @@
             currentField = 'create';
             window.pendingSlotNumber = slotNumber;
             window.pendingTargetDate = targetDate || targetSunday;
-            window.pendingOtherPrayerType = otherPrayerType;
+            window.pendingPrayerType = slotPrayerType;
         } else {
             currentAssignment = assignmentId;
             currentField = 'member';
-            window.pendingOtherPrayerType = otherPrayerType;
         }
 
         currentGender = gender;  // Store for re-randomization
@@ -353,14 +352,8 @@
                 location.reload();
             }
         } else if (currentField === 'create') {
-            // Create new assignment with this member
-            // Determine prayer type: use opposite of other slot if known, otherwise Undecided
-            let prayerType = 'Undecided';
-            const otherType = window.pendingOtherPrayerType;
-            if (otherType && otherType !== 'null' && otherType !== 'Undecided') {
-                // Set to opposite of other slot
-                prayerType = otherType === 'Opening' ? 'Closing' : 'Opening';
-            }
+            // Create new assignment with this member, as the prayer the slot shows
+            const prayerType = window.pendingPrayerType;
 
             showLoading();
             try {
@@ -404,55 +397,17 @@
         }
     }
 
-    // Toggle prayer type - cycles through Undecided -> Opening -> Closing -> Undecided
-    async function togglePrayerType(assignmentId, currentType, slotNumber = null, targetDate = null) {
-        let newType;
-        if (currentType === 'Undecided') {
-            newType = 'Opening';
-        } else if (currentType === 'Opening') {
-            newType = 'Closing';
-        } else {
-            newType = 'Undecided';
-        }
+    // Toggle prayer type - swaps Opening and Closing; the server swaps the other slot to match
+    async function togglePrayerType(assignmentId, currentType) {
+        const newType = currentType === 'Opening' ? 'Closing' : 'Opening';
+        const response = await fetch(`/api/assignments/${assignmentId}/update`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({prayer_type: newType})
+        });
 
-        if (assignmentId === null && slotNumber !== null) {
-            // Create new assignment with the selected prayer type
-            showLoading();
-            try {
-                const response = await fetch('/api/assignments/create', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        member_id: null,
-                        date: targetDate || targetSunday,
-                        prayer_type: newType
-                    })
-                });
-
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    const error = await response.json();
-                    console.error('Failed to create assignment:', error);
-                    alert('Failed to create assignment: ' + (error.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error creating assignment:', error);
-                alert('Error creating assignment: ' + error.message);
-            } finally {
-                hideLoading();
-            }
-        } else {
-            // Normal update to existing assignment
-            const response = await fetch(`/api/assignments/${assignmentId}/update`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({prayer_type: newType})
-            });
-
-            if (response.ok) {
-                location.reload();
-            }
+        if (response.ok) {
+            location.reload();
         }
     }
 

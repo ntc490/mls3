@@ -8,14 +8,18 @@
 
 <div class="assignment-details {% if is_completed %}assignment-completed{% endif %}">
     <!-- Person Bubble -->
-    <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}', null, null, '{{ other_prayer_type if other_prayer_type else 'null' }}')"{% endif %}>
+    <div class="bubble bubble-person {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="selectMember({{ assignment.assignment_id }}, {{ assignment.member_id if assignment.member_id else 'null' }}, '{{ gender if gender else 'null' }}')"{% endif %}>
 {% else %}
 {# Empty state - no assignment exists yet #}
 {# Gender filter: if other slot has a member, filter to opposite gender #}
 {% set gender = ('M' if other_gender == 'F' else 'F') if other_gender else None %}
+{# The prayer this slot will be: the opposite of the other slot, or by position #}
+{% if other_prayer_type == 'Opening' %}{% set slot_prayer_type = 'Closing' %}
+{% elif other_prayer_type == 'Closing' %}{% set slot_prayer_type = 'Opening' %}
+{% else %}{% set slot_prayer_type = 'Opening' if slot_number == 1 else 'Closing' %}{% endif %}
 <div class="assignment-details">
     <!-- Person Bubble - clickable to create assignment -->
-    <div class="bubble bubble-person" onclick="selectMember(null, null, '{{ gender if gender else 'null' }}', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}', '{{ other_prayer_type if other_prayer_type else 'null' }}')">
+    <div class="bubble bubble-person" onclick="selectMember(null, null, '{{ gender if gender else 'null' }}', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}', '{{ slot_prayer_type }}')">
 {% endif %}
         <label>Person</label>
         <div class="bubble-value">
@@ -46,10 +50,10 @@
     {% if assignment %}
     <div class="bubble bubble-type {% if is_completed %}bubble-readonly{% endif %}" {% if not is_completed %}onclick="togglePrayerType({{ assignment.assignment_id }}, '{{ assignment.prayer_type }}')"{% endif %}>
     {% else %}
-    <div class="bubble bubble-type" onclick="togglePrayerType(null, 'Undecided', {{ slot_number }}, '{{ target_sunday.strftime('%Y-%m-%d') }}')">
+    <div class="bubble bubble-type bubble-readonly">
     {% endif %}
         <label>Type</label>
-        <div class="bubble-value">{% if assignment %}{{ assignment.prayer_type }}{% else %}Undecided{% endif %}</div>
+        <div class="bubble-value">{% if assignment %}{{ assignment.prayer_type }}{% else %}{{ slot_prayer_type }}{% endif %}</div>
     </div>
 
     {% if assignment %}

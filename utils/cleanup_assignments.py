@@ -27,7 +27,6 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description='Cleanup assignment issues')
     parser.add_argument('--delete-id', type=int, help='Delete assignment by ID')
-    parser.add_argument('--delete-undecided', action='store_true', help='Delete all Undecided assignments for next Sunday')
     parser.add_argument('--delete-duplicates', action='store_true', help='Delete duplicate assignments for same member')
     parser.add_argument('--dry-run', action='store_true', help='Preview changes without saving')
 
@@ -64,31 +63,6 @@ def main():
             assignments_db.assignments = [a for a in assignments_db.assignments if a.assignment_id != args.delete_id]
             assignments_db.save()
             print("\n✓ Deleted")
-        else:
-            print("\n[DRY RUN - Not saved]")
-
-    elif args.delete_undecided:
-        # Delete Undecided assignments for next Sunday
-        to_delete = [
-            a for a in assignments_db.assignments
-            if a.date == next_sunday_str and a.prayer_type == 'Undecided' and a.state != 'Completed'
-        ]
-
-        if not to_delete:
-            print("No Undecided assignments found for next Sunday")
-            return
-
-        print(f"Found {len(to_delete)} Undecided assignment(s) for next Sunday:")
-        for a in to_delete:
-            member = members_db.get_by_id(a.member_id) if a.member_id else None
-            member_name = member.full_name if member else f"[ID={a.member_id}]"
-            print(f"  - Assignment {a.assignment_id}: {member_name}, State: {a.state}")
-
-        if not args.dry_run:
-            delete_ids = {a.assignment_id for a in to_delete}
-            assignments_db.assignments = [a for a in assignments_db.assignments if a.assignment_id not in delete_ids]
-            assignments_db.save()
-            print(f"\n✓ Deleted {len(to_delete)} assignment(s)")
         else:
             print("\n[DRY RUN - Not saved]")
 
