@@ -1135,9 +1135,24 @@ class AppointmentDatabase:
         """Get all non-completed/non-cancelled appointments"""
         return [a for a in self.appointments if a.state not in ['Completed', 'Cancelled']]
 
-    def get_appointments_for_member(self, member_id: int) -> List[Appointment]:
-        """Get all appointments for a specific member"""
-        return [a for a in self.appointments if a.member_id == member_id]
+    def get_appointments_for_member(self, member_id: int, members_db=None,
+                                    households_db=None) -> List[Appointment]:
+        """
+        Get all appointments for a specific member.
+
+        With members_db, this includes household appointments the member is a
+        head of, so a couple's appointment shows up for both of them.
+        """
+        result = []
+        for a in self.appointments:
+            if a.member_id == member_id:
+                result.append(a)
+            elif a.household and members_db:
+                picked = members_db.get_by_id(a.member_id)
+                if picked and any(h.member_id == member_id for h in
+                                  members_db.get_heads(picked.household_id, households_db)):
+                    result.append(a)
+        return result
 
     def create_appointment(
         self,

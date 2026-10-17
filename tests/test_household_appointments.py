@@ -201,5 +201,66 @@ class TestHouseholdMessages(TempDirTestCase):
         self.assertTrue(info['message'].startswith('Hi David, could you meet'))
 
 
+class TestHistoryAndNames(TempDirTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.david = person(1, 'David')
+        self.lisa = person(2, 'Lisa', gender='F')
+        self.kid = person(3, 'Sam', role='dependent', birthday='2014-05-05')
+        self.other = person(4, 'Ann', last='Jones', gender='F', household_id=20)
+        self.members = self.members_db(self.david, self.lisa, self.kid, self.other)
+        self.appointments = AppointmentDatabase(csv_path=self.tmp / 'appointments.csv')
+
+    def make(self, member_id, household):
+        return self.appointments.create_appointment(
+            member_id=member_id, appointment_type='Family', date=date(2026, 12, 6),
+            time='10:00', duration_minutes=30, conductor='Counselor',
+            timezone='America/Denver', household=household)
+
+    def ids_for(self, member_id):
+        return [a.appointment_id for a in self.appointments.get_appointments_for_member(
+            member_id, self.members)]
+
+    def test_a_household_appointment_is_in_both_heads_history(self):
+        appointment = self.make(1, household=True)
+        self.assertEqual(self.ids_for(1), [appointment.appointment_id])
+        self.assertEqual(self.ids_for(2), [appointment.appointment_id])
+        self.assertEqual(self.ids_for(4), [])
+
+    def test_picked_through_a_child_it_is_in_the_childs_and_the_heads_history(self):
+        appointment = self.make(3, household=True)
+        for member_id in (1, 2, 3):
+            self.assertEqual(self.ids_for(member_id), [appointment.appointment_id])
+
+    def test_an_individual_appointment_stays_with_its_member(self):
+        self.make(1, household=False)
+        self.assertEqual(self.ids_for(2), [])
+
+    def test_without_members_db_only_the_picked_member_matches(self):
+        self.make(1, household=True)
+        self.assertEqual(len(self.appointments.get_appointments_for_member(2)), 0)
+
+    def test_display_names_shorten_first_names(self):
+        from utils.template_expander import display_names
+        self.david.first_name = 'David Allen'
+        self.assertEqual(display_names([self.david]), 'David Smith')
+        self.assertEqual(display_names([self.lisa, self.david]), 'David and Lisa Smith')
+
+    def test_the_calendar_event_is_titled_with_the_household(self):
+        from unittest import mock
+        import config
+        from utils.google_calendar import CalendarSync
+
+        service = mock.MagicMock()
+        service.events().insert().execute.return_value = {'id': 'evt'}
+        appointment = self.make(1, household=True)
+        with mock.patch.object(config, 'COUNSELOR_CALENDAR_ID', 'cal'):
+            CalendarSync(service).sync_appointment(
+                appointment, self.david, name='David and Lisa Smith')
+        body = service.events().insert.call_args.kwargs['body']
+        self.assertEqual(body['summary'], '? David and Lisa Smith - Family')
+
+
 if __name__ == '__main__':
     unittest.main()

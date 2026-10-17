@@ -99,6 +99,24 @@ print(f"Data directory: {config.DATA_DIR}")
 print(f"{'='*60}\n")
 
 
+def appointment_people(appointment, member=None):
+    """Everyone an appointment is for: the household's heads, or the member"""
+    from utils.sms_handler import household_heads
+
+    member = member or members_db.get_by_id(appointment.member_id)
+    if not member:
+        return []
+    return household_heads(member, members_db, households_db, appointment) or [member]
+
+
+def appointment_name(appointment, member=None) -> str:
+    """'David Smith', or 'David and Lisa Smith' for a household appointment"""
+    from utils.template_expander import display_names
+
+    people = appointment_people(appointment, member)
+    return display_names(people) if people else "Unknown"
+
+
 def sync_appointment_to_calendar(appointment, old_conductor=None):
     """
     Sync appointment to Google Calendar if enabled.
@@ -128,7 +146,8 @@ def sync_appointment_to_calendar(appointment, old_conductor=None):
             return False
 
         # Sync appointment (creates or updates, handles conductor changes)
-        event_id = sync.sync_appointment(appointment, member, old_conductor)
+        event_id = sync.sync_appointment(appointment, member, old_conductor,
+                                         name=appointment_name(appointment, member))
 
         # Store event ID (could be new or updated)
         if event_id and event_id != appointment.google_event_id:
@@ -223,7 +242,7 @@ def index():
     # Add appointments
     for appointment in upcoming_appointments:
         member = members_db.get_by_id(appointment.member_id)
-        member_name = member.display_name_with_last if member else "Unknown"
+        member_name = appointment_name(appointment, member)
         member_phone = member.phone if member else ""
 
         local_date = appointment.date_local(config.HOME_TIMEZONE)
@@ -321,7 +340,7 @@ def events():
     # Add appointments
     for appointment in filtered_appointments:
         member = members_db.get_by_id(appointment.member_id)
-        member_name = member.display_name_with_last if member else "Unknown"
+        member_name = appointment_name(appointment, member)
         member_phone = member.phone if member else ""
 
         local_date = appointment.date_local(config.HOME_TIMEZONE)
@@ -793,10 +812,8 @@ def api_get_member(member_id):
         })
 
     # Add all appointments for this member (including completed)
-    member_appointments = [
-        a for a in appointments_db.appointments
-        if a.member_id == member_id
-    ]
+    member_appointments = appointments_db.get_appointments_for_member(
+        member_id, members_db, households_db)
     for appointment in member_appointments:
         local_date = appointment.date_local(config.HOME_TIMEZONE)
         local_dt = appointment.datetime_local(config.HOME_TIMEZONE)
@@ -809,6 +826,7 @@ def api_get_member(member_id):
             'appointment_type': appointment.appointment_type,
             'conductor': appointment.conductor,
             'state': appointment.state,
+            'household': appointment.household,
             'formatted_date': local_dt.strftime(config.DISPLAY_DATE_FORMAT)
         })
 
@@ -1173,7 +1191,8 @@ def get_appointments():
         result.append({
             'appointment_id': appt.appointment_id,
             'member_id': appt.member_id,
-            'member_name': member.full_name if member else "Unknown",
+            'member_name': appointment_name(appt, member),
+            'household': appt.household,
             'appointment_type': appt.appointment_type,
             'date': appt.date_local(config.HOME_TIMEZONE),  # Use local date
             'time': appt.time_local(config.HOME_TIMEZONE),  # Localized time for display (12-hour format)
@@ -1286,6 +1305,7 @@ def create_appointment():
     conductor = data.get('conductor')
     timezone = data.get('timezone')  # Browser's detected timezone
     notes = data.get('notes')  # Optional notes
+    household = bool(data.get('household'))  # For the member's household heads
 
     if not all([member_id, appointment_type, date_str, time_str, duration_minutes, conductor]):
         return jsonify({'error': 'Missing required fields'}), 400
@@ -1303,7 +1323,8 @@ def create_appointment():
         duration_minutes=int(duration_minutes),
         conductor=conductor,
         timezone=timezone,
-        notes=notes
+        notes=notes,
+        household=household
     )
 
     # Sync to Google Calendar
@@ -1326,6 +1347,9 @@ def update_appointment(appointment_id):
     conductor = data.get('conductor')
     timezone = data.get('timezone')  # Browser's detected timezone
     notes = data.get('notes')  # Optional notes
+    household = data.get('household')  # None leaves it unchanged
+    if household is not None:
+        household = bool(household)
 
     # Get old appointment to check if conductor changed
     old_appointment = appointments_db.get_by_id(appointment_id)
@@ -1346,7 +1370,8 @@ def update_appointment(appointment_id):
         duration_minutes=int(duration_minutes) if duration_minutes is not None else None,
         conductor=conductor,
         timezone=timezone,
-        notes=notes
+        notes=notes,
+        household=household
     )
 
     # Sync updated appointment to Google Calendar
@@ -1578,7 +1603,8 @@ def get_appointment(appointment_id):
         'created_date': appointment.created_date,
         'last_updated': appointment.last_updated,
         'completed_date': appointment.completed_date,
-        'notes': appointment.notes
+        'notes': appointment.notes,
+        'household': appointment.household
     })
 
 

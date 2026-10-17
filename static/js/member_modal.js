@@ -200,7 +200,7 @@ function loadEventHistory(history) {
                     <span class="event-icon">📅</span>
                     <span class="event-details">
                         <span class="event-date">${event.formatted_date} ${event.time}</span>
-                        <span class="event-desc">${event.appointment_type} (${event.conductor})</span>
+                        <span class="event-desc">${event.appointment_type}${event.household ? ' - household' : ''} (${event.conductor})</span>
                     </span>
                     <span class="event-state ${stateClass}">${event.state}</span>
                 </li>

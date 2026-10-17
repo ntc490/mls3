@@ -40,14 +40,25 @@ def casual_names(people) -> str:
     return _join([p.display_name for p in ordered], ' & ')
 
 
+def _first_and_last_names(people, first) -> str:
+    return _join([
+        f"{_join([first(p) for p in group])} {last}"
+        for last, group in _by_last_name(people)
+    ])
+
+
 def full_names(people) -> str:
     """'David Smith', 'David and Lisa Smith', 'David Smith and Lisa Jones'"""
     if len(people) == 1:
         return people[0].full_name
-    return _join([
-        f"{_join([p.aka or p.first_name for p in group])} {last}"
-        for last, group in _by_last_name(people)
-    ])
+    return _first_and_last_names(people, lambda p: p.aka or p.first_name)
+
+
+def display_names(people) -> str:
+    """Like full_names, but each first name shortened as in event lists"""
+    if len(people) == 1:
+        return people[0].display_name_with_last
+    return _first_and_last_names(people, lambda p: p.display_name)
 
 
 def greeting(people, flag: str = 'blue') -> str:

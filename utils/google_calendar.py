@@ -158,7 +158,7 @@ class CalendarSync:
 
         return calendar_id
 
-    def sync_appointment(self, appointment, member, old_conductor=None):
+    def sync_appointment(self, appointment, member, old_conductor=None, name=None):
         """
         Sync appointment to Google Calendar.
         Creates new event or updates existing one.
@@ -168,11 +168,14 @@ class CalendarSync:
             appointment: Appointment object from models
             member: Member object from models
             old_conductor: Previous conductor value if changed (for moving between calendars)
+            name: Who the event is for, if not just the member ("David and
+                Lisa Smith" for a household)
 
         Returns:
             Event ID from Google Calendar
         """
         calendar_id = self._get_calendar_id(appointment.conductor)
+        name = name or member.display_name_with_last
 
         # If conductor changed, we need to move the event to a different calendar
         if old_conductor and old_conductor != appointment.conductor and appointment.google_event_id:
@@ -194,18 +197,18 @@ class CalendarSync:
 
         if appointment.google_event_id:
             # Update existing event in same calendar
-            return self.update_appointment_event(appointment, member, calendar_id)
+            return self.update_appointment_event(appointment, name, calendar_id)
         else:
             # Create new event
-            return self.create_appointment_event(appointment, member, calendar_id)
+            return self.create_appointment_event(appointment, name, calendar_id)
 
-    def create_appointment_event(self, appointment, member, calendar_id: str) -> str:
+    def create_appointment_event(self, appointment, name: str, calendar_id: str) -> str:
         """
         Create new calendar event for appointment.
 
         Args:
             appointment: Appointment object
-            member: Member object
+            name: Who the event is for
             calendar_id: Google Calendar ID
 
         Returns:
@@ -222,7 +225,7 @@ class CalendarSync:
             state_prefix = "✓ "
         else:  # Accepted, Reminded, Cancelled
             state_prefix = ""
-        summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
+        summary = f"{state_prefix}{name} - {appointment.appointment_type}"
 
         # Build description with MLS3 notes (if present) and system markers
         description_parts = [f"State: {appointment.state}"]
@@ -275,14 +278,14 @@ class CalendarSync:
             print(f"Error creating calendar event: {e}")
             raise
 
-    def update_appointment_event(self, appointment, member, calendar_id: str) -> str:
+    def update_appointment_event(self, appointment, name: str, calendar_id: str) -> str:
         """
         Update existing calendar event for appointment.
         Preserves any user-added notes in the description.
 
         Args:
             appointment: Appointment object
-            member: Member object
+            name: Who the event is for
             calendar_id: Google Calendar ID
 
         Returns:
@@ -299,7 +302,7 @@ class CalendarSync:
             state_prefix = "✓ "
         else:  # Accepted, Reminded, Cancelled
             state_prefix = ""
-        summary = f"{state_prefix}{member.display_name_with_last} - {appointment.appointment_type}"
+        summary = f"{state_prefix}{name} - {appointment.appointment_type}"
 
         # Fetch existing event to preserve user notes
         try:
