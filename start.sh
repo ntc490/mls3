@@ -112,7 +112,7 @@ info "MLS3 Configuration:"
 echo "  Data Directory: ${MLS3_DATA_DIR:-./data}"
 echo "  Ward Timezone: ${MLS3_TIMEZONE:-America/Denver}"
 echo "  SMS Debug Mode: $DEBUG_SMS"
-echo "  SMS Method: $([ "$MLS3_TASKER_SMS" = true ] && echo Tasker || echo termux-am)"
+echo "  SMS Method: $([ "$MLS3_TASKER_SMS" = true ] && echo Tasker || echo am)"
 echo "  Port: 5000"
 echo ""
 

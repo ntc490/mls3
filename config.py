@@ -54,7 +54,7 @@ DEBUG_SMS = os.getenv('MLS3_DEBUG_SMS', 'false').lower() in ('true', '1', 'yes')
 # Set MLS3_DISABLE_SMS=true to skip actual SMS sending (for desktop testing)
 DISABLE_SMS = os.getenv('MLS3_DISABLE_SMS', 'false').lower() in ('true', '1', 'yes')
 # Set MLS3_TASKER_SMS=true to queue messages for Tasker instead of opening the
-# default SMS app directly with termux-am
+# default SMS app directly with Termux's am
 TASKER_SMS = os.getenv('MLS3_TASKER_SMS', 'false').lower() in ('true', '1', 'yes')
 
 # Google Calendar Configuration

@@ -1741,7 +1741,7 @@ def api_expand_template():
 @app.route('/api/queue-sms', methods=['POST'])
 def api_queue_sms():
     """
-    Open SMS in the default messaging app (termux-am or Tasker).
+    Open SMS in the default messaging app (am or Tasker).
     Used by composer for ad-hoc messages.
 
     Request JSON:

@@ -2,10 +2,9 @@
 SMS Handler for MLS3
 
 Generates SMS messages from templates and opens them in the default SMS app,
-via termux-am (default) or Tasker (MLS3_TASKER_SMS=true).
+via Termux's am (default) or Tasker (MLS3_TASKER_SMS=true).
 Automatically routes messages to parents for minors.
 """
-import os
 import subprocess
 from datetime import date
 from typing import Optional, List, Dict, Tuple
@@ -14,10 +13,9 @@ from models import Member, MessageTemplates, MemberDatabase, HouseholdDatabase
 import config
 from utils.template_expander import greeting
 
-# Termux's own bin directory. The server may run inside proot-distro, where it
-# isn't on PATH - and termux-am calls termux-am-socket by bare name, so the
-# directory has to be on PATH for the child process too.
-TERMUX_BIN = '/data/data/com.termux/files/usr/bin'
+# Termux's am, by full path - the server may run inside proot-distro, where
+# Termux's bin directory isn't on PATH.
+TERMUX_AM = '/data/data/com.termux/files/usr/bin/am'
 
 # The file Tasker watches. This path has to match the Tasker profile exactly or
 # nothing is sent and nothing reports an error - MLS3 writes the file happily
@@ -204,7 +202,7 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
     send.
 
     By default this fires android.intent.action.SENDTO itself through
-    termux-am. With MLS3_TASKER_SMS=true it queues the message for Tasker,
+    Termux's am. With MLS3_TASKER_SMS=true it queues the message for Tasker,
     which fires the same intent. Either way the intent names no package, so
     Android picks the default SMS app.
 
@@ -226,7 +224,7 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
         if config.DISABLE_SMS:
             print("Status: SMS DISABLED - not actually sent")
         else:
-            print(f"Status: Sending via {'Tasker' if config.TASKER_SMS else 'termux-am'}...")
+            print(f"Status: Sending via {'Tasker' if config.TASKER_SMS else 'am'}...")
         print("="*60 + "\n")
 
     # Skip actual SMS sending if disabled (for desktop testing)
@@ -241,70 +239,46 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
 
         if config.TASKER_SMS:
             return _queue_for_tasker(phone_number, message)
-        return _open_with_termux_am(phone_number, message)
+        return _open_with_am(phone_number, message)
 
     except Exception as e:
         print(f"ERROR: Unexpected error sending SMS: {e}")
         return False
 
 
-def _open_with_termux_am(phone_number: str, message: str) -> bool:
+def _open_with_am(phone_number: str, message: str) -> bool:
     """
-    Fire the SENDTO intent directly with termux-am, falling back to plain am.
+    Fire the SENDTO intent directly with Termux's am.
 
-    termux-am is fast but needs the Termux app's am socket server; when that
-    can't be reached ("Could not connect to socket"), plain am still works - it
-    starts its own app_process, which takes a second or two longer.
+    This is the am that starts its own app_process, a second or two per
+    message. termux-am would be quicker, but it needs the Termux app's am
+    socket server, which this phone has never had reachable.
 
     Needs the Termux:API app, and Termux allowed to display over other apps -
     without that, Android silently refuses to open an activity while another
     app is in front.
     """
-    env = dict(os.environ)
-    env['PATH'] = f"{TERMUX_BIN}:{env.get('PATH', '')}"
-    args = [
-        'start',
+    cmd = [
+        TERMUX_AM, 'start',
         '-a', 'android.intent.action.SENDTO',
         '-d', f"smsto:{phone_number}",
         '--es', 'sms_body', message,
     ]
 
-    for am in ('termux-am', 'am'):
-        try:
-            result = subprocess.run([f"{TERMUX_BIN}/{am}"] + args, env=env,
-                                    capture_output=True, text=True, timeout=15)
-        except subprocess.TimeoutExpired:
-            # The intent may have fired anyway - trying again could open the
-            # message twice.
-            print(f"ERROR: {am} timed out")
-            return False
-        except OSError as e:
-            print(f"ERROR: Failed to run {am}: {e}")
-            continue
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"ERROR: Failed to run am: {e}")
+        return False
 
-        # am reports some failures ("Error: Activity not started ...") on
-        # stdout with a zero exit status, so check the output as well.
-        output = (result.stdout + result.stderr).strip()
-        if result.returncode == 0 and 'Error' not in output:
-            return True
-        print(f"ERROR: {am} failed (exit {result.returncode}): {output}")
+    # am reports some failures ("Error: Activity not started ...") on stdout
+    # with a zero exit status, so check the output as well.
+    output = (result.stdout + result.stderr).strip()
+    if result.returncode != 0 or 'Error' in output:
+        print(f"ERROR: am failed (exit {result.returncode}): {output}")
+        return False
 
-        # Only retry when the command never reached the server, so nothing was
-        # sent. Any other failure came from am itself, which plain am would hit
-        # too - or it happened after the intent fired.
-        if am == 'termux-am' and not _never_reached_am_server(output):
-            return False
-
-    return False
-
-
-def _never_reached_am_server(output: str) -> bool:
-    """Whether termux-am's output says it gave up before sending anything"""
-    return any(sign in output for sign in (
-        'Could not connect to socket',
-        'Could not create socket',
-        'TermuxAm server is not enabled',
-    ))
+    return True
 
 
 def _queue_for_tasker(phone_number: str, message: str) -> bool:
