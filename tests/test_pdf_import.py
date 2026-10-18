@@ -24,6 +24,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+
+# The live data files are real ward data and aren't tracked, so a checkout
+# without them gets these stand-ins. The household addresses span lines on
+# purpose: row counts have to come from parsing, not from counting lines.
+FAKE_DATA = {
+    'households.csv': (
+        'household_id,name,address\n'
+        '1,"Smith, John & Mary","123 Main St\nSpringfield, UT 84000"\n'
+        '2,"Johnson, Mary","45 Oak Ave\nApt 2\nSpringfield, UT 84000"\n'
+        '3,"Brown, David","789 Pine Rd\nSpringfield, UT 84000"\n'
+    ),
+    'appointments.csv': (
+        'appointment_id,member_id,appointment_type,datetime_utc,'
+        'duration_minutes,conductor,state,created_date,last_updated,'
+        'completed_date,google_event_id,notes,household\n'
+    ),
+}
+
 MEMBER_PDF = ROOT / 'import-sample.pdf'
 MEMBER_PDF_2 = ROOT / 'import-sample2.pdf'
 MEMBER_PDF_NO_ADDRESS = ROOT / 'import-sample3.pdf'
@@ -444,6 +462,8 @@ class DataDirTestCase(unittest.TestCase):
             source = ROOT / 'data' / name
             if source.exists():
                 shutil.copy(source, self.tmp / name)
+            elif name in FAKE_DATA:
+                (self.tmp / name).write_text(FAKE_DATA[name])
 
         import config
         import importlib
