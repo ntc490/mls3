@@ -702,6 +702,21 @@ class MemberDatabase:
         return [h for h in self.get_heads(member.household_id, households_db)
                 if h.member_id != member_id]
 
+    def get_household_heads_for(self, member: 'Member', households_db=None) -> List['Member']:
+        """
+        The heads a household appointment picked for this member covers, or []
+        when it covers the member alone.
+
+        Only one of two or more heads can book for the household. When a spouse
+        has left the ward, or the member picked is a child, the templates
+        addressed to the heads would read as if the appointment were the
+        parents' own.
+        """
+        heads = self.get_heads(member.household_id, households_db)
+        if len(heads) < 2 or not any(h.member_id == member.member_id for h in heads):
+            return []
+        return heads
+
     def get_heads(self, household_id: int, households_db=None) -> List['Member']:
         """
         Get the heads of a household - the parents, or the couple.
@@ -1002,7 +1017,13 @@ class PrayerAssignmentDatabase:
             if prayer_type is not None:
                 assignment.prayer_type = prayer_type
             if date is not None:
-                assignment.date = date.strftime(config.DATE_FORMAT)
+                target = date.strftime(config.DATE_FORMAT)
+                others = [a for a in self.assignments
+                          if a.date == target and a.assignment_id != assignment_id
+                          and a.state != 'Completed']
+                if len(others) >= 2:
+                    raise ValueError(f"{target} already has both prayers")
+                assignment.date = target
                 # Moved onto a Sunday that already has this prayer - take the other
                 if any(a.date == assignment.date and a.assignment_id != assignment_id
                        and a.prayer_type == assignment.prayer_type
@@ -1206,14 +1227,18 @@ class AppointmentDatabase:
         With members_db, this includes household appointments the member is a
         head of, so a couple's appointment shows up for both of them.
         """
+        member = members_db.get_by_id(member_id) if members_db else None
         result = []
         for a in self.appointments:
             if a.member_id == member_id:
                 result.append(a)
-            elif a.household and members_db:
+            elif a.household and member and member.household_id:
                 picked = members_db.get_by_id(a.member_id)
-                if picked and any(h.member_id == member_id for h in
-                                  members_db.get_heads(picked.household_id, households_db)):
+                # Same household first - it's cheap, and it skips the head
+                # lookup for every other household's appointments
+                if (picked and picked.household_id == member.household_id
+                        and any(h.member_id == member_id for h in
+                                members_db.get_household_heads_for(picked, households_db))):
                     result.append(a)
         return result
 

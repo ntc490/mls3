@@ -99,6 +99,13 @@ print(f"Data directory: {config.DATA_DIR}")
 print(f"{'='*60}\n")
 
 
+def parse_bool(value) -> bool:
+    """A JSON boolean, or a string such as 'false' or '0' from a script"""
+    if isinstance(value, str):
+        return value.strip().lower() in ('true', '1', 'yes')
+    return bool(value)
+
+
 def appointment_people(appointment, member=None):
     """Everyone an appointment is for: the household's heads, or the member"""
     from utils.sms_handler import household_heads
@@ -599,7 +606,10 @@ def api_update_assignment(assignment_id):
         assignments_db.update_assignment(assignment_id, member_id=member_id)
     elif target_date:
         # Date update
-        assignments_db.update_assignment(assignment_id, date=target_date)
+        try:
+            assignments_db.update_assignment(assignment_id, date=target_date)
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
 
     return jsonify({'success': True})
 
@@ -1082,9 +1092,9 @@ def api_get_member_household_heads(member_id):
     """
     Who a household appointment for this member would be for.
 
-    Returns heads (may be empty), their name together, whether the member is
-    one of them, and whether all of them are active - the scheduler uses the
-    last two to decide whether "Whole household" starts checked.
+    Returns heads (empty unless the member is one of two or more), their name
+    together, and whether all of them are active - the scheduler uses that to
+    decide whether "Whole household" starts checked for Tithing.
     """
     from utils.template_expander import display_names
 
@@ -1092,11 +1102,10 @@ def api_get_member_household_heads(member_id):
     if not member:
         return jsonify({'error': 'Member not found'}), 404
 
-    heads = members_db.get_heads(member.household_id, households_db)
+    heads = members_db.get_household_heads_for(member, households_db)
     return jsonify({
         'heads': [{'member_id': h.member_id, 'name': h.full_name} for h in heads],
         'name': display_names(heads) if heads else '',
-        'member_is_head': any(h.member_id == member_id for h in heads),
         'all_active': all(h.active for h in heads),
     })
 
@@ -1314,7 +1323,7 @@ def create_appointment():
     conductor = data.get('conductor')
     timezone = data.get('timezone')  # Browser's detected timezone
     notes = data.get('notes')  # Optional notes
-    household = bool(data.get('household'))  # For the member's household heads
+    household = parse_bool(data.get('household'))  # For the member's household heads
 
     if not all([member_id, appointment_type, date_str, time_str, duration_minutes, conductor]):
         return jsonify({'error': 'Missing required fields'}), 400
@@ -1358,7 +1367,7 @@ def update_appointment(appointment_id):
     notes = data.get('notes')  # Optional notes
     household = data.get('household')  # None leaves it unchanged
     if household is not None:
-        household = bool(household)
+        household = parse_bool(household)
 
     # Get old appointment to check if conductor changed
     old_appointment = appointments_db.get_by_id(appointment_id)

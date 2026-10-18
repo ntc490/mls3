@@ -51,6 +51,7 @@ def get_sms_info(activity: str, template_name: str, member: Member,
             success: bool
             message: str (if success)
             phone: str (if success)
+            recipient: 'household', 'parents' or 'member' (if success)
             error: str (if not success)
     """
     heads = household_heads(member, members_db, households_db, appointment)
@@ -72,7 +73,8 @@ def get_sms_info(activity: str, template_name: str, member: Member,
         return {
             'success': True,
             'message': message,
-            'phone': ';'.join(phones)
+            'phone': ';'.join(phones),
+            'recipient': 'household'
         }
 
     # Check if member is a minor and we should route to parents
@@ -123,7 +125,8 @@ def get_sms_info(activity: str, template_name: str, member: Member,
         return {
             'success': True,
             'message': message,
-            'phone': ';'.join(parent_phones)
+            'phone': ';'.join(parent_phones),
+            'recipient': 'parents'
         }
 
     # Normal member flow
@@ -139,7 +142,8 @@ def get_sms_info(activity: str, template_name: str, member: Member,
     return {
         'success': True,
         'message': message,
-        'phone': member.phone
+        'phone': member.phone,
+        'recipient': 'member'
     }
 
 
@@ -148,12 +152,11 @@ def household_heads(member: Member, members_db: MemberDatabase = None,
                     appointment=None) -> List[Member]:
     """
     The heads a household appointment is for, or [] when it is for the member
-    alone - including a household appointment whose member no longer has a
-    household with heads, which falls back to the member.
+    alone - see MemberDatabase.get_household_heads_for().
     """
     if not getattr(appointment, 'household', False) or not members_db:
         return []
-    return members_db.get_heads(member.household_id, households_db)
+    return members_db.get_household_heads_for(member, households_db)
 
 
 def expand_and_send(activity: str, template_name: str, member: Member,
@@ -186,9 +189,9 @@ def expand_and_send(activity: str, template_name: str, member: Member,
         print(f"ERROR: {result['error']}")
         return (False, result['error'])
 
-    if household_heads(member, members_db, households_db, appointment):
+    if result['recipient'] == 'household':
         print(f"Household appointment - sending to the {member.last_name} household")
-    elif member.is_minor:
+    elif result['recipient'] == 'parents':
         print(f"Member {member.full_name} is a minor - routing to parents")
 
     success = send_sms_intent(result['phone'], result['message'])
@@ -270,7 +273,12 @@ def _open_with_termux_am(phone_number: str, message: str) -> bool:
         try:
             result = subprocess.run([f"{TERMUX_BIN}/{am}"] + args, env=env,
                                     capture_output=True, text=True, timeout=15)
-        except (OSError, subprocess.TimeoutExpired) as e:
+        except subprocess.TimeoutExpired:
+            # The intent may have fired anyway - trying again could open the
+            # message twice.
+            print(f"ERROR: {am} timed out")
+            return False
+        except OSError as e:
             print(f"ERROR: Failed to run {am}: {e}")
             continue
 
@@ -281,7 +289,22 @@ def _open_with_termux_am(phone_number: str, message: str) -> bool:
             return True
         print(f"ERROR: {am} failed (exit {result.returncode}): {output}")
 
+        # Only retry when the command never reached the server, so nothing was
+        # sent. Any other failure came from am itself, which plain am would hit
+        # too - or it happened after the intent fired.
+        if am == 'termux-am' and not _never_reached_am_server(output):
+            return False
+
     return False
+
+
+def _never_reached_am_server(output: str) -> bool:
+    """Whether termux-am's output says it gave up before sending anything"""
+    return any(sign in output for sign in (
+        'Could not connect to socket',
+        'Could not create socket',
+        'TermuxAm server is not enabled',
+    ))
 
 
 def _queue_for_tasker(phone_number: str, message: str) -> bool:

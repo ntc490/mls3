@@ -183,10 +183,22 @@ class TestHouseholdMessages(TempDirTestCase):
         self.assertFalse(info['success'])
         self.assertIn('Smith household', info['error'])
 
-    def test_picked_through_a_child_it_still_goes_to_the_heads(self):
-        info = self.info(self.kid)
+    def test_picked_through_a_child_it_is_the_childs_appointment(self):
+        # Only a head books for the household; the parents still both get the
+        # text, worded about the child
+        info = get_sms_info('appointments', 'default_invite', self.kid,
+                            self.templates, self.members, None, self.appointment,
+                            conductor='the Bishop')
         self.assertEqual(info['phone'], '555-0001;555-0002')
-        self.assertIn('David & Lisa', info['message'])
+        self.assertEqual(info['recipient'], 'parents')
+        self.assertTrue(info['message'].startswith('Hi David & Lisa, would Sam be'),
+                        info['message'])
+
+    def test_with_one_head_left_it_is_the_members_own(self):
+        self.lisa.in_ward = False
+        info = self.info()
+        self.assertEqual(info['phone'], '555-0001')
+        self.assertTrue(info['message'].startswith('Hi David, could you meet'))
 
     def test_not_a_household_appointment_goes_to_the_member_alone(self):
         self.appointment.household = False
@@ -228,10 +240,17 @@ class TestHistoryAndNames(TempDirTestCase):
         self.assertEqual(self.ids_for(2), [appointment.appointment_id])
         self.assertEqual(self.ids_for(4), [])
 
-    def test_picked_through_a_child_it_is_in_the_childs_and_the_heads_history(self):
+    def test_picked_through_a_child_it_is_only_in_the_childs_history(self):
         appointment = self.make(3, household=True)
-        for member_id in (1, 2, 3):
-            self.assertEqual(self.ids_for(member_id), [appointment.appointment_id])
+        self.assertEqual(self.ids_for(3), [appointment.appointment_id])
+        self.assertEqual(self.ids_for(1), [])
+        self.assertEqual(self.ids_for(2), [])
+
+    def test_with_one_head_left_it_is_only_in_the_members_history(self):
+        appointment = self.make(1, household=True)
+        self.lisa.in_ward = False
+        self.assertEqual(self.ids_for(1), [appointment.appointment_id])
+        self.assertEqual(self.ids_for(2), [])
 
     def test_an_individual_appointment_stays_with_its_member(self):
         self.make(1, household=False)

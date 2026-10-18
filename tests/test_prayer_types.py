@@ -75,6 +75,17 @@ class TestMoving(PrayerTestCase):
         db.update_assignment(moving.assignment_id, date=SUNDAY)
         self.assertEqual(db.get_by_id(moving.assignment_id).prayer_type, 'Closing')
 
+    def test_moving_onto_a_sunday_with_both_prayers_is_refused(self):
+        db = self.db()
+        db.create_assignment(1, SUNDAY)
+        db.create_assignment(2, SUNDAY)
+        moving = db.create_assignment(3, NEXT_SUNDAY, 'Opening')
+        with self.assertRaises(ValueError):
+            db.update_assignment(moving.assignment_id, date=SUNDAY)
+        unchanged = self.db().get_by_id(moving.assignment_id)
+        self.assertEqual((unchanged.date, unchanged.prayer_type),
+                         (NEXT_SUNDAY.strftime('%Y-%m-%d'), 'Opening'))
+
     def test_moving_onto_an_empty_sunday_keeps_the_prayer(self):
         db = self.db()
         moving = db.create_assignment(2, SUNDAY, 'Closing')

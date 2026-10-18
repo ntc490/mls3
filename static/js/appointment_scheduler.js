@@ -5,6 +5,7 @@
 
 let appointmentTypes = [];
 let householdHeads = null;  // From /api/members/<id>/household-heads, when it has 2+ heads
+let householdLoading = Promise.resolve();  // The lookup filling householdHeads
 let selectedConductor = null;
 let memberId = null;
 let appointmentId = null;
@@ -842,11 +843,16 @@ function onAppointmentTypeChange(event) {
 }
 
 /**
- * Show "Whole household" for a member whose household has two or more heads.
+ * Show "Whole household" for a head of a household with two or more heads.
  * savedValue is the appointment's own setting when editing; otherwise the
  * appointment type's default applies.
  */
-async function loadHouseholdOption(id, savedValue) {
+function loadHouseholdOption(id, savedValue) {
+    householdLoading = fetchHouseholdOption(id, savedValue);
+    return householdLoading;
+}
+
+async function fetchHouseholdOption(id, savedValue) {
     const option = document.getElementById('householdOption');
     const checkbox = document.getElementById('householdCheckbox');
     householdHeads = null;
@@ -882,7 +888,7 @@ function householdDefault() {
     const selected = document.getElementById('appointmentType').selectedOptions[0];
     const mode = selected ? selected.dataset.household : '';
     if (mode === 'always') return true;
-    if (mode === 'active_heads') return householdHeads.member_is_head && householdHeads.all_active;
+    if (mode === 'active_heads') return householdHeads.all_active;
     return false;
 }
 
@@ -894,9 +900,11 @@ function applyHouseholdDefault() {
 
 /**
  * The household setting to save, or undefined (left out, so unchanged) when
- * the option isn't shown
+ * the option isn't shown. Waits for the lookup, so a quick Save still gets the
+ * appointment type's default.
  */
-function householdValue() {
+async function householdValue() {
+    await householdLoading;
     if (!householdHeads) return isEditMode ? undefined : false;
     return document.getElementById('householdCheckbox').checked;
 }
@@ -957,7 +965,7 @@ async function updateAppointment() {
         conductor: selectedConductor,
         timezone: getBrowserTimezone(),
         notes: notes || '',  // Send empty string instead of null so backend knows to clear it
-        household: householdValue()
+        household: await householdValue()
     };
 
     try {
@@ -1202,7 +1210,7 @@ async function saveAppointment(initialState) {
                     conductor: selectedConductor,
                     timezone: getBrowserTimezone(),
                     notes: document.getElementById('appointmentNotes').value || '',
-                    household: householdValue()
+                    household: await householdValue()
                 })
             });
 
@@ -1241,7 +1249,7 @@ async function saveAppointment(initialState) {
                     conductor: selectedConductor,
                     timezone: getBrowserTimezone(),
                     notes: document.getElementById('appointmentNotes').value || '',
-                    household: householdValue()
+                    household: await householdValue()
                 })
             });
 

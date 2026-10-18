@@ -65,11 +65,15 @@ skipped; it's an error only if none have one.
 ## Defaults
 `appointment_types.yaml` gains `default_household`. The scheduler shows a
 "Whole household - David and Lisa Smith" checkbox only when the picked
-member's household has two or more heads, and starts it checked when:
+member is one of two or more heads, and starts it checked when:
 - `default_household: true` (Family) - always.
-- `default_household: active_heads` (Tithing) - the picked member is a head
-  and every head is active, so an inactive spouse or a single member leaves it
-  off.
+- `default_household: active_heads` (Tithing) - every head is active, so an
+  inactive spouse leaves it off.
+
+Only a head books for the household. An appointment picked through a child is
+the child's - named for the child, with the `_parent` texts going to every
+parent with a phone - and a household appointment whose household is down to
+one head becomes that member's own.
 
 ## Build order (one commit each)
 1. Pronoun tokens and the three template fixes, with tests
