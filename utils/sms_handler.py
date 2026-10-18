@@ -220,7 +220,11 @@ def send_sms_intent(phone_number: str, message: str) -> bool:
 
 def _open_with_termux_am(phone_number: str, message: str) -> bool:
     """
-    Fire the SENDTO intent directly with termux-am.
+    Fire the SENDTO intent directly with termux-am, falling back to plain am.
+
+    termux-am is fast but needs the Termux app's am socket server; when that
+    can't be reached ("Could not connect to socket"), plain am still works - it
+    starts its own app_process, which takes a second or two longer.
 
     Needs the Termux:API app, and Termux allowed to display over other apps -
     without that, Android silently refuses to open an activity while another
@@ -228,27 +232,29 @@ def _open_with_termux_am(phone_number: str, message: str) -> bool:
     """
     env = dict(os.environ)
     env['PATH'] = f"{TERMUX_BIN}:{env.get('PATH', '')}"
-    cmd = [
-        f"{TERMUX_BIN}/termux-am", 'start',
+    args = [
+        'start',
         '-a', 'android.intent.action.SENDTO',
         '-d', f"smsto:{phone_number}",
         '--es', 'sms_body', message,
     ]
 
-    try:
-        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=15)
-    except (OSError, subprocess.TimeoutExpired) as e:
-        print(f"ERROR: Failed to run termux-am: {e}")
-        return False
+    for am in ('termux-am', 'am'):
+        try:
+            result = subprocess.run([f"{TERMUX_BIN}/{am}"] + args, env=env,
+                                    capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            print(f"ERROR: Failed to run {am}: {e}")
+            continue
 
-    # am reports some failures ("Error: Activity not started ...") on stdout
-    # with a zero exit status, so check the output as well.
-    output = (result.stdout + result.stderr).strip()
-    if result.returncode != 0 or 'Error' in output:
-        print(f"ERROR: termux-am failed (exit {result.returncode}): {output}")
-        return False
+        # am reports some failures ("Error: Activity not started ...") on
+        # stdout with a zero exit status, so check the output as well.
+        output = (result.stdout + result.stderr).strip()
+        if result.returncode == 0 and 'Error' not in output:
+            return True
+        print(f"ERROR: {am} failed (exit {result.returncode}): {output}")
 
-    return True
+    return False
 
 
 def _queue_for_tasker(phone_number: str, message: str) -> bool:
