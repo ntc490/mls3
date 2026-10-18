@@ -156,9 +156,8 @@
     // Create new assignment
     async function createAssignment(prayerType) {
         // Check if trying to create for a past date
-        const targetDate = new Date(targetSunday);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const targetDate = parseDate(targetSunday);
+        const today = wardToday();
 
         if (targetDate < today) {
             alert('Cannot create prayer assignments for past weeks. Please use current or future dates.');

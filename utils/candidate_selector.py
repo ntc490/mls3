@@ -6,6 +6,7 @@ Implements fair rotation logic for selecting next prayer candidates.
 from datetime import date
 from typing import List, Optional
 import random
+import config
 from models import Member, MemberDatabase, PrayerAssignmentDatabase
 
 
@@ -32,7 +33,7 @@ def get_next_candidates(
     Returns:
         List of Member objects (up to count)
     """
-    today = date.today()
+    today = config.ward_today()
 
     # Get all active members of specified gender who are prayer eligible (8+ years old)
     eligible = [

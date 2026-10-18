@@ -17,14 +17,14 @@ function initEventsPage() {
         document.getElementById('dateFrom').value = fromDate;
     } else {
         // Default to today
-        document.getElementById('dateFrom').value = formatDate(new Date());
+        document.getElementById('dateFrom').value = formatDate(wardToday());
     }
 
     if (toDate) {
         document.getElementById('dateTo').value = toDate;
     } else {
         // Default to 30 days from now
-        const thirtyDaysLater = new Date();
+        const thirtyDaysLater = wardToday();
         thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
         document.getElementById('dateTo').value = formatDate(thirtyDaysLater);
     }
@@ -132,7 +132,7 @@ function applyDateFilter() {
  * Apply quick filter preset
  */
 function applyQuickFilter(range) {
-    const today = new Date();
+    const today = wardToday();
     let fromDate, toDate;
 
     switch (range) {

@@ -363,9 +363,8 @@ async function setMemberFlag(flag) {
 function updateSkipUntilDisplay(skip_until) {
     const skipUntilEl = document.getElementById('modalSkipUntil');
     if (skip_until) {
-        const skipDate = new Date(skip_until);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time for comparison
+        const skipDate = parseDate(skip_until);
+        const today = wardToday();
 
         if (skipDate > today) {
             skipUntilEl.textContent = skipDate.toLocaleDateString();
@@ -519,9 +518,9 @@ function closeSkipDialog() {
 async function setSkipUntilFromDialog(months) {
     if (!currentMemberId) return;
 
-    const today = new Date();
-    const skipDate = new Date(today.setMonth(today.getMonth() + months));
-    const skipDateStr = skipDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const skipDate = wardToday();
+    skipDate.setMonth(skipDate.getMonth() + months);
+    const skipDateStr = toDateString(skipDate);
 
     try {
         const response = await fetch(`/api/members/${currentMemberId}/skip-until`, {
@@ -574,7 +573,7 @@ async function setCustomSkipDate() {
         const result = await response.json();
         updateSkipUntilDisplay(result.skip_until);
         memberDataDirty = true;
-        const skipDate = new Date(skipDateStr);
+        const skipDate = parseDate(skipDateStr);
         showToast(`Member skipped until ${skipDate.toLocaleDateString()}`);
         closeSkipDialog();
 

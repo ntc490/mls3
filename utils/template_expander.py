@@ -7,6 +7,8 @@ import random
 from datetime import date
 from typing import Optional, Dict, Any, List
 
+import config
+
 
 def _join(items: List[str], last_sep: str = ' and ') -> str:
     """'A', 'A and B', 'A, B and C'"""
@@ -173,7 +175,6 @@ class SmartTemplateExpander:
         matches the time shown alongside it. Prayer assignments store a plain
         date and are used as-is.
         """
-        import config
 
         if hasattr(appointment, 'datetime_local'):
             return appointment.datetime_local(config.HOME_TIMEZONE).date()
@@ -185,7 +186,7 @@ class SmartTemplateExpander:
             return ""
 
         appt_date = self._appointment_date(appointment)
-        today = date.today()
+        today = config.ward_today()
         delta = (appt_date - today).days
 
         if delta == 0:
@@ -228,7 +229,6 @@ class SmartTemplateExpander:
 
     def _apply_transform(self, var_name: str, transform: str, people, appointment, extra_vars: Dict) -> str:
         """Apply named transform to variable"""
-        import config
 
         # Name transforms
         if var_name == "name":
@@ -271,7 +271,6 @@ class SmartTemplateExpander:
 
     def _expand_simple_variables(self, text: str, member, people, appointment, extra_vars: Dict) -> str:
         """Expand {simple_variable} using standard substitution"""
-        import config
 
         # Build context dictionary
         context = {

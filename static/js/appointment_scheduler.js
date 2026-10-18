@@ -12,12 +12,6 @@ let appointmentId = null;
 let isEditMode = false;
 let isDirty = false; // Track if appointment details have been modified
 
-/**
- * Get browser's current timezone
- */
-function getBrowserTimezone() {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
 
 /**
  * Initialize the appointment scheduler page
@@ -115,7 +109,7 @@ async function initAppointmentScheduler() {
  * Get next Sunday date in YYYY-MM-DD format
  */
 function getNextSunday() {
-    const today = new Date();
+    const today = wardNow();
     const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
     // If today is Sunday, check the time
@@ -705,7 +699,7 @@ async function loadAppointmentsForDate(date) {
  * Display appointments in the sidebar
  */
 function displayAppointments(appointments, date) {
-    const displayDate = new Date(date + 'T00:00:00');
+    const displayDate = parseDate(date);
     const formattedDate = displayDate.toLocaleDateString('en-US', {
         month: 'long',
         day: 'numeric',
@@ -963,7 +957,6 @@ async function updateAppointment() {
         time: time,
         duration_minutes: parseInt(duration),
         conductor: selectedConductor,
-        timezone: getBrowserTimezone(),
         notes: notes || '',  // Send empty string instead of null so backend knows to clear it
         household: await householdValue()
     };
@@ -1208,7 +1201,6 @@ async function saveAppointment(initialState) {
                     time: time,
                     duration_minutes: parseInt(duration),
                     conductor: selectedConductor,
-                    timezone: getBrowserTimezone(),
                     notes: document.getElementById('appointmentNotes').value || '',
                     household: await householdValue()
                 })
@@ -1247,7 +1239,6 @@ async function saveAppointment(initialState) {
                     time: time,
                     duration_minutes: parseInt(duration),
                     conductor: selectedConductor,
-                    timezone: getBrowserTimezone(),
                     notes: document.getElementById('appointmentNotes').value || '',
                     household: await householdValue()
                 })

@@ -86,7 +86,7 @@ def guard_damaged_data():
 # Context processor to make version available in all templates
 @app.context_processor
 def inject_version():
-    return {'app_version': get_version()}
+    return {'app_version': get_version(), 'ward_timezone': config.HOME_TIMEZONE}
 
 # Print debug mode status on startup
 print(f"\n{'='*60}")
@@ -171,7 +171,7 @@ def sync_appointment_to_calendar(appointment, old_conductor=None):
 def get_next_sunday(from_date: date = None) -> date:
     """Get the next Sunday from a given date (or today)"""
     if from_date is None:
-        from_date = date.today()
+        from_date = config.ward_today()
 
     days_ahead = 6 - from_date.weekday()  # Sunday is 6
     if days_ahead <= 0:  # Target day already happened this week
@@ -195,7 +195,7 @@ def index():
     from collections import defaultdict
 
     # Get events for current week only
-    today = date.today()
+    today = config.ward_today()
 
     # Determine the target Sunday based on what day it is
     if today.weekday() == 6:  # Sunday (0=Monday, 6=Sunday)
@@ -294,7 +294,7 @@ def events():
     date_to_str = request.args.get('to')
 
     # Default to next 30 days if no params
-    today = date.today()
+    today = config.ward_today()
     if date_from_str:
         try:
             date_from = datetime.strptime(date_from_str, config.DATE_FORMAT).date()
@@ -385,7 +385,7 @@ def members_list():
             return None
         try:
             birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
-            today = date.today()
+            today = config.ward_today()
             return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
         except ValueError:
             return None
@@ -489,7 +489,7 @@ def api_members_search():
             return None
         try:
             birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
-            today = date.today()
+            today = config.ward_today()
             return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
         except ValueError:
             return None
@@ -525,7 +525,7 @@ def api_candidates(gender):
             return None
         try:
             birth_date = datetime.strptime(birthday_str, '%Y-%m-%d').date()
-            today = date.today()
+            today = config.ward_today()
             return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
         except ValueError:
             return None
@@ -650,7 +650,7 @@ def api_decline_assignment(assignment_id):
     if member_id and member_id > 0:
         # Set skip_until to 2 weeks from now
         from datetime import timedelta
-        skip_until_date = date.today() + timedelta(weeks=2)
+        skip_until_date = config.ward_today() + timedelta(weeks=2)
         skip_until_str = skip_until_date.strftime(config.DATE_FORMAT)
 
         # Update member's skip_until
@@ -777,7 +777,7 @@ def api_get_member(member_id):
     if member.birthday:
         try:
             birth_date = datetime.strptime(member.birthday, '%Y-%m-%d').date()
-            today = date.today()
+            today = config.ward_today()
             age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
         except ValueError:
             pass
@@ -1060,7 +1060,7 @@ def api_get_household(household_id):
         if member.birthday:
             try:
                 birth_date = datetime.strptime(member.birthday, '%Y-%m-%d').date()
-                today = date.today()
+                today = config.ward_today()
                 age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
             except ValueError:
                 pass
@@ -1321,7 +1321,6 @@ def create_appointment():
     time_str = data.get('time')
     duration_minutes = data.get('duration_minutes')
     conductor = data.get('conductor')
-    timezone = data.get('timezone')  # Browser's detected timezone
     notes = data.get('notes')  # Optional notes
     household = parse_bool(data.get('household'))  # For the member's household heads
 
@@ -1340,7 +1339,6 @@ def create_appointment():
         time=time_str,
         duration_minutes=int(duration_minutes),
         conductor=conductor,
-        timezone=timezone,
         notes=notes,
         household=household
     )
@@ -1363,7 +1361,6 @@ def update_appointment(appointment_id):
     time_str = data.get('time')
     duration_minutes = data.get('duration_minutes')
     conductor = data.get('conductor')
-    timezone = data.get('timezone')  # Browser's detected timezone
     notes = data.get('notes')  # Optional notes
     household = data.get('household')  # None leaves it unchanged
     if household is not None:
@@ -1387,7 +1384,6 @@ def update_appointment(appointment_id):
         time=time_str,
         duration_minutes=int(duration_minutes) if duration_minutes is not None else None,
         conductor=conductor,
-        timezone=timezone,
         notes=notes,
         household=household
     )

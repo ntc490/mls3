@@ -334,6 +334,7 @@ Edit `config.py` or use environment variables:
 
 ### General Settings
 - `MLS3_DATA_DIR` - Path to data directory (default: `./data`)
+- `MLS3_TIMEZONE` - The ward's timezone: the UI and texts always show times here, wherever the phone is (default: `America/Denver`)
 - `FLASK_DEBUG` - Enable debug mode (default: `True`)
 - `FLASK_HOST` - Host address (default: `127.0.0.1`)
 - `FLASK_PORT` - Port number (default: `5000`)

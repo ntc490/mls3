@@ -2,7 +2,9 @@
 MLS3 Configuration
 """
 import os
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 # Base directory of the application
 BASE_DIR = Path(__file__).parent
@@ -30,7 +32,21 @@ APPOINTMENTS_CSV = DATA_DIR / 'appointments.csv'
 NEXT_CANDIDATE_COUNT = 3  # Number of next-up candidates to show per gender
 DATE_FORMAT = '%Y-%m-%d'  # ISO format for CSV storage
 DISPLAY_DATE_FORMAT = '%B %d, %Y'  # "February 9, 2026" for display
-HOME_TIMEZONE = 'America/Denver'  # US Mountain Time - used for migrating legacy appointment times
+# The ward's timezone. The UI and text messages always show times here, and
+# times typed into the scheduler are read as ward time - wherever the phone is.
+# Calendar events carry it too, so Google shows them in each viewer's own zone.
+# Set MLS3_TIMEZONE to an IANA name (e.g. America/Phoenix) for another ward.
+HOME_TIMEZONE = os.getenv('MLS3_TIMEZONE', 'America/Denver')
+
+
+def ward_now() -> datetime:
+    """The current time in the ward's timezone (timezone-aware)"""
+    return datetime.now(ZoneInfo(HOME_TIMEZONE))
+
+
+def ward_today() -> date:
+    """Today's date in the ward - not the phone's, which may be elsewhere"""
+    return ward_now().date()
 
 # SMS Configuration
 # Set MLS3_DEBUG_SMS=true to print debug messages when sending SMS

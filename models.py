@@ -271,7 +271,7 @@ class Member:
             return None
         try:
             birth_date = datetime.strptime(self.birthday, '%Y-%m-%d').date()
-            today = date.today()
+            today = config.ward_today()
             age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
             return age
         except ValueError:
@@ -970,7 +970,7 @@ class PrayerAssignmentDatabase:
         prayer_type is used if it is still free that Sunday; otherwise (or if
         not given) the assignment gets the type the Sunday still needs.
         """
-        now = datetime.now().strftime(config.DATE_FORMAT)
+        now = config.ward_today().strftime(config.DATE_FORMAT)
         date_str = date.strftime(config.DATE_FORMAT)
         needed = self.prayer_type_for_new_slot(date_str)
         taken = any(a.date == date_str and a.prayer_type == prayer_type
@@ -995,10 +995,10 @@ class PrayerAssignmentDatabase:
         assignment = self.get_by_id(assignment_id)
         if assignment:
             assignment.state = new_state
-            assignment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
+            assignment.last_updated = config.ward_today().strftime(config.DATE_FORMAT)
 
             if new_state == "Completed":
-                assignment.completed_date = datetime.now().strftime(config.DATE_FORMAT)
+                assignment.completed_date = config.ward_today().strftime(config.DATE_FORMAT)
 
             self.save()
 
@@ -1030,7 +1030,7 @@ class PrayerAssignmentDatabase:
                        for a in self.assignments):
                     assignment.prayer_type = opposite_prayer_type(assignment.prayer_type)
 
-            assignment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
+            assignment.last_updated = config.ward_today().strftime(config.DATE_FORMAT)
             self.save()
 
 
@@ -1290,7 +1290,7 @@ class AppointmentDatabase:
         # Format as ISO 8601 with Z suffix
         datetime_utc_str = utc_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
 
-        now = datetime.now().strftime(config.DATE_FORMAT)
+        now = config.ward_today().strftime(config.DATE_FORMAT)
         appointment = Appointment(
             appointment_id=self.get_next_id(),
             member_id=member_id,
@@ -1313,10 +1313,10 @@ class AppointmentDatabase:
         appointment = self.get_by_id(appointment_id)
         if appointment:
             appointment.state = new_state
-            appointment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
+            appointment.last_updated = config.ward_today().strftime(config.DATE_FORMAT)
 
             if new_state == "Completed":
-                appointment.completed_date = datetime.now().strftime(config.DATE_FORMAT)
+                appointment.completed_date = config.ward_today().strftime(config.DATE_FORMAT)
 
             self.save()
 
@@ -1362,7 +1362,9 @@ class AppointmentDatabase:
 
                 # Get current values if not updating
                 if date is None:
-                    date = appointment.date_obj
+                    # The local date - the UTC one is already tomorrow for an
+                    # evening appointment
+                    date = appointment.datetime_local(timezone).date()
                 if time is None:
                     # Extract LOCAL time from current datetime (not UTC time!)
                     current_local = appointment.datetime_local(timezone)
@@ -1391,5 +1393,5 @@ class AppointmentDatabase:
             if household is not None:
                 appointment.household = household
 
-            appointment.last_updated = datetime.now().strftime(config.DATE_FORMAT)
+            appointment.last_updated = config.ward_today().strftime(config.DATE_FORMAT)
             self.save()
